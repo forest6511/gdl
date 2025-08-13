@@ -1,3 +1,5 @@
 # Act configuration
 --container-architecture linux/amd64
 --artifact-server-path /tmp/artifacts
+# Use a more complete image that includes Node.js
+-P ubuntu-latest=nektos/act-environments-ubuntu:18.04

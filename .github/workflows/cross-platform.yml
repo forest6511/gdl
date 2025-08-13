@@ -69,17 +69,16 @@ jobs:
         shell: bash
         run: |
           echo "🧪 Running tests on ${{ matrix.os }} with Go ${{ matrix.go-version }}"
-          go test -v -race ./... 2>&1 | tee test-output.log
-          
-          if [ $? -ne 0 ]; then
+          set -o pipefail
+          if go test -v -race ./... 2>&1 | tee test-output.log; then
+            echo "✅ All tests passed on ${{ matrix.os }} with Go ${{ matrix.go-version }}"
+          else
             echo "❌ Tests failed on ${{ matrix.os }}"
             echo "## ❌ Test Failure: ${{ matrix.os }} / Go ${{ matrix.go-version }}" >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
             grep -E "FAIL|--- FAIL|panic:" test-output.log | head -20 >> $GITHUB_STEP_SUMMARY || echo "Could not extract failure details" >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
             exit 1
-          else
-            echo "✅ All tests passed on ${{ matrix.os }} with Go ${{ matrix.go-version }}"
           fi
 
       - name: Build binary

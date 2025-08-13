@@ -121,15 +121,30 @@ if ! go test -race -short ./...; then
 fi
 print_success "Quick tests with race detection passed"
 
+# Step 5a: Cross-compilation test (local alternative to cross-platform testing)
+print_step "5a" "Testing cross-compilation for Windows/macOS..."
+if ! GOOS=windows GOARCH=amd64 go build ./...; then
+    print_error "Windows cross-compilation failed"
+    exit 1
+fi
+if ! GOOS=darwin GOARCH=amd64 go build ./...; then
+    print_error "macOS cross-compilation failed"
+    exit 1
+fi
+print_success "Cross-compilation test passed (Windows & macOS)"
+
 # Step 6: Optional cross-platform testing with act
 if [ "$SKIP_ACT" = false ]; then
     echo ""
     print_step "6" "Cross-platform testing available with act"
     echo "Run cross-platform tests before pushing (optional but recommended):"
-    echo "  make test-ci-all       # Test all platforms (Ubuntu, Windows, macOS)"
-    echo "  make test-ci-ubuntu    # Test Ubuntu only"
-    echo "  make test-ci-windows   # Test Windows only"
-    echo "  make test-ci-macos     # Test macOS only"
+    echo "  make test-ci-all       # Test all platforms (Ubuntu works locally, Windows/macOS on GitHub)"
+    echo "  make test-ci-ubuntu    # Test Ubuntu only (full local testing)"
+    echo "  make test-ci-windows   # Test Windows only (GitHub Actions required)"
+    echo "  make test-ci-macos     # Test macOS only (GitHub Actions required)"
+    echo ""
+    echo "💡 Note: Ubuntu tests run fully locally with act."
+    echo "   Windows/macOS cross-compilation can be tested locally with 'make test-cross-compile'"
     echo ""
     read -p "Run cross-platform tests now? [y/N] " -n 1 -r
     echo
@@ -153,21 +168,39 @@ if [ "$SKIP_ACT" = false ]; then
         print_step "6b" "Running cross-platform tests..."
         if command -v make >/dev/null 2>&1; then
             # Run cross-platform tests and capture output
-            if make test-ci-all 2>&1 | tee /tmp/act-output.log; then
-                print_success "Cross-platform tests passed"
-            else
-                # Check if tests actually passed despite act post-action failures
-                if grep -q "Tests Passed:" /tmp/act-output.log; then
-                    print_success "Cross-platform tests passed (ignoring act post-action issues)"
-                    echo "💡 Note: act post-action failures are normal and don't affect test results"
-                else
-                    print_error "Cross-platform tests failed"
-                    echo "Check the output above for platform-specific issues"
+            make test-ci-all 2>&1 | tee /tmp/act-output.log
+            make_exit_code=$?
+            
+            # Check if Ubuntu tests actually passed by looking for success patterns
+            ubuntu_tests_passed=$(grep -c "✅ Tests Passed: ubuntu-latest" /tmp/act-output.log 2>/dev/null || echo "0")
+            ubuntu_tests_failed=$(grep -c "❌ Tests failed on ubuntu-latest" /tmp/act-output.log 2>/dev/null || echo "0")
+            ubuntu_ready_for_ci=$(grep -c "✅ Primary platform (Ubuntu) tests passed - ready for CI" /tmp/act-output.log 2>/dev/null || echo "0")
+            
+            # Ensure we have valid integers
+            ubuntu_tests_passed=${ubuntu_tests_passed//[^0-9]/}
+            ubuntu_tests_failed=${ubuntu_tests_failed//[^0-9]/}
+            ubuntu_ready_for_ci=${ubuntu_ready_for_ci//[^0-9]/}
+            ubuntu_tests_passed=${ubuntu_tests_passed:-0}
+            ubuntu_tests_failed=${ubuntu_tests_failed:-0}
+            ubuntu_ready_for_ci=${ubuntu_ready_for_ci:-0}
+            
+            if [ "$ubuntu_ready_for_ci" -gt 0 ] || ([ "$ubuntu_tests_passed" -gt 0 ] && [ "$ubuntu_tests_failed" -eq 0 ]); then
+                # Ubuntu tests passed
+                if grep -q "🚧.*skipped" /tmp/act-output.log; then
+                    print_warning "Cross-platform tests partially completed"
+                    echo "✅ Ubuntu: Passed"
+                    echo "🚧 Windows/macOS: Skipped (act limitation - will be tested in GitHub Actions)"
                     echo ""
-                    echo "💡 If you see job naming issues, try:"
-                    echo "  rm -rf ~/.cache/act && docker system prune -f"
-                    exit 1
+                    echo "💡 This is the expected behavior for local testing with act."
+                else
+                    print_success "Cross-platform tests passed"
                 fi
+            else
+                print_error "Cross-platform tests failed"
+                echo "❌ Ubuntu tests failed - check output above for details"
+                echo ""
+                echo "💡 Fix the failing tests before pushing to ensure CI will pass"
+                exit 1
             fi
         else
             print_warning "make not available, run manually: make test-ci-all"

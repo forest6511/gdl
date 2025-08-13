@@ -68,6 +68,16 @@ func (pr *PluginRegistry) List(ctx context.Context) ([]*PluginInfo, error) {
 
 // Install installs a plugin from a source (URL, local path, or package name)
 func (pr *PluginRegistry) Install(ctx context.Context, source, name string) error {
+	// Check if plugin already exists first
+	config, err := pr.loadConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load plugin config: %w", err)
+	}
+
+	if _, exists := config.Plugins[name]; exists {
+		return fmt.Errorf("plugin '%s' already exists", name)
+	}
+
 	// Ensure plugin directory exists
 	if err := os.MkdirAll(pr.pluginDir, 0750); err != nil {
 		return fmt.Errorf("failed to create plugin directory: %w", err)
@@ -104,11 +114,6 @@ func (pr *PluginRegistry) Install(ctx context.Context, source, name string) erro
 	}
 
 	// Update configuration
-	config, err := pr.loadConfig()
-	if err != nil {
-		return fmt.Errorf("failed to load plugin config: %w", err)
-	}
-
 	config.Plugins[name] = pluginInfo
 
 	if err := pr.saveConfig(config); err != nil {
@@ -259,11 +264,11 @@ func (pr *PluginRegistry) downloadPlugin(ctx context.Context, source, destinatio
 	if strings.HasPrefix(source, "http://") || strings.HasPrefix(source, "https://") {
 		// URL download
 		return pr.downloadFromURL(ctx, source, destination)
-	} else if strings.Contains(source, "/") {
-		// GitHub or similar path
+	} else if strings.Contains(source, "/") && !filepath.IsAbs(source) && !strings.HasPrefix(source, ".") {
+		// GitHub-style path (user/repo format, not absolute or relative paths)
 		return pr.downloadFromGitHub(ctx, source, destination)
 	} else {
-		// Local file path
+		// Local file path (absolute, relative, or simple filename)
 		return pr.copyLocalFile(source, destination)
 	}
 }
