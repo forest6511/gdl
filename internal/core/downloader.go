@@ -196,7 +196,14 @@ func (d *Downloader) findExistingParentDir(destination string) (string, error) {
 	diskCheckPath := destination
 	for {
 		parent := filepath.Dir(diskCheckPath)
-		if parent == diskCheckPath || parent == "." || parent == "/" {
+		// Check for root directory on all platforms
+		if parent == diskCheckPath {
+			return ".", nil
+		}
+
+		// On Windows, check for drive root (e.g., "C:\")
+		// On Unix-like systems, check for root "/"
+		if parent == "." || parent == "/" || filepath.VolumeName(parent) == parent {
 			return ".", nil
 		}
 
