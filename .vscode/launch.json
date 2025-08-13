@@ -1,0 +1,89 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch CLI",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/cmd/godl",
+      "args": ["--help"],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Launch CLI with custom args",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/cmd/godl",
+      "args": ["${input:cliArgs}"],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Debug Current Test",
+      "type": "go",
+      "request": "launch",
+      "mode": "test",
+      "program": "${fileDirname}",
+      "args": ["-test.run", "${input:testName}"],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Debug All Tests in Package",
+      "type": "go",
+      "request": "launch",
+      "mode": "test",
+      "program": "${fileDirname}",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Debug Example",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/examples/${input:exampleDir}",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/examples/${input:exampleDir}"
+    },
+    {
+      "name": "Attach to Process",
+      "type": "go",
+      "request": "attach",
+      "mode": "local",
+      "processId": "${command:pickProcess}"
+    }
+  ],
+  "inputs": [
+    {
+      "id": "cliArgs",
+      "description": "CLI arguments",
+      "default": "--help",
+      "type": "promptString"
+    },
+    {
+      "id": "testName",
+      "description": "Test function name",
+      "default": "TestDownload",
+      "type": "promptString"
+    },
+    {
+      "id": "exampleDir",
+      "description": "Example directory name",
+      "default": "01_basic_download",
+      "type": "pickString",
+      "options": [
+        "01_basic_download",
+        "02_concurrent_download",
+        "03_progress_tracking",
+        "04_resume_functionality",
+        "05_error_handling",
+        "library_api",
+        "integration"
+      ]
+    }
+  ]
+}
