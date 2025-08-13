@@ -144,6 +144,76 @@ fix-and-commit: ## Fix formatting and create a commit if needed
 		echo "✅ No formatting issues found"; \
 	fi
 
+# Local CI testing with act
+test-ci-local: ## Run GitHub Actions locally with act (requires: brew install act)
+	@echo "🐳 Running GitHub Actions locally with act..."
+	@if ! command -v act >/dev/null 2>&1; then \
+		echo "❌ act not found. Install with: brew install act"; \
+		exit 1; \
+	fi
+	act -j cross-platform --matrix os:ubuntu-latest --matrix go-version:1.24
+
+test-ci-windows: ## Test Windows CI locally with act
+	@echo "🪟 Testing Windows CI locally..."
+	@if ! command -v act >/dev/null 2>&1; then \
+		echo "❌ act not found. Install with: brew install act"; \
+		exit 1; \
+	fi
+	@echo "🧹 Clearing act cache..."
+	@rm -rf ~/.cache/act || true
+	@echo "🐳 Cleaning up act containers..."
+	@docker ps -aq --filter "name=act-" | xargs -r docker rm -f || true
+	act workflow_dispatch -W .github/workflows/cross-platform.yml --matrix os:windows-latest --matrix go-version:1.23 --container-architecture linux/amd64
+
+test-ci-macos: ## Test macOS CI locally with act  
+	@echo "🍎 Testing macOS CI locally..."
+	@if ! command -v act >/dev/null 2>&1; then \
+		echo "❌ act not found. Install with: brew install act"; \
+		exit 1; \
+	fi
+	@echo "🧹 Clearing act cache..."
+	@rm -rf ~/.cache/act || true
+	@echo "🐳 Cleaning up act containers..."
+	@docker ps -aq --filter "name=act-" | xargs -r docker rm -f || true
+	act workflow_dispatch -W .github/workflows/cross-platform.yml --matrix os:macos-latest --matrix go-version:1.23 --container-architecture linux/amd64
+
+test-ci-ubuntu: ## Test Ubuntu CI locally with act
+	@echo "🐧 Testing Ubuntu CI locally..."
+	@if ! command -v act >/dev/null 2>&1; then \
+		echo "❌ act not found. Install with: brew install act"; \
+		exit 1; \
+	fi
+	@echo "🧹 Clearing act cache..."
+	@rm -rf ~/.cache/act || true
+	@echo "🐳 Cleaning up act containers..."
+	@docker ps -aq --filter "name=act-" | xargs -r docker rm -f || true
+	act workflow_dispatch -W .github/workflows/cross-platform.yml --matrix os:ubuntu-latest --matrix go-version:1.24 --container-architecture linux/amd64
+
+test-ci-all: ## Test all platforms (Ubuntu, Windows, macOS) locally with act
+	@echo "🌍 Testing all platforms locally with act..."
+	@if ! command -v act >/dev/null 2>&1; then \
+		echo "❌ act not found. Install with: brew install act"; \
+		echo "📝 Install with: brew install act"; \
+		exit 1; \
+	fi
+	@echo "🧹 Clearing act cache for fresh execution..."
+	@rm -rf ~/.cache/act || true
+	@echo "🐳 Cleaning up act containers..."
+	@docker ps -aq --filter "name=act-" | xargs -r docker rm -f || true
+	@echo "1️⃣ Testing Ubuntu (cross-platform workflow)..."
+	act workflow_dispatch -W .github/workflows/cross-platform.yml --matrix os:ubuntu-latest --matrix go-version:1.24 --container-architecture linux/amd64
+	@echo "2️⃣ Testing Windows (cross-platform workflow)..."
+	act workflow_dispatch -W .github/workflows/cross-platform.yml --matrix os:windows-latest --matrix go-version:1.23 --container-architecture linux/amd64
+	@echo "3️⃣ Testing macOS (cross-platform workflow)..."
+	act workflow_dispatch -W .github/workflows/cross-platform.yml --matrix os:macos-latest --matrix go-version:1.23 --container-architecture linux/amd64
+	@echo "✅ All platform tests completed!"
+
+test-cross-compile: ## Quick cross-compilation test for Windows
+	@echo "🔄 Testing cross-compilation for Windows..."
+	GOOS=windows GOARCH=amd64 go build ./...
+	GOOS=windows GOARCH=amd64 go test -c ./pkg/plugin/...
+	@echo "✅ Cross-compilation successful"
+
 ci-vet: ## Run go vet exactly like CI
 	@echo "🔍 Running go vet (CI equivalent)..."
 	go vet $$(go list ./... | grep -v '/examples/')

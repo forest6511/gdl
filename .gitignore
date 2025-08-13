@@ -17,6 +17,7 @@ dist/
 coverage.txt
 coverage.html
 coverage*
+*.txt
 
 # Dependency directories
 vendor/

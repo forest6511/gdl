@@ -19,7 +19,7 @@ permissions:
 jobs:
   # Unit tests with coverage - split by package for better parallelization
   test:
-    name: Unit Tests
+    name: ${{ matrix.test-group.name }}
     strategy:
       fail-fast: false
       matrix:

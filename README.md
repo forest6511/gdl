@@ -306,11 +306,13 @@ For the complete project structure, see [Directory Structure](docs/DIRECTORY_STR
 
 The project includes comprehensive testing:
 
+### Quick Development Testing
+
 ```bash
-# Run all tests
+# Run all tests (basic development)
 go test ./...
 
-# Run tests with race detection  
+# Run tests with race detection (recommended)
 go test -race ./...
 
 # Run with coverage
@@ -319,6 +321,40 @@ go test -coverprofile=coverage.out ./...
 # Run benchmarks
 go test -bench=. ./...
 ```
+
+### Pre-Push Validation (Recommended)
+
+```bash
+# Complete local CI validation (recommended before pushing)
+./scripts/local-ci-check.sh
+
+# OR use Makefile targets
+make pre-push           # Format + all CI checks
+make ci-check          # All CI checks without formatting
+```
+
+### Cross-Platform Testing
+
+```bash
+# Test all platforms locally (requires: brew install act)
+make test-ci-all       # Ubuntu + Windows + macOS
+make test-ci-ubuntu    # Ubuntu only
+make test-ci-windows   # Windows only  
+make test-ci-macos     # macOS only
+
+# Quick cross-compilation check
+make test-cross-compile
+```
+
+### When to Use What
+
+| Purpose | Command | Use Case |
+|---------|---------|----------|
+| **Development** | `go test ./...` | Quick feedback during coding |
+| **Safety Check** | `go test -race ./...` | Detect race conditions |
+| **Before Push** | `./scripts/local-ci-check.sh` | Full CI validation |
+| **Cross-Platform** | `make test-ci-all` | Test Windows/macOS compatibility |
+| **Coverage** | `go test -coverprofile=...` | Coverage analysis |
 
 ### Test Coverage
 - **Unit tests**: All packages have >90% coverage
@@ -343,6 +379,9 @@ go mod download
 
 # Install golangci-lint (if not already installed)
 go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
+# Install act for local CI testing (optional but recommended)
+brew install act
 
 # Verify everything works (CI equivalent check)
 make ci-check
@@ -380,8 +419,17 @@ make pre-push        # Formats code AND runs all CI checks
 # Alternative: Run CI checks without formatting
 make ci-check        # All CI checks locally
 
+# Cross-platform testing with act (requires: brew install act)
+make test-ci-all     # Test Ubuntu, Windows, macOS locally
+make test-ci-ubuntu  # Test Ubuntu CI locally
+make test-ci-windows # Test Windows CI locally  
+make test-ci-macos   # Test macOS CI locally
+
 # Fix formatting issues automatically
 make fix-and-commit  # Auto-fix formatting and create commit if needed
+
+# Quick cross-compilation check
+make test-cross-compile  # Fast Windows/macOS build verification
 
 # Individual commands
 make ci-format       # Format code to CI standards
