@@ -83,40 +83,28 @@ const (
 
 // String returns the string representation of ActionType.
 func (at ActionType) String() string {
-	switch at {
-	case ActionRetryWithDelay:
-		return "retry_with_delay"
-	case ActionChangeUserAgent:
-		return "change_user_agent"
-	case ActionReduceConcurrency:
-		return "reduce_concurrency"
-	case ActionChangeTimeout:
-		return "change_timeout"
-	case ActionTryHTTP:
-		return "try_http"
-	case ActionCheckDiskSpace:
-		return "check_disk_space"
-	case ActionCheckNetworkConnectivity:
-		return "check_network"
-	case ActionTryMirrorURL:
-		return "try_mirror"
-	case ActionResumeDownload:
-		return "resume_download"
-	case ActionClearCache:
-		return "clear_cache"
-	case ActionChangeHeaders:
-		return "change_headers"
-	case ActionWaitAndRetry:
-		return "wait_and_retry"
-	case ActionCheckPermissions:
-		return "check_permissions"
-	case ActionTryDirectConnection:
-		return "try_direct"
-	case ActionRepairPartialFile:
-		return "repair_partial"
-	default:
-		return unknownValue
+	actionTypeNames := map[ActionType]string{
+		ActionRetryWithDelay:           "retry_with_delay",
+		ActionChangeUserAgent:          "change_user_agent",
+		ActionReduceConcurrency:        "reduce_concurrency",
+		ActionChangeTimeout:            "change_timeout",
+		ActionTryHTTP:                  "try_http",
+		ActionCheckDiskSpace:           "check_disk_space",
+		ActionCheckNetworkConnectivity: "check_network",
+		ActionTryMirrorURL:             "try_mirror",
+		ActionResumeDownload:           "resume_download",
+		ActionClearCache:               "clear_cache",
+		ActionChangeHeaders:            "change_headers",
+		ActionWaitAndRetry:             "wait_and_retry",
+		ActionCheckPermissions:         "check_permissions",
+		ActionTryDirectConnection:      "try_direct",
+		ActionRepairPartialFile:        "repair_partial",
 	}
+
+	if name, exists := actionTypeNames[at]; exists {
+		return name
+	}
+	return unknownValue
 }
 
 // ActionPriority represents the priority level of a recovery action.

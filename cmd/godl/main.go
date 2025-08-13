@@ -312,60 +312,56 @@ func createProgressCallback(quiet bool) func(bytesDownloaded, totalBytes int64, 
 	}
 }
 
-func displayEnhancedProgressBar(bytesDownloaded, totalBytes int64, speed int64, lastLine *string) {
-	percentage := float64(bytesDownloaded) / float64(totalBytes) * 100
-
-	// Clear the previous line
-	if *lastLine != "" {
-		fmt.Print("\r\033[K")
-	}
-
-	// Progress bar configuration
+func buildProgressBar(percentage float64) string {
 	barWidth := 30
 	filled := int(percentage / 100.0 * float64(barWidth))
-
-	// Build progress bar with Unicode blocks
 	bar := "["
 
 	for i := 0; i < barWidth; i++ {
 		if i < filled {
 			bar += "█"
 		} else if i == filled && percentage > 0 {
-			// Add partial blocks for more precision
-			remainder := (percentage / 100.0 * float64(barWidth)) - float64(filled)
-			if remainder >= 0.75 {
-				bar += "▊"
-			} else if remainder >= 0.5 {
-				bar += "▌"
-			} else if remainder >= 0.25 {
-				bar += "▎"
-			} else {
-				bar += "▏"
-			}
+			bar += getPartialBlock(percentage, barWidth, filled)
 		} else {
 			bar += " "
 		}
 	}
 
 	bar += "]"
+	return bar
+}
 
-	// Calculate ETA
-	eta := ""
+func getPartialBlock(percentage float64, barWidth, filled int) string {
+	remainder := (percentage / 100.0 * float64(barWidth)) - float64(filled)
+	if remainder >= 0.75 {
+		return "▊"
+	} else if remainder >= 0.5 {
+		return "▌"
+	} else if remainder >= 0.25 {
+		return "▎"
+	} else {
+		return "▏"
+	}
+}
 
-	if speed > 0 && totalBytes > bytesDownloaded {
-		remaining := totalBytes - bytesDownloaded
-
-		etaSeconds := remaining / speed
-		if etaSeconds < 60 {
-			eta = fmt.Sprintf(" ETA: %ds", etaSeconds)
-		} else if etaSeconds < 3600 {
-			eta = fmt.Sprintf(" ETA: %dm%ds", etaSeconds/60, etaSeconds%60)
-		} else {
-			eta = fmt.Sprintf(" ETA: %dh%dm", etaSeconds/3600, (etaSeconds%3600)/60)
-		}
+func calculateETA(speed, totalBytes, bytesDownloaded int64) string {
+	if speed <= 0 || totalBytes <= bytesDownloaded {
+		return ""
 	}
 
-	// Format the complete progress line
+	remaining := totalBytes - bytesDownloaded
+	etaSeconds := remaining / speed
+
+	if etaSeconds < 60 {
+		return fmt.Sprintf(" ETA: %ds", etaSeconds)
+	} else if etaSeconds < 3600 {
+		return fmt.Sprintf(" ETA: %dm%ds", etaSeconds/60, etaSeconds%60)
+	} else {
+		return fmt.Sprintf(" ETA: %dh%dm", etaSeconds/3600, (etaSeconds%3600)/60)
+	}
+}
+
+func buildProgressLine(bar string, percentage float64, bytesDownloaded, totalBytes, speed int64, eta string) string {
 	progress := fmt.Sprintf("%s %.1f%% %s/%s",
 		bar, percentage, formatBytes(bytesDownloaded), formatBytes(totalBytes))
 
@@ -374,15 +370,38 @@ func displayEnhancedProgressBar(bytesDownloaded, totalBytes int64, speed int64, 
 	}
 
 	progress += eta
+	return progress
+}
+
+func addProgressColor(progress string, percentage float64) string {
+	if percentage >= 100 {
+		return "\033[32m" + progress + "\033[0m" // Green for complete
+	} else if percentage >= 75 {
+		return "\033[33m" + progress + "\033[0m" // Yellow for 75%+
+	} else {
+		return "\033[36m" + progress + "\033[0m" // Cyan for progress
+	}
+}
+
+func displayEnhancedProgressBar(bytesDownloaded, totalBytes int64, speed int64, lastLine *string) {
+	percentage := float64(bytesDownloaded) / float64(totalBytes) * 100
+
+	// Clear the previous line
+	if *lastLine != "" {
+		fmt.Print("\r\033[K")
+	}
+
+	// Build progress bar
+	bar := buildProgressBar(percentage)
+
+	// Calculate ETA
+	eta := calculateETA(speed, totalBytes, bytesDownloaded)
+
+	// Format the complete progress line
+	progress := buildProgressLine(bar, percentage, bytesDownloaded, totalBytes, speed, eta)
 
 	// Add color coding
-	if percentage >= 100 {
-		progress = "\033[32m" + progress + "\033[0m" // Green for complete
-	} else if percentage >= 75 {
-		progress = "\033[33m" + progress + "\033[0m" // Yellow for 75%+
-	} else {
-		progress = "\033[36m" + progress + "\033[0m" // Cyan for progress
-	}
+	progress = addProgressColor(progress, percentage)
 
 	fmt.Print("\r" + progress)
 	*lastLine = progress
@@ -433,6 +452,94 @@ func initializeFormatter(cfg *config) {
 }
 
 // performPreDownloadChecks runs connectivity and disk space checks.
+func performNetworkCheck(ctx context.Context, cfg *config) error {
+	stopAnimation := formatter.CreateLoadingAnimation("Checking network connectivity...")
+
+	diag := network.NewDiagnostics().WithTimeout(10 * time.Second)
+	health, err := diag.RunFullDiagnostics(ctx, &network.DiagnosticOptions{
+		IncludeBandwidth: false,
+		IncludeProxy:     true,
+		Verbose:          cfg.verbose,
+	})
+
+	stopAnimation()
+
+	if err != nil {
+		formatter.PrintMessage(ui.MessageWarning, "Network check failed: %v", err)
+		return err
+	}
+
+	statusMsg := formatter.FormatStatusIndicator(ui.StatusCompleted,
+		fmt.Sprintf("Network status: %s", health.OverallStatus))
+	fmt.Println(statusMsg)
+
+	if health.OverallStatus == network.HealthPoor || health.OverallStatus == network.HealthCritical {
+		if cfg.interactive {
+			proceed, err := formatter.ConfirmPrompt("Network conditions are poor. Continue anyway?", false)
+			if err != nil || !proceed {
+				return fmt.Errorf("download cancelled due to poor network conditions")
+			}
+		} else {
+			formatter.PrintMessage(ui.MessageWarning, "Poor network conditions detected")
+			return fmt.Errorf("poor network conditions")
+		}
+	}
+
+	return nil
+}
+
+func performDiskSpaceCheck(outputFile string, estimatedSize uint64, cfg *config) error {
+	checker := storage.NewSpaceChecker()
+	outputDir := filepath.Dir(outputFile)
+
+	if estimatedSize > 0 {
+		err := checker.CheckAvailableSpace(outputDir, estimatedSize)
+		if err != nil {
+			formatter.PrintMessage(ui.MessageWarning, "Disk space check: %v", err)
+
+			if cfg.interactive {
+				if err := handleDiskSpaceWarning(checker, outputDir); err != nil {
+					return err
+				}
+
+				proceed, err := formatter.ConfirmPrompt(
+					"Continue download despite disk space issues?",
+					false,
+				)
+				if err != nil || !proceed {
+					return fmt.Errorf("download cancelled due to insufficient disk space")
+				}
+			} else {
+				return fmt.Errorf("insufficient disk space")
+			}
+		} else {
+			formatter.PrintMessage(ui.MessageSuccess, "Sufficient disk space available")
+		}
+	}
+
+	return nil
+}
+
+func handleDiskSpaceWarning(checker *storage.SpaceChecker, outputDir string) error {
+	suggestions, err := checker.GenerateCleanupSuggestions([]string{outputDir})
+	if err == nil && len(suggestions) > 0 {
+		formatter.PrintMessage(
+			ui.MessageInfo,
+			"Found %d cleanup suggestions",
+			len(suggestions),
+		)
+
+		proceed, err := formatter.ConfirmPrompt(
+			"Would you like to see cleanup suggestions?",
+			true,
+		)
+		if err == nil && proceed {
+			showCleanupSuggestions(suggestions)
+		}
+	}
+	return nil
+}
+
 func performPreDownloadChecks(
 	ctx context.Context,
 	cfg *config,
@@ -447,81 +554,15 @@ func performPreDownloadChecks(
 
 	// Network connectivity check
 	if cfg.checkConnectivity {
-		stopAnimation := formatter.CreateLoadingAnimation("Checking network connectivity...")
-
-		diag := network.NewDiagnostics().WithTimeout(10 * time.Second)
-		health, err := diag.RunFullDiagnostics(ctx, &network.DiagnosticOptions{
-			IncludeBandwidth: false,
-			IncludeProxy:     true,
-			Verbose:          cfg.verbose,
-		})
-
-		stopAnimation()
-
-		if err != nil {
-			formatter.PrintMessage(ui.MessageWarning, "Network check failed: %v", err)
-		} else {
-			statusMsg := formatter.FormatStatusIndicator(ui.StatusCompleted,
-				fmt.Sprintf("Network status: %s", health.OverallStatus))
-			fmt.Println(statusMsg)
-
-			if health.OverallStatus == network.HealthPoor || health.OverallStatus == network.HealthCritical {
-				if cfg.interactive {
-					proceed, err := formatter.ConfirmPrompt("Network conditions are poor. Continue anyway?", false)
-					if err != nil || !proceed {
-						return fmt.Errorf("download cancelled due to poor network conditions")
-					}
-				} else {
-					formatter.PrintMessage(ui.MessageWarning, "Poor network conditions detected")
-
-					checksPassed = false
-				}
-			}
+		if err := performNetworkCheck(ctx, cfg); err != nil {
+			checksPassed = false
 		}
 	}
 
 	// Disk space check
 	if cfg.checkSpace {
-		checker := storage.NewSpaceChecker()
-		outputDir := filepath.Dir(outputFile)
-
-		if estimatedSize > 0 {
-			err := checker.CheckAvailableSpace(outputDir, estimatedSize)
-			if err != nil {
-				formatter.PrintMessage(ui.MessageWarning, "Disk space check: %v", err)
-
-				if cfg.interactive {
-					// Generate cleanup suggestions
-					suggestions, err := checker.GenerateCleanupSuggestions([]string{outputDir})
-					if err == nil && len(suggestions) > 0 {
-						formatter.PrintMessage(
-							ui.MessageInfo,
-							"Found %d cleanup suggestions",
-							len(suggestions),
-						)
-
-						proceed, err := formatter.ConfirmPrompt(
-							"Would you like to see cleanup suggestions?",
-							true,
-						)
-						if err == nil && proceed {
-							showCleanupSuggestions(suggestions)
-						}
-					}
-
-					proceed, err := formatter.ConfirmPrompt(
-						"Continue download despite disk space issues?",
-						false,
-					)
-					if err != nil || !proceed {
-						return fmt.Errorf("download cancelled due to insufficient disk space")
-					}
-				} else {
-					checksPassed = false
-				}
-			} else {
-				formatter.PrintMessage(ui.MessageSuccess, "Sufficient disk space available")
-			}
+		if err := performDiskSpaceCheck(outputFile, estimatedSize, cfg); err != nil {
+			checksPassed = false
 		}
 	}
 
@@ -557,29 +598,7 @@ func showCleanupSuggestions(suggestions []storage.CleanupSuggestion) {
 }
 
 // run contains the main application logic, separated from main() for testing.
-func run(args []string) int {
-	// Save and restore original args for testing
-	origArgs := os.Args
-
-	defer func() { os.Args = origArgs }()
-
-	os.Args = args
-
-	// Check for plugin subcommands first
-	if len(args) > 1 && args[1] == "plugin" {
-		return runPluginCommand(args[2:])
-	}
-
-	// Parse command line arguments
-	cfg, url, err := parseArgs()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		return 1
-	}
-
-	// Initialize formatter
-	initializeFormatter(cfg)
-
+func handleSpecialFlags(cfg *config) int {
 	// Handle version flag
 	if cfg.showVersion {
 		fmt.Printf("%s version %s\n", appName, version)
@@ -592,12 +611,15 @@ func run(args []string) int {
 		return 0
 	}
 
+	return -1 // Continue normal execution
+}
+
+func validateAndPrepareDownload(cfg *config, url string) (string, error) {
 	// Validate required arguments
 	if url == "" {
 		formatter.PrintMessage(ui.MessageError, "URL is required")
 		showUsage()
-
-		return 1
+		return "", fmt.Errorf("URL is required")
 	}
 
 	// Determine output filename
@@ -614,20 +636,16 @@ func run(args []string) int {
 				false,
 			)
 			if err != nil || !proceed {
-				return 1
+				return "", fmt.Errorf("operation cancelled")
 			}
-
 			cfg.overwrite = true
 		}
 	}
 
-	// Create context for cancellation
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	return outputFile, nil
+}
 
-	// Set up enhanced signal handling
-	handleInterruption(ctx, cancel, cfg)
-
+func setupDownloaders(ctx context.Context, cfg *config) (*godl.Downloader, *core.Downloader, error) {
 	// Create enhanced downloader with plugin support
 	downloader := godl.NewDownloader()
 
@@ -640,8 +658,7 @@ func run(args []string) int {
 	// Handle storage URL if provided
 	if cfg.storageURL != "" {
 		if err := handleStorageURL(ctx, downloader, cfg.storageURL); err != nil {
-			formatter.PrintMessage(ui.MessageError, "Storage URL setup failed: %v", err)
-			return 1
+			return nil, nil, fmt.Errorf("storage URL setup failed: %v", err)
 		}
 	}
 
@@ -655,7 +672,10 @@ func run(args []string) int {
 			WithBaseDelay(cfg.retryDelay),
 	)
 
-	// Set up download options
+	return downloader, coreDownloader, nil
+}
+
+func createDownloadOptions(cfg *config) *types.DownloadOptions {
 	options := &types.DownloadOptions{
 		UserAgent:          cfg.userAgent,
 		Timeout:            cfg.timeout,
@@ -684,19 +704,71 @@ func run(args []string) int {
 		}
 	}
 
+	return options
+}
+
+func performAppropriateDownload(ctx context.Context, downloader *godl.Downloader, coreDownloader *core.Downloader, url, outputFile string, options *types.DownloadOptions, cfg *config) error {
 	// Use enhanced downloader for plugin-aware downloads
 	if len(cfg.plugins) > 0 || cfg.storageURL != "" {
-		// Use enhanced downloader with plugin support
-		if err := performEnhancedDownload(ctx, downloader, url, outputFile, options, cfg); err != nil {
-			handleError(err, cfg)
-			return 1
-		}
+		return performEnhancedDownload(ctx, downloader, url, outputFile, options, cfg)
 	} else {
-		// Use original downloader for backwards compatibility
-		if err := performDownload(ctx, coreDownloader, url, outputFile, options, cfg); err != nil {
-			handleError(err, cfg)
-			return 1
-		}
+		return performDownload(ctx, coreDownloader, url, outputFile, options, cfg)
+	}
+}
+
+func run(args []string) int {
+	// Save and restore original args for testing
+	origArgs := os.Args
+	defer func() { os.Args = origArgs }()
+	os.Args = args
+
+	// Check for plugin subcommands first
+	if len(args) > 1 && args[1] == "plugin" {
+		return runPluginCommand(args[2:])
+	}
+
+	// Parse command line arguments
+	cfg, url, err := parseArgs()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		return 1
+	}
+
+	// Initialize formatter
+	initializeFormatter(cfg)
+
+	// Handle special flags
+	if exitCode := handleSpecialFlags(cfg); exitCode >= 0 {
+		return exitCode
+	}
+
+	// Validate and prepare download
+	outputFile, err := validateAndPrepareDownload(cfg, url)
+	if err != nil {
+		return 1
+	}
+
+	// Create context for cancellation
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Set up enhanced signal handling
+	handleInterruption(ctx, cancel, cfg)
+
+	// Set up downloaders
+	downloader, coreDownloader, err := setupDownloaders(ctx, cfg)
+	if err != nil {
+		formatter.PrintMessage(ui.MessageError, "Downloader setup failed: %v", err)
+		return 1
+	}
+
+	// Set up download options
+	options := createDownloadOptions(cfg)
+
+	// Perform download
+	if err := performAppropriateDownload(ctx, downloader, coreDownloader, url, outputFile, options, cfg); err != nil {
+		handleError(err, cfg)
+		return 1
 	}
 
 	if !cfg.quiet {

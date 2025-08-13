@@ -291,6 +291,7 @@ For the complete project structure, see [Directory Structure](docs/DIRECTORY_STR
 
 - **Core Engine** (`internal/core`): Main download orchestration
 - **Concurrency Manager** (`internal/concurrent`): Parallel download coordination  
+- **Resume Engine** (`internal/resume`): Download resumption and partial file handling
 - **Progress System** (`pkg/progress`): Real-time progress tracking
 - **Error Framework** (`pkg/errors`): Comprehensive error handling
 - **Network Layer** (`internal/network`): HTTP client and diagnostics

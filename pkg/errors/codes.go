@@ -219,68 +219,42 @@ func (r *ErrorCodeRegistry) GetValidationCodeMessage(code ValidationErrorCode) s
 
 // GetHTTPCodeFromStatus converts HTTP status code to HTTPErrorCode.
 func (r *ErrorCodeRegistry) GetHTTPCodeFromStatus(statusCode int) HTTPErrorCode {
-	switch statusCode {
-	case http.StatusBadRequest:
-		return HTTPBadRequest
-	case http.StatusUnauthorized:
-		return HTTPUnauthorized
-	case http.StatusPaymentRequired:
-		return HTTPPaymentRequired
-	case http.StatusForbidden:
-		return HTTPForbidden
-	case http.StatusNotFound:
-		return HTTPNotFound
-	case http.StatusMethodNotAllowed:
-		return HTTPMethodNotAllowed
-	case http.StatusNotAcceptable:
-		return HTTPNotAcceptable
-	case http.StatusProxyAuthRequired:
-		return HTTPProxyAuthRequired
-	case http.StatusRequestTimeout:
-		return HTTPRequestTimeout
-	case http.StatusConflict:
-		return HTTPConflict
-	case http.StatusGone:
-		return HTTPGone
-	case http.StatusLengthRequired:
-		return HTTPLengthRequired
-	case http.StatusPreconditionFailed:
-		return HTTPPreconditionFailed
-	case http.StatusRequestEntityTooLarge:
-		return HTTPPayloadTooLarge
-	case http.StatusRequestURITooLong:
-		return HTTPURITooLong
-	case http.StatusUnsupportedMediaType:
-		return HTTPUnsupportedMediaType
-	case http.StatusRequestedRangeNotSatisfiable:
-		return HTTPRangeNotSatisfiable
-	case http.StatusExpectationFailed:
-		return HTTPExpectationFailed
-	case http.StatusTooManyRequests:
-		return HTTPTooManyRequests
-	case http.StatusInternalServerError:
-		return HTTPInternalServerError
-	case http.StatusNotImplemented:
-		return HTTPNotImplemented
-	case http.StatusBadGateway:
-		return HTTPBadGateway
-	case http.StatusServiceUnavailable:
-		return HTTPServiceUnavailable
-	case http.StatusGatewayTimeout:
-		return HTTPGatewayTimeout
-	case http.StatusHTTPVersionNotSupported:
-		return HTTPVersionNotSupported
-	case http.StatusInsufficientStorage:
-		return HTTPInsufficientStorage
-	case http.StatusLoopDetected:
-		return HTTPLoopDetected
-	case http.StatusNotExtended:
-		return HTTPNotExtended
-	case http.StatusNetworkAuthenticationRequired:
-		return HTTPNetworkAuthRequired
-	default:
-		return HTTPErrorCode(fmt.Sprintf("HTTP_%d_UNKNOWN", statusCode))
+	statusCodeMap := map[int]HTTPErrorCode{
+		http.StatusBadRequest:                    HTTPBadRequest,
+		http.StatusUnauthorized:                  HTTPUnauthorized,
+		http.StatusPaymentRequired:               HTTPPaymentRequired,
+		http.StatusForbidden:                     HTTPForbidden,
+		http.StatusNotFound:                      HTTPNotFound,
+		http.StatusMethodNotAllowed:              HTTPMethodNotAllowed,
+		http.StatusNotAcceptable:                 HTTPNotAcceptable,
+		http.StatusProxyAuthRequired:             HTTPProxyAuthRequired,
+		http.StatusRequestTimeout:                HTTPRequestTimeout,
+		http.StatusConflict:                      HTTPConflict,
+		http.StatusGone:                          HTTPGone,
+		http.StatusLengthRequired:                HTTPLengthRequired,
+		http.StatusPreconditionFailed:            HTTPPreconditionFailed,
+		http.StatusRequestEntityTooLarge:         HTTPPayloadTooLarge,
+		http.StatusRequestURITooLong:             HTTPURITooLong,
+		http.StatusUnsupportedMediaType:          HTTPUnsupportedMediaType,
+		http.StatusRequestedRangeNotSatisfiable:  HTTPRangeNotSatisfiable,
+		http.StatusExpectationFailed:             HTTPExpectationFailed,
+		http.StatusTooManyRequests:               HTTPTooManyRequests,
+		http.StatusInternalServerError:           HTTPInternalServerError,
+		http.StatusNotImplemented:                HTTPNotImplemented,
+		http.StatusBadGateway:                    HTTPBadGateway,
+		http.StatusServiceUnavailable:            HTTPServiceUnavailable,
+		http.StatusGatewayTimeout:                HTTPGatewayTimeout,
+		http.StatusHTTPVersionNotSupported:       HTTPVersionNotSupported,
+		http.StatusInsufficientStorage:           HTTPInsufficientStorage,
+		http.StatusLoopDetected:                  HTTPLoopDetected,
+		http.StatusNotExtended:                   HTTPNotExtended,
+		http.StatusNetworkAuthenticationRequired: HTTPNetworkAuthRequired,
 	}
+
+	if code, exists := statusCodeMap[statusCode]; exists {
+		return code
+	}
+	return HTTPErrorCode(fmt.Sprintf("HTTP_%d_UNKNOWN", statusCode))
 }
 
 // IsRetryableNetworkCode determines if a network error code is retryable.
