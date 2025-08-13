@@ -91,74 +91,55 @@ func (v *Version) Compare(other *Version) int {
 }
 
 // IsCompatible checks if this version is compatible with a requirement
-func (v *Version) IsCompatible(requirement string) (bool, error) {
-	// Parse requirement patterns like "^1.2.3", "~1.2.3", ">=1.2.3", etc.
-	if strings.HasPrefix(requirement, "^") {
-		// Caret: compatible with version (same major)
-		reqVersion, err := ParseVersion(requirement[1:])
-		if err != nil {
-			return false, err
+func (v *Version) parseRequirementOperator(requirement string) (string, string) {
+	operators := []string{">=", "<=", "^", "~", ">", "<", "="}
+
+	for _, op := range operators {
+		if strings.HasPrefix(requirement, op) {
+			return op, requirement[len(op):]
 		}
-		return v.Major == reqVersion.Major && v.Compare(reqVersion) >= 0, nil
 	}
 
-	if strings.HasPrefix(requirement, "~") {
+	// Exact version match (no operator)
+	return "=", requirement
+}
+
+func (v *Version) checkCompatibilityByOperator(operator string, reqVersion *Version) bool {
+	switch operator {
+	case "^":
+		// Caret: compatible with version (same major)
+		return v.Major == reqVersion.Major && v.Compare(reqVersion) >= 0
+	case "~":
 		// Tilde: approximately equivalent (same major.minor)
-		reqVersion, err := ParseVersion(requirement[1:])
-		if err != nil {
-			return false, err
-		}
 		return v.Major == reqVersion.Major &&
 			v.Minor == reqVersion.Minor &&
-			v.Compare(reqVersion) >= 0, nil
+			v.Compare(reqVersion) >= 0
+	case ">=":
+		return v.Compare(reqVersion) >= 0
+	case ">":
+		return v.Compare(reqVersion) > 0
+	case "<=":
+		return v.Compare(reqVersion) <= 0
+	case "<":
+		return v.Compare(reqVersion) < 0
+	case "=":
+		return v.Compare(reqVersion) == 0
+	default:
+		// Exact version match (fallback)
+		return v.Compare(reqVersion) == 0
 	}
+}
 
-	if strings.HasPrefix(requirement, ">=") {
-		reqVersion, err := ParseVersion(requirement[2:])
-		if err != nil {
-			return false, err
-		}
-		return v.Compare(reqVersion) >= 0, nil
-	}
+func (v *Version) IsCompatible(requirement string) (bool, error) {
+	// Parse requirement patterns like "^1.2.3", "~1.2.3", ">=1.2.3", etc.
+	operator, versionStr := v.parseRequirementOperator(requirement)
 
-	if strings.HasPrefix(requirement, ">") {
-		reqVersion, err := ParseVersion(requirement[1:])
-		if err != nil {
-			return false, err
-		}
-		return v.Compare(reqVersion) > 0, nil
-	}
-
-	if strings.HasPrefix(requirement, "<=") {
-		reqVersion, err := ParseVersion(requirement[2:])
-		if err != nil {
-			return false, err
-		}
-		return v.Compare(reqVersion) <= 0, nil
-	}
-
-	if strings.HasPrefix(requirement, "<") {
-		reqVersion, err := ParseVersion(requirement[1:])
-		if err != nil {
-			return false, err
-		}
-		return v.Compare(reqVersion) < 0, nil
-	}
-
-	if strings.HasPrefix(requirement, "=") {
-		reqVersion, err := ParseVersion(requirement[1:])
-		if err != nil {
-			return false, err
-		}
-		return v.Compare(reqVersion) == 0, nil
-	}
-
-	// Exact version match
-	reqVersion, err := ParseVersion(requirement)
+	reqVersion, err := ParseVersion(versionStr)
 	if err != nil {
 		return false, err
 	}
-	return v.Compare(reqVersion) == 0, nil
+
+	return v.checkCompatibilityByOperator(operator, reqVersion), nil
 }
 
 // VersionedPlugin extends the Plugin interface with version management
