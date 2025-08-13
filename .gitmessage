@@ -1,0 +1,13 @@
+# <type>(<scope>): <subject>
+#
+# <body>
+#
+# <footer>
+#
+# Type: feat, fix, docs, style, refactor, perf, test, chore
+# Scope: cli, api, core, plugin, docs
+# Subject: imperative mood, no period at the end
+#
+# Body: explain what and why, not how
+#
+# Footer: Breaking changes, Closes #123

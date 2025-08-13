@@ -1,0 +1,195 @@
+# GoReleaser configuration
+# https://goreleaser.com/customization/
+
+project_name: godl
+
+before:
+  hooks:
+    - go mod download
+    - go generate ./...
+
+builds:
+  - id: godl
+    main: ./cmd/godl
+    binary: godl
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+      - "386"
+    goarm:
+      - "6"
+      - "7"
+    ignore:
+      - goos: darwin
+        goarch: "386"
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+      - -X main.builtBy=goreleaser
+    mod_timestamp: '{{ .CommitTimestamp }}'
+
+archives:
+  - id: godl
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - LICENSE
+      - README.md
+      - CHANGELOG.md
+
+checksum:
+  name_template: 'checksums.txt'
+  algorithm: sha256
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - '^build:'
+      - '^style:'
+      - '^refactor:'
+      - '^perf:'
+      - '^chore:'
+      - Merge pull request
+      - Merge branch
+  groups:
+    - title: 'Features'
+      regexp: "^.*feat[(\\w)]*:+.*$"
+      order: 0
+    - title: 'Bug fixes'
+      regexp: "^.*fix[(\\w)]*:+.*$"
+      order: 1
+    - title: 'Security'
+      regexp: "^.*security[(\\w)]*:+.*$"
+      order: 2
+    - title: 'Other changes'
+      order: 999
+
+release:
+  github:
+    owner: forest6511
+    name: godl
+  draft: false
+  prerelease: auto
+  mode: append
+  header: |
+    ## Installation
+
+    ### Binary
+    Download the appropriate binary for your platform from the assets below.
+
+    ### Go Install
+    ```bash
+    go install github.com/forest6511/godl/cmd/godl@{{ .Tag }}
+    ```
+
+    ### Homebrew (macOS/Linux)
+    ```bash
+    brew tap forest6511/tap
+    brew install godl
+    ```
+
+  footer: |
+    ## Docker Image
+    ```bash
+    docker pull ghcr.io/forest6511/godl:{{ .Tag }}
+    ```
+
+    **Full Changelog**: https://github.com/forest6511/godl/compare/{{ .PreviousTag }}...{{ .Tag }}
+
+nfpms:
+  - id: packages
+    package_name: godl
+    vendor: forest6511
+    homepage: https://github.com/forest6511/godl
+    maintainer: Forest <forest6511@example.com>
+    description: Fast, concurrent file downloader for Go
+    license: MIT
+    formats:
+      - deb
+      - rpm
+      - apk
+    bindir: /usr/bin
+    section: utils
+    priority: optional
+    contents:
+      - src: ./LICENSE
+        dst: /usr/share/doc/godl/LICENSE
+      - src: ./README.md
+        dst: /usr/share/doc/godl/README.md
+      - src: ./CHANGELOG.md
+        dst: /usr/share/doc/godl/CHANGELOG.md
+
+dockers:
+  - image_templates:
+      - 'ghcr.io/forest6511/{{ .ProjectName }}:{{ .Tag }}'
+      - 'ghcr.io/forest6511/{{ .ProjectName }}:v{{ .Major }}'
+      - 'ghcr.io/forest6511/{{ .ProjectName }}:v{{ .Major }}.{{ .Minor }}'
+      - 'ghcr.io/forest6511/{{ .ProjectName }}:latest'
+    dockerfile: docker/Dockerfile
+    build_flag_templates:
+      - "--pull"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source=https://github.com/forest6511/godl"
+      - "--label=org.opencontainers.image.licenses=MIT"
+
+brews:
+  - tap:
+      owner: forest6511
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    folder: Formula
+    homepage: https://github.com/forest6511/godl
+    description: Fast, concurrent file downloader for Go
+    license: MIT
+    test: |
+      system "#{bin}/godl", "--version"
+    install: |
+      bin.install "godl"
+
+scoop:
+  bucket:
+    owner: forest6511
+    name: scoop-bucket
+    token: "{{ .Env.SCOOP_GITHUB_TOKEN }}"
+  homepage: https://github.com/forest6511/godl
+  description: Fast, concurrent file downloader for Go
+  license: MIT
+
+sboms:
+  - artifacts: archive
+    documents:
+      - "{{ .ProjectName }}_{{ .Version }}_sbom.spdx.json"
+
+milestones:
+  - close: true
+    fail_on_error: false
+    name_template: "{{ .Tag }}"

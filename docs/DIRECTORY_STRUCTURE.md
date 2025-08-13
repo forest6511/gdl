@@ -7,6 +7,13 @@ Complete project organization and file structure for the godl project.
 ```
 godl/
 ├── .github/                    # GitHub configuration and workflows
+│   ├── ISSUE_TEMPLATE/         # Issue templates
+│   │   ├── bug_report.md       # Bug report template
+│   │   ├── feature_request.md  # Feature request template
+│   │   └── config.yml          # Issue template configuration
+│   ├── pull_request_template.md # Pull request template
+│   ├── labels.json             # Repository labels configuration
+│   ├── act_secrets             # Template for act local testing secrets
 │   └── workflows/              # CI/CD workflow definitions
 │       ├── main.yml            # Main orchestrator workflow
 │       ├── unit-tests.yml      # Unit test workflow
@@ -15,7 +22,9 @@ godl/
 │       ├── security.yml        # Security scanning
 │       ├── cross-platform.yml  # Multi-platform testing
 │       ├── benchmark.yml       # Performance benchmarks
-│       ├── release.yml         # Release automation
+│       ├── release.yml         # Standard release automation
+│       ├── release-goreleaser.yml # Advanced release automation
+│       └── README.md           # Workflow documentation
 │
 ├── cmd/                        # Command-line applications
 │   └── godl/                   # Main CLI tool
@@ -29,6 +38,9 @@ godl/
 │   ├── EXTENDING.md            # Extension points and customization
 │   ├── MAINTENANCE.md          # Development procedures
 │   ├── PLUGIN_DEVELOPMENT.md   # Plugin development guide
+│   ├── CI_WORKFLOW.md          # CI/CD pipeline documentation
+│   ├── ACT_TESTING.md          # Local GitHub Actions testing guide
+│   ├── RELEASE_SETUP.md        # Release management documentation
 │   ├── cli/                    # CLI-specific docs
 │   │   └── examples.md         # CLI usage examples
 │   └── errors/                 # Error handling documentation
@@ -166,10 +178,26 @@ godl/
 │       ├── help.go             # Help text generation
 │       └── help_test.go        # Help tests
 │
+├── docker/                     # Docker configuration
+│   ├── Dockerfile              # Multi-stage Docker build
+│   ├── .dockerignore           # Docker build context exclusions
+│   └── README.md               # Docker usage guide
+├── scripts/                    # Development scripts
+│   ├── local-ci-check.sh       # Local CI compatibility check
+│   ├── setup-git-hooks.sh      # Git hooks setup script
+│   ├── prepare-release.sh      # Release preparation script
+│   ├── update-changelog.sh     # Symlink to prepare-release.sh
+│   ├── update-homebrew.sh      # Homebrew formula updater
+│   └── sync-labels.sh          # GitHub labels synchronizer
 ├── .claude/                    # Claude Code configuration
 │   └── CLAUDE.md               # Claude Code instructions
+├── .actrc                      # Act (local GitHub Actions) configuration
+├── .editorconfig               # Editor configuration
 ├── .gitignore                  # Git ignore patterns
+├── .gitmessage                 # Git commit message template
 ├── .golangci.yml               # Golangci-lint configuration
+├── .goreleaser.yml             # GoReleaser configuration
+├── CHANGELOG.md                # Project changelog
 ├── CONTRIBUTING.md             # Contribution guidelines
 ├── LICENSE                     # MIT License
 ├── README.md                   # Project documentation
@@ -177,10 +205,40 @@ godl/
 ├── go.sum                      # Go module checksums
 ├── godl.go                     # Main library API
 ├── godl_test.go                # Library API tests
-├── Makefile                    # Build and development tasks
-└── scripts/                    # Development scripts
-    └── local-ci-check.sh       # Local CI compatibility check
+└── Makefile                    # Build and development tasks
 ```
+
+## Configuration Files
+
+### Development Tools
+- **.actrc**: Configuration for act (local GitHub Actions testing)
+- **.editorconfig**: Editor formatting and behavior configuration
+- **.gitmessage**: Commit message template for Conventional Commits
+- **.gitignore**: Files and directories excluded from Git
+- **.golangci.yml**: Comprehensive linting rules and configuration
+- **.goreleaser.yml**: GoReleaser configuration for advanced releases
+
+### Build & Release
+- **CHANGELOG.md**: Version history and release notes
+- **Makefile**: Build automation and development tasks
+- **go.mod/go.sum**: Go module dependencies and checksums
+
+### GitHub Configuration
+- **.github/labels.json**: Repository labels for issue/PR management
+- **.github/act_secrets**: Template for local testing secrets
+- **GitHub Templates**: Issue/PR templates for consistent reporting
+
+### Docker
+- **docker/Dockerfile**: Multi-stage container build definition
+- **docker/.dockerignore**: Build context exclusions for smaller images
+- **docker/README.md**: Container usage and deployment guide
+
+### Scripts
+- **scripts/prepare-release.sh**: Automated release preparation
+- **scripts/setup-git-hooks.sh**: Git hooks installation
+- **scripts/sync-labels.sh**: GitHub labels synchronization
+- **scripts/update-homebrew.sh**: Homebrew formula maintenance
+- **scripts/local-ci-check.sh**: Local CI compatibility validation
 
 ## Package Organization
 
