@@ -677,6 +677,11 @@ func TestCalculateAndSetChecksumErrorPaths(t *testing.T) {
 			t.Fatalf("Failed to create test file: %v", err)
 		}
 
+		// Skip this test if running as root (common in Docker/CI environments)
+		if os.Getuid() == 0 {
+			t.Skip("Skipping file permission test when running as root")
+		}
+
 		// Try to remove read permissions (this may not work on all systems)
 		err = os.Chmod(testFile, 0o000)
 		if err != nil {
@@ -773,6 +778,11 @@ func TestCleanupOldResumeFilesErrorPaths(t *testing.T) {
 			t.Fatalf("Failed to save resume info: %v", err)
 		}
 
+		// Skip this test if running as root (common in Docker/CI environments)
+		if os.Getuid() == 0 {
+			t.Skip("Skipping directory permission test when running as root")
+		}
+
 		// Make directory inaccessible
 		err = os.Chmod(cleanupDir, 0o000)
 		if err != nil {
@@ -809,6 +819,11 @@ func TestListResumeFilesErrorPaths(t *testing.T) {
 		}
 
 		manager := NewManager(listDir)
+
+		// Skip this test if running as root (common in Docker/CI environments)
+		if os.Getuid() == 0 {
+			t.Skip("Skipping directory permission test when running as root")
+		}
 
 		// Make directory inaccessible
 		err = os.Chmod(listDir, 0o000)

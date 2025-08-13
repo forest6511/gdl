@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -2962,4 +2963,156 @@ func TestHandleInterruption(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	// Test completed successfully if no panic occurred
+}
+
+func TestStringSliceSet(t *testing.T) {
+	var slice StringSlice
+
+	// Test setting values
+	err := slice.Set("value1")
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+
+	err = slice.Set("value2")
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+
+	err = slice.Set("value3")
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+
+	// Check that values were appended correctly
+	expected := []string{"value1", "value2", "value3"}
+	if len(slice) != len(expected) {
+		t.Errorf("Expected slice length %d, got %d", len(expected), len(slice))
+	}
+
+	for i, value := range expected {
+		if slice[i] != value {
+			t.Errorf("Expected slice[%d] = %q, got %q", i, value, slice[i])
+		}
+	}
+
+	// Test String method
+	stringResult := slice.String()
+	expectedString := "value1,value2,value3"
+	if stringResult != expectedString {
+		t.Errorf("Expected String() = %q, got %q", expectedString, stringResult)
+	}
+}
+
+func TestDisplayJSONProgress(t *testing.T) {
+	tests := []struct {
+		name            string
+		bytesDownloaded int64
+		totalSize       int64
+		speed           int64
+		filename        string
+		expectedFields  map[string]interface{}
+	}{
+		{
+			name:            "with known total size",
+			bytesDownloaded: 1024,
+			totalSize:       2048,
+			speed:           512,
+			filename:        "test.txt",
+			expectedFields: map[string]interface{}{
+				"filename":         "test.txt",
+				"total_size":       float64(2048),
+				"bytes_downloaded": float64(1024),
+				"speed":            float64(512),
+				"percentage":       50.0,
+			},
+		},
+		{
+			name:            "with unknown total size",
+			bytesDownloaded: 1024,
+			totalSize:       0,
+			speed:           256,
+			filename:        "unknown.bin",
+			expectedFields: map[string]interface{}{
+				"filename":         "unknown.bin",
+				"total_size":       float64(0),
+				"bytes_downloaded": float64(1024),
+				"speed":            float64(256),
+				"percentage":       0.0,
+			},
+		},
+		{
+			name:            "100% complete",
+			bytesDownloaded: 2048,
+			totalSize:       2048,
+			speed:           1024,
+			filename:        "complete.file",
+			expectedFields: map[string]interface{}{
+				"filename":         "complete.file",
+				"total_size":       float64(2048),
+				"bytes_downloaded": float64(2048),
+				"speed":            float64(1024),
+				"percentage":       100.0,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			// Create temp file to capture stdout
+			tmpfile, err := os.CreateTemp(t.TempDir(), "test_json_progress_*.txt")
+			if err != nil {
+				t.Fatalf("Failed to create temp file: %v", err)
+			}
+			defer func() { _ = os.Remove(tmpfile.Name()) }()
+			defer func() { _ = tmpfile.Close() }()
+
+			originalStdout := os.Stdout
+			done := make(chan bool, 1)
+
+			go func() {
+				defer func() { done <- true }()
+
+				os.Stdout = tmpfile
+
+				displayJSONProgress(tt.bytesDownloaded, tt.totalSize, tt.speed, tt.filename)
+
+				os.Stdout = originalStdout
+			}()
+
+			select {
+			case <-done:
+				// Test completed successfully
+			case <-ctx.Done():
+				os.Stdout = originalStdout
+				t.Fatal("Test timed out")
+			}
+
+			// Read captured output
+			_, _ = tmpfile.Seek(0, 0)
+			output, err := io.ReadAll(tmpfile)
+			if err != nil {
+				t.Fatalf("Failed to read temp file: %v", err)
+			}
+
+			outputStr := strings.TrimSpace(string(output))
+
+			// Parse JSON output
+			var result map[string]interface{}
+			err = json.Unmarshal([]byte(outputStr), &result)
+			if err != nil {
+				t.Fatalf("Failed to parse JSON output: %v, output: %s", err, outputStr)
+			}
+
+			// Check each expected field
+			for key, expectedValue := range tt.expectedFields {
+				if result[key] != expectedValue {
+					t.Errorf("Expected %s = %v, got %v", key, expectedValue, result[key])
+				}
+			}
+		})
+	}
 }
