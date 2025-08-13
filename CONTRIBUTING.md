@@ -1,5 +1,21 @@
 # Contributing to godl
 
+Thank you for your interest in contributing to godl! This guide will help you get started.
+
+## Getting Started
+
+### Prerequisites
+- Go 1.23 or later
+- Git
+- Make (optional but recommended)
+
+### Fork and Clone
+
+1. Fork the repository on GitHub
+2. Clone your fork: `git clone https://github.com/yourusername/godl.git`
+3. Add upstream remote: `git remote add upstream https://github.com/forest6511/godl.git`
+4. Create a feature branch: `git checkout -b feature/your-feature`
+
 ## Development Guidelines
 
 ### Code Style
@@ -35,43 +51,65 @@ When generating code for this project:
 6. **Keep functions small and focused (< 50 lines)**
 7. **Add godoc comments for all exported functions**
 
-### Commit Messages
+### Commit Message Guidelines
 
-Follow the conventional commits format:
-- `feat:` for new features
-- `fix:` for bug fixes
-- `docs:` for documentation changes
-- `test:` for test additions/changes
-- `refactor:` for code refactoring
-- `chore:` for maintenance tasks
+We follow the [Conventional Commits](https://www.conventionalcommits.org/) specification.
 
-Example:
+#### Format
 ```
-feat: add concurrent download support
+<type>(<scope>): <subject>
 
-- Implement chunk-based downloading
-- Add progress tracking for each chunk
-- Support up to 10 concurrent connections
+<body>
+
+<footer>
+```
+
+#### Types
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation changes
+- `style`: Code style changes (formatting, etc)
+- `refactor`: Code refactoring
+- `perf`: Performance improvements
+- `test`: Test additions or corrections
+- `chore`: Maintenance tasks
+
+#### Examples
+```bash
+feat(cli): add progress bar support
+fix(core): resolve memory leak in chunk processor
+docs(api): update Download function documentation
+perf(concurrent): optimize worker pool allocation
+```
+
+#### Setup Commit Template
+```bash
+# Set up the commit message template
+git config commit.template .gitmessage
 ```
 
 ## 🚀 Quick Start for Contributors
 
-### Setup Development Environment
+### Development Setup
 
 ```bash
-# 1. Fork and clone the repository
-git clone https://github.com/YOUR_USERNAME/godl.git
-cd godl
-
-# 2. Install dependencies
+# 1. Install dependencies
 go mod download
+
+# 2. Setup git hooks (recommended)
+./scripts/setup-git-hooks.sh
 
 # 3. Install development tools
 go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-brew install act  # For cross-platform testing (optional but recommended)
+brew install act  # For local GitHub Actions testing (optional)
 
-# 4. Verify setup
-make ci-check  # Run all CI checks locally
+# 4. Verify setup works
+go test ./...
+make test    # If Makefile exists
+make lint    # If Makefile exists
+
+# 5. Run complete CI checks locally
+./scripts/local-ci-check.sh
 ```
 
 ### Development Workflow
@@ -284,12 +322,52 @@ func DownloadWithOptions(ctx context.Context, url, dest string, opts *Options) (
 7. **CI Validation**: Ensure all CI checks pass
 8. **Merge**: Squash and merge to main
 
+### Pull Request Process
+
+1. **Ensure all tests pass**: `make test` or `go test ./...`
+2. **Update documentation if needed**: README.md, API docs, etc.
+3. **Add tests for new functionality**: Unit and integration tests
+4. **Update CHANGELOG.md**: For significant changes
+5. **Submit PR against main branch**: Use descriptive PR title
+6. **Run local checks**: Use `./scripts/local-ci-check.sh`
+7. **Create descriptive PR**: Use the PR template
+8. **Respond to feedback**: Address review comments promptly
+
+### Code Style Guidelines
+
+- **Run gofmt before committing**: Code must be properly formatted
+- **Follow Effective Go**: Adhere to Go idioms and best practices
+- **Add comments for exported functions**: Use godoc format
+- **Keep functions small and focused**: Aim for < 50 lines per function
+
+### Testing Requirements
+
+- **Write unit tests for new functions**: Cover main functionality
+- **Maintain >80% code coverage**: Use `go test -cover`
+- **Include integration tests for features**: Test end-to-end behavior
+- **Test error cases**: Ensure proper error handling
+
+### Versioning
+
+We use [Semantic Versioning](https://semver.org/):
+
+- **MAJOR**: Breaking changes
+- **MINOR**: New features (backwards compatible)  
+- **PATCH**: Bug fixes
+
+#### Current version progression:
+
+- `v0.9.x` - Error handling and UX improvements
+- `v0.10.x` - Plugin system
+- `v0.11.x` - Final adjustments
+- `v1.0.0` - Stable release
+
 ### Getting Help
 
 - **Development Questions**: Open a discussion
 - **Bug Reports**: Use the issue template
 - **Feature Requests**: Open an issue with detailed requirements
-- **CI/Testing Issues**: Check `docs/CI_WORKFLOW.md`
+- **CI/Testing Issues**: Check `docs/ACT_TESTING.md` for local testing
 
 ### Tools and Resources
 
@@ -298,4 +376,5 @@ func DownloadWithOptions(ctx context.Context, url, dest string, opts *Options) (
 - **Documentation**: 
   - [Go Code Review Guidelines](https://github.com/golang/go/wiki/CodeReviewComments)
   - [Effective Go](https://golang.org/doc/effective_go.html)
-  - [CI Workflow Guide](docs/CI_WORKFLOW.md)
+  - [Local Testing Guide](docs/ACT_TESTING.md)
+  - [Release Setup](docs/RELEASE_SETUP.md)

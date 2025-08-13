@@ -46,7 +46,26 @@ jobs:
           echo "📦 Building version: ${VERSION}" >> $GITHUB_STEP_SUMMARY
 
       - name: Run tests
-        run: go test -v -race ./...
+        run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+
+      - name: Generate release notes from CHANGELOG
+        id: release_notes
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          VERSION_NUM=${VERSION#v}
+          
+          # Extract release notes from CHANGELOG.md if it exists
+          if [ -f CHANGELOG.md ] && grep -q "## \[${VERSION_NUM}\]" CHANGELOG.md; then
+            echo "📝 Extracting release notes from CHANGELOG.md" >> $GITHUB_STEP_SUMMARY
+            sed -n "/## \[${VERSION_NUM}\]/,/## \[/p" CHANGELOG.md | sed '$d' > release_notes.md
+            
+            echo "RELEASE_NOTES<<EOF" >> $GITHUB_OUTPUT
+            cat release_notes.md >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "📝 CHANGELOG.md entry not found for ${VERSION_NUM}, using auto-generated notes" >> $GITHUB_STEP_SUMMARY
+            echo "RELEASE_NOTES=" >> $GITHUB_OUTPUT
+          fi
 
       - name: Build binaries
         run: |
@@ -63,7 +82,7 @@ jobs:
             fi
             
             echo "Building for $GOOS/$GOARCH..."
-            GOOS=$GOOS GOARCH=$GOARCH go build -v -ldflags="-s -w -X main.version=${{ steps.version.outputs.version }}" -o "dist/${output_name}" ./cmd/godl/
+            GOOS=$GOOS GOARCH=$GOARCH go build -v -ldflags="-s -w -X 'main.version=${{ steps.version.outputs.version }}'" -o "dist/${output_name}" ./cmd/godl/
           done
           
           # Create checksums
@@ -76,11 +95,21 @@ jobs:
         with:
           tag_name: ${{ steps.version.outputs.version }}
           name: Release ${{ steps.version.outputs.version }}
+          body: ${{ steps.release_notes.outputs.RELEASE_NOTES }}
           draft: false
           prerelease: ${{ contains(steps.version.outputs.version, '-') }}
-          generate_release_notes: true
+          generate_release_notes: ${{ steps.release_notes.outputs.RELEASE_NOTES == '' }}
           files: |
             dist/*
+
+      - name: Upload coverage to Codecov
+        if: success()
+        uses: codecov/codecov-action@v3
+        continue-on-error: true
+        with:
+          file: ./coverage.txt
+          flags: release
+          name: release-coverage
 
       - name: Summary
         run: |

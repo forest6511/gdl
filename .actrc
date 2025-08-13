@@ -1,0 +1,3 @@
+# Act configuration
+--container-architecture linux/amd64
+--artifact-server-path /tmp/artifacts

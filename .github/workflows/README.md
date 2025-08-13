@@ -51,10 +51,21 @@ The CI/CD pipeline is split into multiple specialized workflows for better maint
 
 ### Specialized Workflows
 
-8. **release.yml** - Release automation
+8. **release.yml** - Standard release automation
    - Triggers on version tags (v*)
    - Builds binaries for multiple platforms
    - Creates GitHub releases with artifacts
+   - Extracts release notes from CHANGELOG.md
+   - Uploads coverage reports
+
+9. **release-goreleaser.yml** - Advanced release automation
+   - Triggers on version tags (v*)
+   - Uses GoReleaser for advanced features:
+     - Docker image publishing (ghcr.io)
+     - Homebrew formula updates
+     - Linux packages (deb/rpm/apk)
+     - SBOM generation
+     - Multiple archive formats
 
 
 ## Workflow Dependencies
@@ -75,7 +86,7 @@ main.yml
 - **Push to main/develop**: All workflows except cross-platform (main only)
 - **Push to feature branches**: Core workflows (lint, unit-tests, integration)
 - **Pull requests**: All core workflows + cross-platform
-- **Version tags**: Release workflow
+- **Version tags**: Both release workflows (release.yml + release-goreleaser.yml)
 - **Schedule**: Security workflow (weekly)
 - **Manual**: All workflows support workflow_dispatch
 

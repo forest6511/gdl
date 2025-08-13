@@ -26,7 +26,7 @@ import (
 
 // Version information.
 const (
-	version = "1.0.0"
+	version = "dev" // Set via ldflags during build
 	appName = "godl"
 )
 

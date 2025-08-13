@@ -25,9 +25,30 @@ A fast, concurrent, and feature-rich file downloader library and CLI tool writte
 ## 📦 Installation
 
 ### As a CLI tool
+
+#### Go Install
 ```bash
 go install github.com/forest6511/godl/cmd/godl@latest
 ```
+
+#### Homebrew (macOS/Linux)
+```bash
+brew tap forest6511/tap
+brew install godl
+```
+
+#### Docker
+```bash
+# Pull from GitHub Container Registry
+docker pull ghcr.io/forest6511/godl:latest
+
+# Download a file
+docker run --rm -v $(pwd):/downloads ghcr.io/forest6511/godl:latest \
+  -o /downloads/file.zip https://example.com/file.zip
+```
+
+#### Binary Downloads
+Download pre-built binaries from [GitHub Releases](https://github.com/forest6511/godl/releases)
 
 ### As a library
 ```bash
@@ -447,7 +468,38 @@ A pre-commit hook is automatically installed that runs CI-equivalent checks on e
 
 **Important**: Always run `make ci-check` locally before pushing to ensure all checks pass. This prevents CI pipeline failures and maintains code quality standards.
 
-For detailed development and maintenance procedures, see [docs/MAINTENANCE.md](docs/MAINTENANCE.md).
+## 🔧 Developer Tools
+
+### Git Hooks
+```bash
+# Setup commit message validation and pre-commit checks
+./scripts/setup-git-hooks.sh
+```
+
+### Release Management
+```bash
+# Prepare a new release
+./scripts/prepare-release.sh v0.10.0
+# Edit CHANGELOG.md with release notes
+./scripts/prepare-release.sh --release v0.10.0
+```
+
+### Local Testing
+```bash
+# Test GitHub Actions locally with act
+act push -j quick-checks          # Fast validation
+act push -W .github/workflows/main.yml --dryrun  # Full CI dry run
+```
+
+## 📚 Documentation
+
+- **[Contributing Guide](CONTRIBUTING.md)** - Development guidelines and workflow
+- **[Release Setup](docs/RELEASE_SETUP.md)** - Release management and distribution
+- **[Local Testing](docs/ACT_TESTING.md)** - GitHub Actions testing with act
+- **[API Reference](docs/API_REFERENCE.md)** - Library API documentation
+- **[CLI Reference](docs/CLI_REFERENCE.md)** - Command-line usage
+- **[Plugin Development](docs/PLUGIN_DEVELOPMENT.md)** - Plugin system guide
+- **[Maintenance](docs/MAINTENANCE.md)** - Development and maintenance procedures
 
 ## 📄 License
 

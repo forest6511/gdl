@@ -1,0 +1,112 @@
+{
+  "go.toolsManagement.autoUpdate": true,
+  "go.useLanguageServer": true,
+  "go.lintTool": "golangci-lint",
+  "go.lintOnSave": "package",
+  "go.formatTool": "gofmt",
+  "go.formatFlags": ["-s"],
+  "go.testFlags": ["-race"],
+  "go.buildFlags": [],
+  "go.vetFlags": [],
+  "go.coverOnSave": false,
+  "go.coverOnSingleTest": true,
+  "go.coverageDecorator": {
+    "type": "gutter",
+    "coveredHighlightColor": "rgba(64,128,64,0.5)",
+    "uncoveredHighlightColor": "rgba(128,64,64,0.25)",
+    "coveredGutterStyle": "blockblue",
+    "uncoveredGutterStyle": "blockred"
+  },
+  "go.testTimeout": "30s",
+  "go.buildTags": "",
+  "go.toolsGopath": "",
+  "go.gopath": "",
+  "go.goroot": "",
+  "go.alternateTools": {
+    "go": "go"
+  },
+  "go.docsTool": "godoc",
+  "go.gocodeAutoBuild": false,
+  "go.enableCodeLens": {
+    "references": true,
+    "runtest": true
+  },
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit"
+  },
+  "files.exclude": {
+    "**/.git": true,
+    "**/.svn": true,
+    "**/.hg": true,
+    "**/CVS": true,
+    "**/.DS_Store": true,
+    "**/Thumbs.db": true,
+    "**/node_modules": true,
+    "**/*.test": true,
+    "**/coverage.out": true,
+    "**/coverage.html": true,
+    "**/bin": true,
+    "**/dist": true,
+    "**/.tmp": true
+  },
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/node_modules/**": true,
+    "**/bin/**": true,
+    "**/dist/**": true,
+    "**/.tmp/**": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/bower_components": true,
+    "**/*.code-search": true,
+    "**/bin": true,
+    "**/dist": true,
+    "**/.tmp": true,
+    "**/coverage.out": true,
+    "**/coverage.html": true
+  },
+  "editor.rulers": [80, 120],
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.detectIndentation": true,
+  "[go]": {
+    "editor.tabSize": 4,
+    "editor.insertSpaces": false,
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
+    }
+  },
+  "[json]": {
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    "editor.formatOnSave": true
+  },
+  "[yaml]": {
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    "editor.formatOnSave": true
+  },
+  "[markdown]": {
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    "editor.wordWrap": "on",
+    "editor.trimAutoWhitespace": false
+  },
+  "[makefile]": {
+    "editor.insertSpaces": false,
+    "editor.detectIndentation": false
+  },
+  "terminal.integrated.defaultProfile.osx": "zsh",
+  "terminal.integrated.defaultProfile.linux": "bash",
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "git.enableSmartCommit": true,
+  "git.confirmSync": false,
+  "git.autofetch": true,
+  "extensions.ignoreRecommendations": false,
+  "problems.decorations.enabled": true,
+  "workbench.editor.enablePreview": false
+}
