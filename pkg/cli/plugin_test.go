@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -556,6 +557,11 @@ func TestPluginRegistryConfigFileErrors(t *testing.T) {
 			t.Skip("Skipping read-only directory test when running as root")
 		}
 
+		// Skip on Windows as chmod behavior is different
+		if runtime.GOOS == "windows" {
+			t.Skip("Skipping read-only directory test on Windows (chmod behavior differs)")
+		}
+
 		// Create a read-only directory
 		readOnlyDir := t.TempDir()
 		err := os.Chmod(readOnlyDir, 0444) // Read-only
@@ -764,13 +770,21 @@ func TestPluginRegistryInstallEdgeCases(t *testing.T) {
 	})
 
 	t.Run("InstallDuplicatePlugin", func(t *testing.T) {
+		// Create OS-appropriate test path
+		var testPath string
+		if runtime.GOOS == "windows" {
+			testPath = "C:\\test\\duplicate.so"
+		} else {
+			testPath = "/test/duplicate.so"
+		}
+
 		// First create a plugin in config
 		config := &PluginConfig{
 			Plugins: map[string]*PluginInfo{
 				"duplicate": {
 					Name:    "duplicate",
 					Version: "1.0.0",
-					Path:    "/test/duplicate.so",
+					Path:    testPath,
 					Enabled: true,
 				},
 			},
