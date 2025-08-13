@@ -1,0 +1,56 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+dist/
+
+# Test binary, built with `go test -c`
+*.test
+...godl.json
+/godl
+
+# Output of the go coverage tool
+*.out
+coverage.txt
+coverage.html
+coverage*
+
+# Dependency directories
+vendor/
+
+# Go workspace file
+go.work
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Project specific
+build/
+*.log
+*.download
+*.tmp
+testdata/downloads/
+
+# Environment variables
+.env
+.env.local
+
+# AI (exclude but keep some config files)
+.claude/settings.local.json    # Local overrides only
+.serena
+.mcp.json
+
+# Keep these AI config files in git:
+# .claude/CLAUDE.md           - Development guidelines
+# .claude/settings.json       - Shared Claude Code settings

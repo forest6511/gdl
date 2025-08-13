@@ -1,0 +1,85 @@
+name: Cross-Platform Tests
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+env:
+  GO_VERSION: '1.24'
+
+concurrency:
+  group: cross-platform-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  # Cross-platform compatibility tests
+  cross-platform:
+    name: Cross-Platform Tests
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        go-version: ['1.23', '1.24']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+          cache: true
+
+      - name: Download dependencies with retry
+        run: |
+          export GOPROXY=https://proxy.golang.org,direct
+          export GOSUMDB=sum.golang.org
+          for i in {1..3}; do
+            if timeout 180s go mod download; then
+              break
+            elif [ $i -eq 3 ]; then
+              exit 1
+            else
+              sleep 10
+            fi
+          done
+        shell: bash
+
+      - name: Run tests
+        shell: bash
+        run: |
+          echo "🧪 Running tests on ${{ matrix.os }} with Go ${{ matrix.go-version }}"
+          go test -v -race ./... 2>&1 | tee test-output.log
+          
+          if [ $? -ne 0 ]; then
+            echo "❌ Tests failed on ${{ matrix.os }}"
+            echo "## ❌ Test Failure: ${{ matrix.os }} / Go ${{ matrix.go-version }}" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            grep -E "FAIL|--- FAIL|panic:" test-output.log | head -20 >> $GITHUB_STEP_SUMMARY || echo "Could not extract failure details" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "✅ All tests passed on ${{ matrix.os }} with Go ${{ matrix.go-version }}"
+          fi
+
+      - name: Build binary
+        run: go build -v ./cmd/godl/
+
+      - name: Test binary execution
+        shell: bash
+        run: |
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            ./godl.exe --version
+          else
+            ./godl --version
+          fi
+
+      - name: Summary
+        if: success()
+        run: |
+          echo "## ✅ Tests Passed: ${{ matrix.os }} / Go ${{ matrix.go-version }}" >> $GITHUB_STEP_SUMMARY

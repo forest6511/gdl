@@ -1,0 +1,53 @@
+# Basic godl configuration example
+version: "1.0"
+
+# Basic output format settings
+output_format:
+  format: "text"
+  show_progress: true
+  color: true
+  log_level: "info"
+
+# Simple retry policy
+retry_policy:
+  max_retries: 3
+  base_delay: "1s"
+  strategy: "exponential"
+
+# Error handling
+error_handling:
+  verbose_errors: true
+  log_errors: false
+
+# Network settings
+network:
+  max_concurrent_connections: 5
+  user_agent: "godl/1.0"
+
+# Storage settings
+storage:
+  default_download_dir: "./downloads"
+  create_dirs: true
+  resume_support: true
+
+# Simple plugin configuration
+plugins:
+  # OAuth2 authentication plugin
+  - name: "oauth2"
+    type: "auth"
+    enabled: false
+    settings:
+      client_id: "${OAUTH_CLIENT_ID}"
+      client_secret: "${OAUTH_CLIENT_SECRET}"
+      token_url: "https://oauth.example.com/token"
+
+# Basic middleware chain
+middleware:
+  - name: "logging"
+    enabled: true
+  - name: "retry"
+    enabled: true
+    settings:
+      max_retries: 3
+  - name: "rate_limit"
+    enabled: false

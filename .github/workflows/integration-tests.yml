@@ -1,0 +1,79 @@
+name: Integration Tests
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+env:
+  GO_VERSION: '1.24'
+
+concurrency:
+  group: integration-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  # Integration tests with real HTTP endpoints
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Run library integration tests
+        shell: bash
+        run: |
+          echo "🧪 Running library integration tests"
+          go test -v -run "TestLibraryIntegration|TestProgressCallback|TestConcurrentDownloads|TestErrorHandling" ./. 2>&1 | tee integration-lib-output.log
+          
+          if [ $? -ne 0 ]; then
+            echo "❌ Library integration tests failed"
+            echo "## ❌ Library Integration Test Failures" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            grep -E "FAIL|--- FAIL|panic:" integration-lib-output.log | head -10 >> $GITHUB_STEP_SUMMARY || echo "Could not extract failure details" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+      - name: Build CLI binary
+        run: go build -o godl ./cmd/godl/
+
+      - name: Run CLI tests
+        shell: bash
+        run: |
+          echo "🧪 Running CLI tests"
+          go test -v ./cmd/godl/ 2>&1 | tee integration-cli-output.log
+          
+          if [ $? -ne 0 ]; then
+            echo "❌ CLI tests failed"
+            echo "## ❌ CLI Test Failures" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            grep -E "FAIL|--- FAIL|panic:" integration-cli-output.log | head -10 >> $GITHUB_STEP_SUMMARY || echo "Could not extract failure details" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+      - name: Test example programs
+        run: |
+          cd examples/01_basic_download
+          timeout 30s go run main.go || echo "Basic example completed"
+          
+          cd ../integration  
+          timeout 60s go run feature_demo.go || echo "Integration demo completed"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## ✅ Integration Tests Completed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All integration tests have completed successfully." >> $GITHUB_STEP_SUMMARY

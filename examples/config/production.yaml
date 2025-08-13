@@ -1,0 +1,147 @@
+# Production environment configuration
+version: "1.0"
+
+# Production output settings (minimal noise)
+output_format:
+  format: "json"
+  pretty: false
+  color: false
+  show_progress: false
+  quiet: true
+  verbose: false
+  log_level: "warn"
+
+# Conservative retry policy
+retry_policy:
+  max_retries: 3
+  base_delay: "5s"
+  max_delay: "300s"
+  backoff_factor: 2.0
+  jitter: true
+  strategy: "exponential"
+
+# Production error handling
+error_handling:
+  verbose_errors: false
+  show_stack_trace: false
+  log_errors: true
+  log_file: "/var/log/godl/errors.log"
+  fail_fast: false
+  error_format: "json"
+  recovery_enabled: false
+  network_diagnostics: false
+
+# Production timeouts
+timeouts:
+  connect_timeout: "30s"
+  read_timeout: "300s"
+  write_timeout: "60s"
+  idle_timeout: "600s"
+  keepalive_timeout: "30s"
+
+# Production network settings
+network:
+  max_concurrent_connections: 20
+  user_agent: "godl/1.0 (production)"
+  follow_redirects: true
+  max_redirects: 5
+  enable_compression: true
+  # Note: Use environment variables for sensitive data
+  proxy_url: "${HTTP_PROXY}"
+  dns_timeout: "10s"
+  tcp_keepalive: true
+
+# Production storage
+storage:
+  default_download_dir: "/data/downloads"
+  create_dirs: true
+  overwrite_existing: false
+  resume_support: true
+  min_free_space: 10737418240  # 10GB
+  temp_dir: "/tmp/godl"
+
+# Production plugins (security-focused)
+plugins:
+  # OAuth2 authentication (required in production)
+  - name: "oauth2"
+    type: "auth"
+    enabled: true
+    priority: 10
+    settings:
+      client_id: "${OAUTH_CLIENT_ID}"
+      client_secret: "${OAUTH_CLIENT_SECRET}"
+      token_url: "${OAUTH_TOKEN_URL}"
+      scopes: ["download"]
+
+  # Production-grade S3 storage
+  - name: "s3-storage"
+    type: "storage"
+    enabled: true
+    priority: 20
+    settings:
+      bucket: "${S3_BUCKET}"
+      region: "${AWS_REGION}"
+      # Use IAM roles in production, not keys
+      prefix: "production/downloads"
+
+# Production middleware (security + observability)
+middleware:
+  # Rate limiting (aggressive)
+  - name: "rate_limit"
+    enabled: true
+    priority: 10
+    settings:
+      requests_per_minute: 300
+      burst_size: 50
+
+  # Authentication (mandatory)
+  - name: "authentication"
+    enabled: true
+    priority: 20
+    settings:
+      auth_type: "oauth2"
+      cache_tokens: true
+      strict_mode: true
+
+  # Structured logging
+  - name: "logging"
+    enabled: true
+    priority: 30
+    settings:
+      level: "warn"
+      format: "json"
+      include_headers: false
+
+  # Metrics for monitoring
+  - name: "metrics"
+    enabled: true
+    priority: 40
+    settings:
+      endpoint: "${METRICS_ENDPOINT}"
+      interval: "60s"
+
+  # Timeout protection
+  - name: "timeout"
+    enabled: true
+    priority: 50
+    settings:
+      timeout: "300s"
+
+# Production hooks (security + compliance)
+hooks:
+  pre_download:
+    - "security_validation"
+    - "quota_validation"
+  
+  post_download:
+    - "virus_scan"
+    - "audit_log"
+    - "backup_metadata"
+  
+  on_error:
+    - "alert_ops_team"
+    - "log_incident"
+  
+  on_complete:
+    - "cleanup_temp_files"
+    - "update_metrics"

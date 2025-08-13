@@ -1,0 +1,65 @@
+name: Benchmarks
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+env:
+  GO_VERSION: '1.24'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  # Performance benchmarks
+  benchmark:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Run benchmarks
+        run: |
+          echo "## 📊 Benchmark Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          go test -bench=. -benchmem -benchtime=10s ./... | tee benchmark-results.txt
+          cat benchmark-results.txt >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Save benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: benchmark-results.txt
+
+      - name: Compare benchmarks (PR only)
+        if: github.event_name == 'pull_request'
+        run: |
+          # Install benchstat
+          go install golang.org/x/perf/cmd/benchstat@latest
+          
+          # Checkout base branch
+          git fetch origin ${{ github.base_ref }}
+          git checkout origin/${{ github.base_ref }}
+          
+          # Run base benchmarks
+          go test -bench=. -benchmem -benchtime=10s ./... > base-benchmarks.txt
+          
+          # Checkout PR branch
+          git checkout ${{ github.sha }}
+          
+          # Compare results
+          echo "## 📊 Benchmark Comparison" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          benchstat base-benchmarks.txt benchmark-results.txt >> $GITHUB_STEP_SUMMARY || echo "No significant changes detected" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

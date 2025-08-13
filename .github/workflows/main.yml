@@ -1,0 +1,116 @@
+name: Main CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+
+jobs:
+  # Quick checks that should pass before running tests
+  quick-checks:
+    name: Quick Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+
+      - name: Download dependencies with retry
+        run: |
+          export GOPROXY=https://proxy.golang.org,direct
+          export GOSUMDB=sum.golang.org
+          for i in {1..3}; do
+            if timeout 180s go mod download; then
+              break
+            elif [ $i -eq 3 ]; then
+              exit 1
+            else
+              sleep 10
+            fi
+          done
+
+      - name: Check go mod tidy
+        run: |
+          go mod tidy
+          git diff --exit-code go.mod go.sum
+
+  # Call lint workflow
+  lint:
+    name: Lint
+    needs: quick-checks
+    uses: ./.github/workflows/lint.yml
+    secrets: inherit
+
+  # Call unit tests workflow
+  unit-tests:
+    name: Unit Tests
+    needs: quick-checks
+    uses: ./.github/workflows/unit-tests.yml
+    secrets: inherit
+
+  # Call integration tests workflow
+  integration-tests:
+    name: Integration Tests
+    needs: quick-checks
+    uses: ./.github/workflows/integration-tests.yml
+    secrets: inherit
+
+  # Call security workflow (on PR and main/develop)
+  security:
+    name: Security
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    needs: quick-checks
+    uses: ./.github/workflows/security.yml
+    secrets: inherit
+
+  # Call cross-platform workflow (only on PR and main)
+  cross-platform:
+    name: Cross-Platform
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    needs: [lint, unit-tests]
+    uses: ./.github/workflows/cross-platform.yml
+    secrets: inherit
+
+  # Call benchmark workflow (only on main)
+  benchmark:
+    name: Benchmarks
+    if: github.ref == 'refs/heads/main'
+    needs: [unit-tests, integration-tests]
+    uses: ./.github/workflows/benchmark.yml
+    secrets: inherit
+
+  # Final status check
+  status:
+    name: CI Status
+    runs-on: ubuntu-latest
+    needs: [lint, unit-tests, integration-tests, security]
+    if: always()
+    steps:
+      - name: Check status
+        run: |
+          if [[ "${{ needs.lint.result }}" == "success" && "${{ needs.unit-tests.result }}" == "success" && "${{ needs.integration-tests.result }}" == "success" && "${{ needs.security.result }}" == "success" ]]; then
+            echo "## ✅ All CI checks passed!" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          else
+            echo "## ❌ Some CI checks failed" >> $GITHUB_STEP_SUMMARY
+            echo "- Lint: ${{ needs.lint.result }}" >> $GITHUB_STEP_SUMMARY
+            echo "- Unit Tests: ${{ needs.unit-tests.result }}" >> $GITHUB_STEP_SUMMARY
+            echo "- Integration Tests: ${{ needs.integration-tests.result }}" >> $GITHUB_STEP_SUMMARY
+            echo "- Security: ${{ needs.security.result }}" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi

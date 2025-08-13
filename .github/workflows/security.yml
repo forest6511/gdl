@@ -1,0 +1,243 @@
+name: Security Checks
+
+on:
+  workflow_call:
+  schedule:
+    - cron: '0 0 * * 1' # Weekly on Monday
+  workflow_dispatch:
+
+env:
+  GO_VERSION: '1.24'
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  # Security scanning
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Run gosec
+        id: gosec
+        run: |
+          # Install gosec
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+          
+          # Run gosec with text output for logs (human-readable)
+          echo "🔍 Running security scan with gosec..."
+          gosec -fmt text ./... 2>&1 | tee gosec-output.txt || true
+          
+          # Count issues (using grep as jq might not be available)
+          ISSUES=$(gosec -fmt text ./... 2>&1 | grep -c "^\[" || echo "0")
+          echo "issues_count=$ISSUES" >> $GITHUB_OUTPUT
+          
+          # Generate SARIF for GitHub Security tab
+          gosec -fmt sarif -out gosec-results.sarif ./... || true
+          
+          # Display summary in logs
+          echo ""
+          echo "📊 Security Scan Summary:"
+          echo "========================"
+          if [ "$ISSUES" -gt 0 ]; then
+            echo "⚠️  Found $ISSUES security issue(s)"
+            echo ""
+            echo "Top issues:"
+            grep -E "^\[" gosec-output.txt | head -10 || true
+          else
+            echo "✅ No security issues found"
+          fi
+          
+          # Fail if issues found (excluding test files and G115 integer overflow which has many false positives)
+          echo "🔍 Checking production code security issues..."
+          gosec -fmt text -exclude-dir=examples -exclude-dir=test ./... > prod-issues.txt 2>&1 || true
+          
+          # Count actual HIGH severity security issues (excluding G115 and log lines)
+          HIGH_ISSUES=$(grep "^\[.*\] - G" prod-issues.txt | grep -v "G115" | grep "Severity: HIGH" | wc -l | tr -d ' ')
+          MEDIUM_ISSUES=$(grep "^\[.*\] - G" prod-issues.txt | grep -v "G115" | grep "Severity: MEDIUM" | wc -l | tr -d ' ')
+          echo "Found $HIGH_ISSUES HIGH and $MEDIUM_ISSUES MEDIUM severity production security issues (excluding G115)"
+          
+          if [ "$HIGH_ISSUES" -gt 0 ] || [ "$MEDIUM_ISSUES" -gt 0 ]; then
+            echo ""
+            echo "🔍 Production security issues:"
+            if [ "$HIGH_ISSUES" -gt 0 ]; then
+              echo "HIGH severity issues:"
+              grep "^\[.*\] - G" prod-issues.txt | grep -v "G115" | grep "Severity: HIGH" | head -5
+            fi
+            if [ "$MEDIUM_ISSUES" -gt 0 ]; then
+              echo "MEDIUM severity issues:"
+              grep "^\[.*\] - G" prod-issues.txt | grep -v "G115" | grep "Severity: MEDIUM" | head -5
+            fi
+          fi
+          
+          # Only fail CI for HIGH severity issues
+          if [ "$HIGH_ISSUES" -gt 0 ]; then
+            echo ""
+            echo "❌ Found $HIGH_ISSUES HIGH severity security issue(s) in production code"
+            exit 1
+          elif [ "$MEDIUM_ISSUES" -gt 0 ]; then
+            echo ""
+            echo "⚠️ Found $MEDIUM_ISSUES MEDIUM severity security issue(s) in production code (not failing CI)"
+          else
+            echo "✅ No significant security issues in production code"
+          fi
+
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: gosec-results.sarif
+
+      - name: Run staticcheck
+        id: staticcheck
+        run: |
+          echo "🔍 Running staticcheck..."
+          go install honnef.co/go/tools/cmd/staticcheck@latest
+          
+          # Run staticcheck and capture output
+          staticcheck ./... 2>&1 | tee staticcheck-output.txt || true
+          
+          # Count issues
+          STATIC_ISSUES=$(wc -l < staticcheck-output.txt | tr -d ' ')
+          echo "staticcheck_issues=$STATIC_ISSUES" >> $GITHUB_OUTPUT
+          
+          if [ "$STATIC_ISSUES" -gt 0 ]; then
+            echo "⚠️ Found $STATIC_ISSUES staticcheck issue(s)"
+            cat staticcheck-output.txt
+          else
+            echo "✅ No staticcheck issues found"
+          fi
+
+      - name: Check for vulnerabilities
+        id: vulncheck
+        run: |
+          echo "🔍 Checking for known vulnerabilities..."
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          
+          # Run vulnerability check and capture output
+          govulncheck ./... 2>&1 | tee vuln-output.txt || true
+          
+          # Check for vulnerabilities
+          if grep -q "Vulnerability" vuln-output.txt; then
+            echo "⚠️ Vulnerabilities found:"
+            cat vuln-output.txt
+            echo "has_vulnerabilities=true" >> $GITHUB_OUTPUT
+          else
+            echo "✅ No known vulnerabilities found"
+            echo "has_vulnerabilities=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## 🔒 Security Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Add gosec results
+          if [ -f gosec-output.txt ]; then
+            TOTAL_ISSUES=$(grep -c "^\[" gosec-output.txt || echo "0")
+            echo "### 🔍 GoSec Security Analysis" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            if [ "$TOTAL_ISSUES" -gt 0 ]; then
+              echo "Found **$TOTAL_ISSUES** potential security issue(s):" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              
+              # Group issues by severity
+              echo "#### Issues by Severity:" >> $GITHUB_STEP_SUMMARY
+              echo "| Severity | Count | Example |" >> $GITHUB_STEP_SUMMARY
+              echo "|----------|-------|---------|" >> $GITHUB_STEP_SUMMARY
+              
+              HIGH=$(grep -c "Severity: HIGH" gosec-output.txt || echo "0")
+              MEDIUM=$(grep -c "Severity: MEDIUM" gosec-output.txt || echo "0")
+              LOW=$(grep -c "Severity: LOW" gosec-output.txt || echo "0")
+              
+              if [ "$HIGH" -gt 0 ]; then
+                EXAMPLE=$(grep "Severity: HIGH" gosec-output.txt | head -1 | sed 's/.*\[\([^]]*\)\].*/\1/' || echo "")
+                echo "| 🔴 HIGH | $HIGH | $EXAMPLE |" >> $GITHUB_STEP_SUMMARY
+              fi
+              if [ "$MEDIUM" -gt 0 ]; then
+                EXAMPLE=$(grep "Severity: MEDIUM" gosec-output.txt | head -1 | sed 's/.*\[\([^]]*\)\].*/\1/' || echo "")
+                echo "| 🟡 MEDIUM | $MEDIUM | $EXAMPLE |" >> $GITHUB_STEP_SUMMARY
+              fi
+              if [ "$LOW" -gt 0 ]; then
+                EXAMPLE=$(grep "Severity: LOW" gosec-output.txt | head -1 | sed 's/.*\[\([^]]*\)\].*/\1/' || echo "")
+                echo "| 🟢 LOW | $LOW | $EXAMPLE |" >> $GITHUB_STEP_SUMMARY
+              fi
+              
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "#### Top Issues:" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              grep -E "^\[" gosec-output.txt | head -5 >> $GITHUB_STEP_SUMMARY || true
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "ℹ️ Check the logs for full details or view the Security tab for GitHub integration." >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "<details><summary>💡 How to fix common issues</summary>" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "- **G301/G302**: File/directory permissions - use 0600/0750 instead of 0644/0755" >> $GITHUB_STEP_SUMMARY
+              echo "- **G304**: File inclusion - validate file paths or add #nosec comment if safe" >> $GITHUB_STEP_SUMMARY
+              echo "- **G306**: WriteFile permissions - use 0600 instead of 0644" >> $GITHUB_STEP_SUMMARY
+              echo "- **G501**: Weak crypto - replace MD5 with SHA256" >> $GITHUB_STEP_SUMMARY
+              echo "- **G204**: Command injection - validate inputs or add #nosec if controlled" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "Add \`// #nosec G###\` before the line to suppress false positives in test code." >> $GITHUB_STEP_SUMMARY
+              echo "</details>" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "✅ **No security issues found!**" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "⚠️ GoSec analysis results not available" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Other Security Checks" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Staticcheck results
+          if [ -f staticcheck-output.txt ]; then
+            STATIC_COUNT=$(wc -l < staticcheck-output.txt | tr -d ' ')
+            if [ "$STATIC_COUNT" -gt 0 ]; then
+              echo "#### ⚠️ Staticcheck: Found $STATIC_COUNT issue(s)" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              head -5 staticcheck-output.txt >> $GITHUB_STEP_SUMMARY
+              if [ "$STATIC_COUNT" -gt 5 ]; then
+                echo "... and $((STATIC_COUNT - 5)) more issues" >> $GITHUB_STEP_SUMMARY
+              fi
+              echo '```' >> $GITHUB_STEP_SUMMARY
+            else
+              echo "#### ✅ Staticcheck: No issues found" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "#### ⚠️ Staticcheck: Results not available" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Vulnerability check results
+          if [ -f vuln-output.txt ]; then
+            if grep -q "Vulnerability" vuln-output.txt; then
+              echo "#### 🔴 Vulnerability Check: Vulnerabilities found!" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              grep -A 3 "Vulnerability" vuln-output.txt | head -15 >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+            else
+              echo "#### ✅ Vulnerability Check: No known vulnerabilities" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "#### ⚠️ Vulnerability Check: Results not available" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "Security checks completed at $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,95 @@
+# Development environment configuration
+version: "1.0"
+
+# Development-friendly settings
+output_format:
+  format: "text"
+  pretty: true
+  color: true
+  show_progress: true
+  verbose: true
+  log_level: "debug"
+
+# Aggressive retry for development
+retry_policy:
+  max_retries: 1
+  base_delay: "500ms"
+  strategy: "constant"
+
+# Verbose error handling for debugging
+error_handling:
+  verbose_errors: true
+  show_stack_trace: true
+  log_errors: true
+  log_file: "./dev-logs/errors.log"
+  error_format: "structured"
+  recovery_enabled: true
+  network_diagnostics: true
+
+# Short timeouts for quick feedback
+timeouts:
+  connect_timeout: "5s"
+  read_timeout: "10s"
+  write_timeout: "5s"
+
+# Development network settings
+network:
+  max_concurrent_connections: 2
+  user_agent: "godl-dev/1.0"
+  follow_redirects: true
+  max_redirects: 5
+  proxy_url: "http://localhost:8080"  # Local development proxy
+
+# Local development storage
+storage:
+  default_download_dir: "./dev-downloads"
+  create_dirs: true
+  overwrite_existing: true
+  resume_support: true
+  temp_dir: "./dev-temp"
+
+# Development plugins (mostly disabled for simplicity)
+plugins:
+  # Mock authentication for testing
+  - name: "mock-auth"
+    type: "auth"
+    enabled: true
+    settings:
+      mock_token: "dev-token-12345"
+      always_succeed: true
+
+  # Development image optimizer with fast settings
+  - name: "image-optimizer"
+    type: "transform"
+    enabled: true
+    settings:
+      quality: 70
+      max_width: 800
+      max_height: 600
+      compression_mode: "fast"
+
+# Minimal middleware for development
+middleware:
+  - name: "logging"
+    enabled: true
+    settings:
+      level: "debug"
+      format: "text"
+      include_headers: true
+
+  - name: "metrics"
+    enabled: true
+    settings:
+      endpoint: "http://localhost:9090/metrics"
+      interval: "10s"
+
+# Development hooks
+hooks:
+  pre_download:
+    - "dev_validate"
+  
+  post_download:
+    - "dev_log"
+  
+  on_error:
+    - "dev_debug"

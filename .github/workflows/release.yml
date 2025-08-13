@@ -1,0 +1,90 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.0.0)'
+        required: true
+
+env:
+  GO_VERSION: '1.24'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  # Build and release binaries
+  release:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${{ github.ref_name }}"
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "📦 Building version: ${VERSION}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Run tests
+        run: go test -v -race ./...
+
+      - name: Build binaries
+        run: |
+          # Build for multiple platforms
+          platforms=("linux/amd64" "linux/arm64" "darwin/amd64" "darwin/arm64" "windows/amd64")
+          
+          for platform in "${platforms[@]}"; do
+            GOOS=${platform%/*}
+            GOARCH=${platform#*/}
+            output_name="godl-${GOOS}-${GOARCH}"
+            
+            if [ "$GOOS" = "windows" ]; then
+              output_name="${output_name}.exe"
+            fi
+            
+            echo "Building for $GOOS/$GOARCH..."
+            GOOS=$GOOS GOARCH=$GOARCH go build -v -ldflags="-s -w -X main.version=${{ steps.version.outputs.version }}" -o "dist/${output_name}" ./cmd/godl/
+          done
+          
+          # Create checksums
+          cd dist
+          sha256sum * > checksums.txt
+          cd ..
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: Release ${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.version, '-') }}
+          generate_release_notes: true
+          files: |
+            dist/*
+
+      - name: Summary
+        run: |
+          echo "## 🚀 Release ${{ steps.version.outputs.version }} Created" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Artifacts:" >> $GITHUB_STEP_SUMMARY
+          ls -la dist/ | tail -n +2 | awk '{print "- " $9 " (" $5 " bytes)"}' >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,9 @@
+# golangci-lint configuration for godl project  
+# Minimal, CI-compatible configuration
+version: "2"
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign

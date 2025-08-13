@@ -1,0 +1,201 @@
+# Full godl configuration example with all features
+version: "1.0"
+
+# Advanced retry policy configuration
+retry_policy:
+  max_retries: 5
+  base_delay: "2s"
+  max_delay: "30s"
+  backoff_factor: 2.0
+  jitter: true
+  strategy: "exponential"
+  retryable_errors:
+    - "network_timeout"
+    - "connection_refused"
+    - "temporary_failure"
+  non_retryable_errors:
+    - "authentication_failed"
+    - "file_not_found"
+    - "permission_denied"
+
+# Comprehensive error handling
+error_handling:
+  verbose_errors: true
+  show_stack_trace: false
+  log_errors: true
+  log_file: "./logs/godl-errors.log"
+  fail_fast: false
+  error_format: "structured"
+  recovery_enabled: true
+  network_diagnostics: true
+
+# Advanced output formatting
+output_format:
+  format: "json"
+  pretty: true
+  color: true
+  show_progress: true
+  quiet: false
+  verbose: false
+  timestamp_format: "2006-01-02T15:04:05Z07:00"
+  log_level: "info"
+
+# Comprehensive timeout settings
+timeouts:
+  connect_timeout: "30s"
+  read_timeout: "60s"
+  write_timeout: "30s"
+  idle_timeout: "90s"
+  keepalive_timeout: "30s"
+
+# Advanced network configuration
+network:
+  max_concurrent_connections: 10
+  user_agent: "godl/1.0 (advanced-config)"
+  follow_redirects: true
+  max_redirects: 10
+  enable_compression: true
+  proxy_url: "${HTTP_PROXY}"
+  no_proxy: "localhost,127.0.0.1,.local"
+  dns_timeout: "5s"
+  tcp_keepalive: true
+  tcp_keepalive_interval: "30s"
+
+# Advanced storage configuration
+storage:
+  default_download_dir: "./downloads"
+  create_dirs: true
+  overwrite_existing: false
+  resume_support: true
+  min_free_space: 1073741824  # 1GB
+  temp_dir: "./temp"
+
+# Comprehensive plugin configuration
+plugins:
+  # OAuth2 authentication plugin
+  - name: "oauth2"
+    type: "auth"
+    enabled: true
+    priority: 10
+    settings:
+      client_id: "${OAUTH_CLIENT_ID}"
+      client_secret: "${OAUTH_CLIENT_SECRET}"
+      token_url: "https://oauth.example.com/token"
+      scopes: ["download", "read"]
+
+  # Image optimization plugin
+  - name: "image-optimizer"
+    type: "transform"
+    enabled: true
+    priority: 20
+    settings:
+      quality: 85
+      max_width: 1920
+      max_height: 1080
+      enable_resize: true
+      output_format: "auto"
+      compression_mode: "balanced"
+
+  # Google Cloud Storage plugin
+  - name: "gcs-storage"
+    type: "storage"
+    enabled: false
+    priority: 30
+    settings:
+      bucket: "${GCS_BUCKET}"
+      project_id: "${GCP_PROJECT_ID}"
+      key_file: "${GCP_KEY_FILE}"
+      prefix: "downloads"
+
+  # Custom protocol handler
+  - name: "custom-protocol"
+    type: "protocol"
+    enabled: false
+    path: "./plugins/custom-protocol.so"
+    settings:
+      timeout: "60s"
+      retry_count: 3
+
+# Advanced middleware chain
+middleware:
+  # Rate limiting
+  - name: "rate_limit"
+    enabled: true
+    priority: 10
+    settings:
+      requests_per_minute: 60
+      burst_size: 10
+
+  # Authentication middleware
+  - name: "authentication"
+    enabled: true
+    priority: 20
+    settings:
+      auth_type: "oauth2"
+      cache_tokens: true
+
+  # Logging middleware
+  - name: "logging"
+    enabled: true
+    priority: 30
+    settings:
+      level: "info"
+      format: "structured"
+      include_headers: false
+
+  # Metrics collection
+  - name: "metrics"
+    enabled: true
+    priority: 40
+    settings:
+      endpoint: "http://localhost:8080/metrics"
+      interval: "30s"
+
+  # Compression middleware
+  - name: "compression"
+    enabled: true
+    priority: 50
+    settings:
+      level: 6
+      min_size: 1024
+
+  # Cache middleware
+  - name: "cache"
+    enabled: false
+    priority: 60
+    settings:
+      ttl: "1h"
+      max_size: "100MB"
+
+# Event hooks configuration
+hooks:
+  pre_download:
+    - "validate_url"
+    - "check_quota"
+    - "security_scan"
+  
+  post_download:
+    - "virus_scan"
+    - "backup_metadata"
+    - "notify_completion"
+  
+  pre_chunk:
+    - "rate_limit_check"
+  
+  post_chunk:
+    - "progress_update"
+  
+  on_error:
+    - "log_error"
+    - "notify_admin"
+  
+  on_retry:
+    - "backoff_delay"
+    - "log_retry"
+  
+  on_progress:
+    - "update_ui"
+  
+  on_complete:
+    - "cleanup_temp"
+    - "send_notification"

@@ -1,0 +1,174 @@
+name: Unit Tests
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+env:
+  GO_VERSION: '1.24'
+  CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+concurrency:
+  group: unit-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  # Unit tests with coverage - split by package for better parallelization
+  test:
+    name: Unit Tests
+    strategy:
+      fail-fast: false
+      matrix:
+        test-group:
+          - name: "Core Library"
+            packages: ". ./pkg/..."
+            coverage-flag: "library"
+          - name: "Internal Core"
+            packages: "./internal/core/..."
+            coverage-flag: "internal-core"
+          - name: "CLI Commands"
+            packages: "./cmd/godl/..."
+            coverage-flag: "cli"
+          - name: "Storage & Network"
+            packages: "./internal/storage/... ./internal/network/... ./internal/concurrent/..."
+            coverage-flag: "storage-network"
+          - name: "Retry & Resume"
+            packages: "./internal/retry/... ./internal/resume/... ./internal/recovery/..."
+            coverage-flag: "retry-resume"
+    runs-on: ubuntu-latest
+    outputs:
+      coverage: ${{ steps.merge-coverage.outputs.coverage }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Download dependencies with retry
+        run: |
+          export GOPROXY=https://proxy.golang.org,direct
+          export GOSUMDB=sum.golang.org
+          for i in {1..3}; do
+            if timeout 180s go mod download; then
+              break
+            elif [ $i -eq 3 ]; then
+              exit 1
+            else
+              sleep 10
+            fi
+          done
+
+      - name: Run tests with coverage
+        shell: bash
+        run: |
+          echo "🧪 Running ${{ matrix.test-group.name }} tests"
+          go test -v -race -coverprofile=coverage-${{ matrix.test-group.coverage-flag }}.out ${{ matrix.test-group.packages }} 2>&1 | tee test-output-${{ matrix.test-group.coverage-flag }}.log
+          
+          test_exit_code=$?
+          
+          if [ $test_exit_code -ne 0 ]; then
+            echo "❌ Tests failed for ${{ matrix.test-group.name }}"
+            echo "## ❌ Test Failure: ${{ matrix.test-group.name }}" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            grep -E "FAIL|--- FAIL|panic:" test-output-${{ matrix.test-group.coverage-flag }}.log | head -20 >> $GITHUB_STEP_SUMMARY || echo "Could not extract failure details" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "✅ All tests passed for ${{ matrix.test-group.name }}"
+          fi
+
+      - name: Upload coverage data
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.test-group.coverage-flag }}
+          path: coverage-${{ matrix.test-group.coverage-flag }}.out
+
+  # Merge coverage reports from all test groups
+  coverage:
+    name: Merge Coverage
+    runs-on: ubuntu-latest
+    needs: test
+    outputs:
+      coverage: ${{ steps.merge-coverage.outputs.coverage }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Download dependencies with retry
+        run: |
+          export GOPROXY=https://proxy.golang.org,direct
+          export GOSUMDB=sum.golang.org
+          for i in {1..3}; do
+            if timeout 180s go mod download; then
+              break
+            elif [ $i -eq 3 ]; then
+              exit 1
+            else
+              sleep 10
+            fi
+          done
+
+      - name: Download coverage data
+        uses: actions/download-artifact@v4
+        with:
+          pattern: coverage-*
+          merge-multiple: true
+
+      - name: Merge coverage reports
+        id: merge-coverage
+        run: |
+          # Install gocovmerge if not available
+          go install github.com/wadey/gocovmerge@latest || echo "Using go tool cover instead"
+          
+          # Merge coverage files
+          if command -v gocovmerge &> /dev/null; then
+            gocovmerge coverage-*.out > coverage.out
+          else
+            # Fallback: combine coverage files manually
+            echo "mode: atomic" > coverage.out
+            tail -n +2 coverage-*.out >> coverage.out
+          fi
+          
+          # Calculate total coverage
+          coverage=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+          echo "coverage=$coverage" >> $GITHUB_OUTPUT
+          echo "📊 Test Coverage: $coverage%" >> $GITHUB_STEP_SUMMARY
+
+      - name: Generate coverage report
+        run: |
+          go tool cover -html=coverage.out -o coverage.html
+          echo "## 📊 Test Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo "Coverage: ${{ steps.merge-coverage.outputs.coverage }}%" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          go tool cover -func=coverage.out | tail -10 >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        if: env.CODECOV_TOKEN != ''
+        with:
+          token: ${{ env.CODECOV_TOKEN }}
+          file: ./coverage.out
+          flags: unittests
+          name: godl-coverage
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage.out
+            coverage.html
