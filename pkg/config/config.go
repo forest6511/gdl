@@ -354,106 +354,102 @@ func (cl *ConfigLoader) Save(config *Config) error {
 }
 
 // applyDefaults applies default values for any missing configuration fields.
-func (cl *ConfigLoader) applyDefaults(config *Config) {
-	defaults := DefaultConfig()
-
-	// Apply retry policy defaults
+func (cl *ConfigLoader) applyRetryPolicyDefaults(config, defaults *Config) {
 	if config.RetryPolicy.MaxRetries == 0 {
 		config.RetryPolicy.MaxRetries = defaults.RetryPolicy.MaxRetries
 	}
-
 	if config.RetryPolicy.BaseDelay == 0 {
 		config.RetryPolicy.BaseDelay = defaults.RetryPolicy.BaseDelay
 	}
-
 	if config.RetryPolicy.MaxDelay == 0 {
 		config.RetryPolicy.MaxDelay = defaults.RetryPolicy.MaxDelay
 	}
-
 	if config.RetryPolicy.BackoffFactor == 0 {
 		config.RetryPolicy.BackoffFactor = defaults.RetryPolicy.BackoffFactor
 	}
-
 	if config.RetryPolicy.Strategy == "" {
 		config.RetryPolicy.Strategy = defaults.RetryPolicy.Strategy
 	}
+}
 
-	// Apply error handling defaults
+func (cl *ConfigLoader) applyErrorHandlingDefaults(config, defaults *Config) {
 	if config.ErrorHandling.ErrorFormat == "" {
 		config.ErrorHandling.ErrorFormat = defaults.ErrorHandling.ErrorFormat
 	}
+}
 
-	// Apply output format defaults
+func (cl *ConfigLoader) applyOutputFormatDefaults(config, defaults *Config) {
 	if config.OutputFormat.Format == "" {
 		config.OutputFormat.Format = defaults.OutputFormat.Format
 	}
-
 	if config.OutputFormat.TimestampFormat == "" {
 		config.OutputFormat.TimestampFormat = defaults.OutputFormat.TimestampFormat
 	}
-
 	if config.OutputFormat.LogLevel == "" {
 		config.OutputFormat.LogLevel = defaults.OutputFormat.LogLevel
 	}
+}
 
-	// Apply timeout defaults
+func (cl *ConfigLoader) applyTimeoutDefaults(config, defaults *Config) {
 	if config.Timeouts.ConnectTimeout == 0 {
 		config.Timeouts.ConnectTimeout = defaults.Timeouts.ConnectTimeout
 	}
-
 	if config.Timeouts.ReadTimeout == 0 {
 		config.Timeouts.ReadTimeout = defaults.Timeouts.ReadTimeout
 	}
-
 	if config.Timeouts.WriteTimeout == 0 {
 		config.Timeouts.WriteTimeout = defaults.Timeouts.WriteTimeout
 	}
-
 	if config.Timeouts.RequestTimeout == 0 {
 		config.Timeouts.RequestTimeout = defaults.Timeouts.RequestTimeout
 	}
-
 	if config.Timeouts.DownloadTimeout == 0 {
 		config.Timeouts.DownloadTimeout = defaults.Timeouts.DownloadTimeout
 	}
-
 	if config.Timeouts.IdleTimeout == 0 {
 		config.Timeouts.IdleTimeout = defaults.Timeouts.IdleTimeout
 	}
+}
 
-	// Apply network defaults
+func (cl *ConfigLoader) applyNetworkDefaults(config, defaults *Config) {
 	if config.Network.UserAgent == "" {
 		config.Network.UserAgent = defaults.Network.UserAgent
 	}
-
 	if config.Network.MaxConcurrentDownloads == 0 {
 		config.Network.MaxConcurrentDownloads = defaults.Network.MaxConcurrentDownloads
 	}
-
 	if config.Network.ChunkSize == 0 {
 		config.Network.ChunkSize = defaults.Network.ChunkSize
 	}
-
 	if config.Network.BufferSize == 0 {
 		config.Network.BufferSize = defaults.Network.BufferSize
 	}
-
 	if config.Network.MaxRedirects == 0 {
 		config.Network.MaxRedirects = defaults.Network.MaxRedirects
 	}
+}
 
-	// Apply storage defaults
+func (cl *ConfigLoader) applyStorageDefaults(config, defaults *Config) {
 	if config.Storage.DefaultDownloadDir == "" {
 		config.Storage.DefaultDownloadDir = defaults.Storage.DefaultDownloadDir
 	}
-
 	if config.Storage.MinFreeSpace == 0 {
 		config.Storage.MinFreeSpace = defaults.Storage.MinFreeSpace
 	}
-
 	if config.Storage.TempDir == "" {
 		config.Storage.TempDir = defaults.Storage.TempDir
 	}
+}
+
+func (cl *ConfigLoader) applyDefaults(config *Config) {
+	defaults := DefaultConfig()
+
+	cl.applyRetryPolicyDefaults(config, defaults)
+	cl.applyErrorHandlingDefaults(config, defaults)
+	cl.applyOutputFormatDefaults(config, defaults)
+	cl.applyTimeoutDefaults(config, defaults)
+	cl.applyNetworkDefaults(config, defaults)
+	cl.applyStorageDefaults(config, defaults)
 
 	// Set version if not specified
 	if config.Version == "" {
@@ -462,26 +458,22 @@ func (cl *ConfigLoader) applyDefaults(config *Config) {
 }
 
 // Validate validates the configuration for consistency and correctness.
-func (c *Config) Validate() error {
-	// Validate retry policy
+func (c *Config) validateRetryPolicy() error {
 	if c.RetryPolicy.MaxRetries < 0 {
 		return fmt.Errorf(
 			"retry policy max_retries must be non-negative, got %d",
 			c.RetryPolicy.MaxRetries,
 		)
 	}
-
 	if c.RetryPolicy.BaseDelay <= 0 {
 		return fmt.Errorf(
 			"retry policy base_delay must be positive, got %v",
 			c.RetryPolicy.BaseDelay,
 		)
 	}
-
 	if c.RetryPolicy.MaxDelay <= 0 {
 		return fmt.Errorf("retry policy max_delay must be positive, got %v", c.RetryPolicy.MaxDelay)
 	}
-
 	if c.RetryPolicy.BackoffFactor <= 0 {
 		return fmt.Errorf(
 			"retry policy backoff_factor must be positive, got %f",
@@ -499,7 +491,10 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("invalid retry strategy: %s", c.RetryPolicy.Strategy)
 	}
 
-	// Validate error handling
+	return nil
+}
+
+func (c *Config) validateErrorHandling() error {
 	validErrorFormats := map[string]bool{
 		"json":       true,
 		"text":       true,
@@ -508,8 +503,10 @@ func (c *Config) Validate() error {
 	if !validErrorFormats[c.ErrorHandling.ErrorFormat] {
 		return fmt.Errorf("invalid error format: %s", c.ErrorHandling.ErrorFormat)
 	}
+	return nil
+}
 
-	// Validate output format
+func (c *Config) validateOutputFormat() error {
 	validOutputFormats := map[string]bool{
 		"json":  true,
 		"yaml":  true,
@@ -530,50 +527,72 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("invalid log level: %s", c.OutputFormat.LogLevel)
 	}
 
-	// Validate timeouts
+	return nil
+}
+
+func (c *Config) validateTimeouts() error {
 	if c.Timeouts.ConnectTimeout <= 0 {
 		return fmt.Errorf("connect timeout must be positive, got %v", c.Timeouts.ConnectTimeout)
 	}
-
 	if c.Timeouts.ReadTimeout <= 0 {
 		return fmt.Errorf("read timeout must be positive, got %v", c.Timeouts.ReadTimeout)
 	}
-
 	if c.Timeouts.WriteTimeout <= 0 {
 		return fmt.Errorf("write timeout must be positive, got %v", c.Timeouts.WriteTimeout)
 	}
-
 	if c.Timeouts.RequestTimeout <= 0 {
 		return fmt.Errorf("request timeout must be positive, got %v", c.Timeouts.RequestTimeout)
 	}
-
 	if c.Timeouts.DownloadTimeout <= 0 {
 		return fmt.Errorf("download timeout must be positive, got %v", c.Timeouts.DownloadTimeout)
 	}
+	return nil
+}
 
-	// Validate network settings
+func (c *Config) validateNetwork() error {
 	if c.Network.MaxConcurrentDownloads <= 0 {
 		return fmt.Errorf(
 			"max concurrent downloads must be positive, got %d",
 			c.Network.MaxConcurrentDownloads,
 		)
 	}
-
 	if c.Network.ChunkSize <= 0 {
 		return fmt.Errorf("chunk size must be positive, got %d", c.Network.ChunkSize)
 	}
-
 	if c.Network.BufferSize <= 0 {
 		return fmt.Errorf("buffer size must be positive, got %d", c.Network.BufferSize)
 	}
-
 	if c.Network.MaxRedirects < 0 {
 		return fmt.Errorf("max redirects must be non-negative, got %d", c.Network.MaxRedirects)
 	}
+	return nil
+}
 
-	// Validate storage settings
+func (c *Config) validateStorage() error {
 	if c.Storage.MinFreeSpace < 0 {
 		return fmt.Errorf("min free space must be non-negative, got %d", c.Storage.MinFreeSpace)
+	}
+	return nil
+}
+
+func (c *Config) Validate() error {
+	if err := c.validateRetryPolicy(); err != nil {
+		return err
+	}
+	if err := c.validateErrorHandling(); err != nil {
+		return err
+	}
+	if err := c.validateOutputFormat(); err != nil {
+		return err
+	}
+	if err := c.validateTimeouts(); err != nil {
+		return err
+	}
+	if err := c.validateNetwork(); err != nil {
+		return err
+	}
+	if err := c.validateStorage(); err != nil {
+		return err
 	}
 
 	return nil
@@ -592,143 +611,134 @@ func (c *Config) Clone() *Config {
 }
 
 // Merge merges another configuration into this one, with the other config taking precedence.
+func (c *Config) mergeRetryPolicy(other *RetryPolicyConfig) {
+	if other.MaxRetries != 0 {
+		c.RetryPolicy.MaxRetries = other.MaxRetries
+	}
+	if other.BaseDelay != 0 {
+		c.RetryPolicy.BaseDelay = other.BaseDelay
+	}
+	if other.MaxDelay != 0 {
+		c.RetryPolicy.MaxDelay = other.MaxDelay
+	}
+	if other.BackoffFactor != 0 {
+		c.RetryPolicy.BackoffFactor = other.BackoffFactor
+	}
+	if other.Strategy != "" {
+		c.RetryPolicy.Strategy = other.Strategy
+	}
+	c.RetryPolicy.Jitter = other.Jitter
+
+	// Merge retryable/non-retryable errors
+	if len(other.RetryableErrors) > 0 {
+		c.RetryPolicy.RetryableErrors = other.RetryableErrors
+	}
+	if len(other.NonRetryableErrors) > 0 {
+		c.RetryPolicy.NonRetryableErrors = other.NonRetryableErrors
+	}
+}
+
+func (c *Config) mergeErrorHandling(other *ErrorHandlingConfig) {
+	c.ErrorHandling.VerboseErrors = other.VerboseErrors
+	c.ErrorHandling.ShowStackTrace = other.ShowStackTrace
+	c.ErrorHandling.LogErrors = other.LogErrors
+	c.ErrorHandling.FailFast = other.FailFast
+	c.ErrorHandling.RecoveryEnabled = other.RecoveryEnabled
+	c.ErrorHandling.NetworkDiagnostics = other.NetworkDiagnostics
+
+	if other.LogFile != "" {
+		c.ErrorHandling.LogFile = other.LogFile
+	}
+	if other.ErrorFormat != "" {
+		c.ErrorHandling.ErrorFormat = other.ErrorFormat
+	}
+}
+
+func (c *Config) mergeOutputFormat(other *OutputFormatConfig) {
+	if other.Format != "" {
+		c.OutputFormat.Format = other.Format
+	}
+	c.OutputFormat.Pretty = other.Pretty
+	c.OutputFormat.Color = other.Color
+	c.OutputFormat.ShowProgress = other.ShowProgress
+	c.OutputFormat.Quiet = other.Quiet
+	c.OutputFormat.Verbose = other.Verbose
+
+	if other.TimestampFormat != "" {
+		c.OutputFormat.TimestampFormat = other.TimestampFormat
+	}
+	if other.LogLevel != "" {
+		c.OutputFormat.LogLevel = other.LogLevel
+	}
+}
+
+func (c *Config) mergeTimeouts(other *TimeoutConfig) {
+	if other.ConnectTimeout != 0 {
+		c.Timeouts.ConnectTimeout = other.ConnectTimeout
+	}
+	if other.ReadTimeout != 0 {
+		c.Timeouts.ReadTimeout = other.ReadTimeout
+	}
+	if other.WriteTimeout != 0 {
+		c.Timeouts.WriteTimeout = other.WriteTimeout
+	}
+	if other.RequestTimeout != 0 {
+		c.Timeouts.RequestTimeout = other.RequestTimeout
+	}
+	if other.DownloadTimeout != 0 {
+		c.Timeouts.DownloadTimeout = other.DownloadTimeout
+	}
+	if other.IdleTimeout != 0 {
+		c.Timeouts.IdleTimeout = other.IdleTimeout
+	}
+}
+
+func (c *Config) mergeNetwork(other *NetworkConfig) {
+	if other.UserAgent != "" {
+		c.Network.UserAgent = other.UserAgent
+	}
+	if other.MaxConcurrentDownloads != 0 {
+		c.Network.MaxConcurrentDownloads = other.MaxConcurrentDownloads
+	}
+	if other.ChunkSize != 0 {
+		c.Network.ChunkSize = other.ChunkSize
+	}
+	if other.BufferSize != 0 {
+		c.Network.BufferSize = other.BufferSize
+	}
+	if other.MaxRedirects != 0 {
+		c.Network.MaxRedirects = other.MaxRedirects
+	}
+	c.Network.FollowRedirects = other.FollowRedirects
+	c.Network.InsecureTLS = other.InsecureTLS
+}
+
+func (c *Config) mergeStorage(other *StorageConfig) {
+	if other.DefaultDownloadDir != "" {
+		c.Storage.DefaultDownloadDir = other.DefaultDownloadDir
+	}
+	if other.TempDir != "" {
+		c.Storage.TempDir = other.TempDir
+	}
+	if other.MinFreeSpace != 0 {
+		c.Storage.MinFreeSpace = other.MinFreeSpace
+	}
+	c.Storage.CreateDirs = other.CreateDirs
+	c.Storage.OverwriteExisting = other.OverwriteExisting
+	c.Storage.ResumeSupport = other.ResumeSupport
+}
+
 func (c *Config) Merge(other *Config) {
 	if other == nil {
 		return
 	}
 
-	// Merge retry policy
-	if other.RetryPolicy.MaxRetries != 0 {
-		c.RetryPolicy.MaxRetries = other.RetryPolicy.MaxRetries
-	}
-
-	if other.RetryPolicy.BaseDelay != 0 {
-		c.RetryPolicy.BaseDelay = other.RetryPolicy.BaseDelay
-	}
-
-	if other.RetryPolicy.MaxDelay != 0 {
-		c.RetryPolicy.MaxDelay = other.RetryPolicy.MaxDelay
-	}
-
-	if other.RetryPolicy.BackoffFactor != 0 {
-		c.RetryPolicy.BackoffFactor = other.RetryPolicy.BackoffFactor
-	}
-
-	if other.RetryPolicy.Strategy != "" {
-		c.RetryPolicy.Strategy = other.RetryPolicy.Strategy
-	}
-
-	c.RetryPolicy.Jitter = other.RetryPolicy.Jitter
-
-	// Merge retryable/non-retryable errors
-	if len(other.RetryPolicy.RetryableErrors) > 0 {
-		c.RetryPolicy.RetryableErrors = other.RetryPolicy.RetryableErrors
-	}
-
-	if len(other.RetryPolicy.NonRetryableErrors) > 0 {
-		c.RetryPolicy.NonRetryableErrors = other.RetryPolicy.NonRetryableErrors
-	}
-
-	// Merge error handling
-	c.ErrorHandling.VerboseErrors = other.ErrorHandling.VerboseErrors
-	c.ErrorHandling.ShowStackTrace = other.ErrorHandling.ShowStackTrace
-	c.ErrorHandling.LogErrors = other.ErrorHandling.LogErrors
-	c.ErrorHandling.FailFast = other.ErrorHandling.FailFast
-	c.ErrorHandling.RecoveryEnabled = other.ErrorHandling.RecoveryEnabled
-	c.ErrorHandling.NetworkDiagnostics = other.ErrorHandling.NetworkDiagnostics
-
-	if other.ErrorHandling.LogFile != "" {
-		c.ErrorHandling.LogFile = other.ErrorHandling.LogFile
-	}
-
-	if other.ErrorHandling.ErrorFormat != "" {
-		c.ErrorHandling.ErrorFormat = other.ErrorHandling.ErrorFormat
-	}
-
-	// Merge output format
-	if other.OutputFormat.Format != "" {
-		c.OutputFormat.Format = other.OutputFormat.Format
-	}
-
-	c.OutputFormat.Pretty = other.OutputFormat.Pretty
-	c.OutputFormat.Color = other.OutputFormat.Color
-	c.OutputFormat.ShowProgress = other.OutputFormat.ShowProgress
-	c.OutputFormat.Quiet = other.OutputFormat.Quiet
-	c.OutputFormat.Verbose = other.OutputFormat.Verbose
-
-	if other.OutputFormat.TimestampFormat != "" {
-		c.OutputFormat.TimestampFormat = other.OutputFormat.TimestampFormat
-	}
-
-	if other.OutputFormat.LogLevel != "" {
-		c.OutputFormat.LogLevel = other.OutputFormat.LogLevel
-	}
-
-	// Merge timeouts
-	if other.Timeouts.ConnectTimeout != 0 {
-		c.Timeouts.ConnectTimeout = other.Timeouts.ConnectTimeout
-	}
-
-	if other.Timeouts.ReadTimeout != 0 {
-		c.Timeouts.ReadTimeout = other.Timeouts.ReadTimeout
-	}
-
-	if other.Timeouts.WriteTimeout != 0 {
-		c.Timeouts.WriteTimeout = other.Timeouts.WriteTimeout
-	}
-
-	if other.Timeouts.RequestTimeout != 0 {
-		c.Timeouts.RequestTimeout = other.Timeouts.RequestTimeout
-	}
-
-	if other.Timeouts.DownloadTimeout != 0 {
-		c.Timeouts.DownloadTimeout = other.Timeouts.DownloadTimeout
-	}
-
-	if other.Timeouts.IdleTimeout != 0 {
-		c.Timeouts.IdleTimeout = other.Timeouts.IdleTimeout
-	}
-
-	// Merge network settings
-	if other.Network.UserAgent != "" {
-		c.Network.UserAgent = other.Network.UserAgent
-	}
-
-	if other.Network.MaxConcurrentDownloads != 0 {
-		c.Network.MaxConcurrentDownloads = other.Network.MaxConcurrentDownloads
-	}
-
-	if other.Network.ChunkSize != 0 {
-		c.Network.ChunkSize = other.Network.ChunkSize
-	}
-
-	if other.Network.BufferSize != 0 {
-		c.Network.BufferSize = other.Network.BufferSize
-	}
-
-	if other.Network.MaxRedirects != 0 {
-		c.Network.MaxRedirects = other.Network.MaxRedirects
-	}
-
-	c.Network.FollowRedirects = other.Network.FollowRedirects
-	c.Network.InsecureTLS = other.Network.InsecureTLS
-
-	// Merge storage settings
-	if other.Storage.DefaultDownloadDir != "" {
-		c.Storage.DefaultDownloadDir = other.Storage.DefaultDownloadDir
-	}
-
-	if other.Storage.TempDir != "" {
-		c.Storage.TempDir = other.Storage.TempDir
-	}
-
-	if other.Storage.MinFreeSpace != 0 {
-		c.Storage.MinFreeSpace = other.Storage.MinFreeSpace
-	}
-
-	c.Storage.CreateDirs = other.Storage.CreateDirs
-	c.Storage.OverwriteExisting = other.Storage.OverwriteExisting
-	c.Storage.ResumeSupport = other.Storage.ResumeSupport
+	c.mergeRetryPolicy(&other.RetryPolicy)
+	c.mergeErrorHandling(&other.ErrorHandling)
+	c.mergeOutputFormat(&other.OutputFormat)
+	c.mergeTimeouts(&other.Timeouts)
+	c.mergeNetwork(&other.Network)
+	c.mergeStorage(&other.Storage)
 
 	// Update version
 	if other.Version != "" {
