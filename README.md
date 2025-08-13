@@ -3,7 +3,7 @@
 A fast, concurrent, and feature-rich file downloader library and CLI tool written in Go.
 
 [![CI/CD Pipeline](https://github.com/forest6511/godl/actions/workflows/main.yml/badge.svg)](https://github.com/forest6511/godl/actions/workflows/main.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/forest6511/godl)](https://goreportcard.com/report/github.com/forest6511/godl)
+[![Go Report Card](https://img.shields.io/badge/go%20report-A+-brightgreen.svg)](https://goreportcard.com/report/github.com/forest6511/godl)
 [![codecov](https://codecov.io/github/forest6511/godl/graph/badge.svg?token=1TgwtCRWqV)](https://codecov.io/github/forest6511/godl)
 [![Go Reference](https://pkg.go.dev/badge/github.com/forest6511/godl.svg)](https://pkg.go.dev/github.com/forest6511/godl)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
