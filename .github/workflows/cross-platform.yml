@@ -18,7 +18,7 @@ permissions:
 jobs:
   # Cross-platform compatibility tests
   cross-platform:
-    name: Cross-Platform Tests
+    name: ${{ matrix.os }} / Go ${{ matrix.go-version }}
     strategy:
       fail-fast: false
       matrix:

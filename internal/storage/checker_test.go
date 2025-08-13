@@ -670,6 +670,11 @@ func TestSpaceChecker_performCleanup_AllTypes(t *testing.T) {
 }
 
 func TestSpaceChecker_CreateTempFile_Errors(t *testing.T) {
+	// Skip this test in Docker/CI environments where we run as root
+	if os.Getuid() == 0 {
+		t.Skip("Skipping permission test when running as root (Docker/CI environment)")
+	}
+
 	checker := NewSpaceChecker()
 
 	t.Run("Non-existent directory", func(t *testing.T) {
