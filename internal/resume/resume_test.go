@@ -15,8 +15,13 @@ func TestNewManager(t *testing.T) {
 		t.Errorf("Expected resumeDir to be '.', got '%s'", manager.resumeDir)
 	}
 
-	// Test with custom directory
-	customDir := "/tmp/test-resume"
+	// Test with custom directory (use OS-appropriate path)
+	var customDir string
+	if runtime.GOOS == "windows" {
+		customDir = "C:\\tmp\\test-resume"
+	} else {
+		customDir = "/tmp/test-resume"
+	}
 
 	manager = NewManager(customDir)
 	if manager.resumeDir != customDir {
@@ -57,10 +62,18 @@ func TestSaveAndLoad(t *testing.T) {
 
 	manager := NewManager(tmpDir)
 
+	// Create test file path (OS-appropriate)
+	var testFilePath string
+	if runtime.GOOS == "windows" {
+		testFilePath = "C:\\tmp\\file.zip"
+	} else {
+		testFilePath = "/tmp/file.zip"
+	}
+
 	// Create test resume info
 	info := &ResumeInfo{
 		URL:             "https://example.com/file.zip",
-		FilePath:        "/tmp/file.zip",
+		FilePath:        testFilePath,
 		DownloadedBytes: 1024,
 		TotalBytes:      2048,
 		ETag:            "abc123",
@@ -85,7 +98,7 @@ func TestSaveAndLoad(t *testing.T) {
 	}
 
 	// Test Load
-	loadedInfo, err := manager.Load("/tmp/file.zip")
+	loadedInfo, err := manager.Load(testFilePath)
 	if err != nil {
 		t.Fatalf("Failed to load resume info: %v", err)
 	}
@@ -129,8 +142,16 @@ func TestLoadNonexistent(t *testing.T) {
 
 	manager := NewManager(tmpDir)
 
+	// Create test file path (OS-appropriate)
+	var testFilePath string
+	if runtime.GOOS == "windows" {
+		testFilePath = "C:\\tmp\\nonexistent.txt"
+	} else {
+		testFilePath = "/tmp/nonexistent.txt"
+	}
+
 	// Try to load non-existent resume file
-	info, err := manager.Load("/tmp/nonexistent.txt")
+	info, err := manager.Load(testFilePath)
 	if err != nil {
 		t.Fatalf("Load should not return error for non-existent file: %v", err)
 	}
@@ -148,7 +169,14 @@ func TestExists(t *testing.T) {
 	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	manager := NewManager(tmpDir)
-	filePath := "/tmp/test.txt"
+
+	// Create test file path (OS-appropriate)
+	var filePath string
+	if runtime.GOOS == "windows" {
+		filePath = "C:\\tmp\\test.txt"
+	} else {
+		filePath = "/tmp/test.txt"
+	}
 
 	// Should not exist initially
 	if manager.Exists(filePath) {
@@ -181,7 +209,14 @@ func TestDelete(t *testing.T) {
 	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	manager := NewManager(tmpDir)
-	filePath := "/tmp/test.txt"
+
+	// Create test file path (OS-appropriate)
+	var filePath string
+	if runtime.GOOS == "windows" {
+		filePath = "C:\\tmp\\test.txt"
+	} else {
+		filePath = "/tmp/test.txt"
+	}
 
 	// Create and save resume info
 	info := &ResumeInfo{
@@ -210,8 +245,14 @@ func TestDelete(t *testing.T) {
 		t.Error("Resume file should not exist after delete")
 	}
 
-	// Delete non-existent file should not error
-	err = manager.Delete("/tmp/nonexistent.txt")
+	// Delete non-existent file should not error (use OS-appropriate path)
+	var nonExistentPath string
+	if runtime.GOOS == "windows" {
+		nonExistentPath = "C:\\tmp\\nonexistent.txt"
+	} else {
+		nonExistentPath = "/tmp/nonexistent.txt"
+	}
+	err = manager.Delete(nonExistentPath)
 	if err != nil {
 		t.Errorf("Delete non-existent file should not error: %v", err)
 	}
