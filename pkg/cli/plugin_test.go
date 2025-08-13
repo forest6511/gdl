@@ -806,9 +806,9 @@ func TestPluginRegistryInstallEdgeCases(t *testing.T) {
 			t.Error("Expected error when installing duplicate plugin")
 		}
 
-		// The error could be either about already existing or GitHub download not implemented
-		if !strings.Contains(err.Error(), "already exists") && !strings.Contains(err.Error(), "GitHub download not implemented yet") {
-			t.Errorf("Expected 'already exists' or 'GitHub download not implemented' error, got: %v", err)
+		// Should get an error about the plugin already existing
+		if !strings.Contains(err.Error(), "already exists") {
+			t.Errorf("Expected 'already exists' error, got: %v", err)
 		}
 	})
 }
