@@ -316,6 +316,172 @@ func TestMemoryBackendClone(t *testing.T) {
 	}
 }
 
+// Additional tests for improving coverage
+
+func TestMemoryBackendContextCancellation(t *testing.T) {
+	backend := NewMemoryBackend()
+	_ = backend.Init(nil)
+
+	// Create a cancelled context
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	// Test Save with cancelled context
+	err := backend.Save(ctx, "key", strings.NewReader("data"))
+	if err == nil {
+		t.Error("Expected error for Save with cancelled context")
+	}
+
+	// Test Load with cancelled context
+	_, err = backend.Load(ctx, "key")
+	if err == nil {
+		t.Error("Expected error for Load with cancelled context")
+	}
+
+	// Test Delete with cancelled context
+	err = backend.Delete(ctx, "key")
+	if err == nil {
+		t.Error("Expected error for Delete with cancelled context")
+	}
+
+	// Test Exists with cancelled context
+	_, err = backend.Exists(ctx, "key")
+	if err == nil {
+		t.Error("Expected error for Exists with cancelled context")
+	}
+
+	// Test List with cancelled context
+	_, err = backend.List(ctx, "prefix")
+	if err == nil {
+		t.Error("Expected error for List with cancelled context")
+	}
+
+	// Test GetSize with cancelled context
+	_, err = backend.GetSize(ctx, "key")
+	if err == nil {
+		t.Error("Expected error for GetSize with cancelled context")
+	}
+
+	// Test BatchSave with cancelled context
+	items := map[string]io.Reader{
+		"key1": strings.NewReader("data1"),
+	}
+	err = backend.BatchSave(ctx, items)
+	if err == nil {
+		t.Error("Expected error for BatchSave with cancelled context")
+	}
+
+	// Test BatchDelete with cancelled context
+	err = backend.BatchDelete(ctx, []string{"key1"})
+	if err == nil {
+		t.Error("Expected error for BatchDelete with cancelled context")
+	}
+}
+
+func TestMemoryBackendDeleteNonExistent(t *testing.T) {
+	backend := NewMemoryBackend()
+	_ = backend.Init(nil)
+
+	ctx := context.Background()
+
+	// Try to delete non-existent key
+	err := backend.Delete(ctx, "non-existent")
+	if err == nil {
+		t.Error("Expected error when deleting non-existent key")
+	}
+}
+
+func TestMemoryBackendLoadNonExistent(t *testing.T) {
+	backend := NewMemoryBackend()
+	_ = backend.Init(nil)
+
+	ctx := context.Background()
+
+	// Try to load non-existent key
+	_, err := backend.Load(ctx, "non-existent")
+	if err == nil {
+		t.Error("Expected error when loading non-existent key")
+	}
+}
+
+func TestMemoryBackendGetSizeNonExistent(t *testing.T) {
+	backend := NewMemoryBackend()
+	_ = backend.Init(nil)
+
+	ctx := context.Background()
+
+	// Try to get size of non-existent key
+	_, err := backend.GetSize(ctx, "non-existent")
+	if err == nil {
+		t.Error("Expected error when getting size of non-existent key")
+	}
+}
+
+func TestMemoryBackendBatchSaveReadError(t *testing.T) {
+	backend := NewMemoryBackend()
+	_ = backend.Init(nil)
+
+	ctx := context.Background()
+
+	// Create a reader that will error
+	errorReader := &erroringReader{}
+	items := map[string]io.Reader{
+		"key1": errorReader,
+	}
+
+	err := backend.BatchSave(ctx, items)
+	if err == nil {
+		t.Error("Expected error when BatchSave encounters read error")
+	}
+}
+
+func TestMemoryBackendEmptyPrefix(t *testing.T) {
+	backend := NewMemoryBackend()
+	_ = backend.Init(nil)
+
+	ctx := context.Background()
+
+	// Save some data
+	_ = backend.Save(ctx, "key1", strings.NewReader("data1"))
+	_ = backend.Save(ctx, "key2", strings.NewReader("data2"))
+
+	// List with empty prefix should return all keys
+	keys, err := backend.List(ctx, "")
+	if err != nil {
+		t.Errorf("Expected no error from List with empty prefix, got %v", err)
+	}
+
+	if len(keys) != 2 {
+		t.Errorf("Expected 2 keys with empty prefix, got %d", len(keys))
+	}
+}
+
+func TestMemoryBackendReinitialize(t *testing.T) {
+	backend := NewMemoryBackend()
+	_ = backend.Init(nil)
+
+	ctx := context.Background()
+
+	// Save some data
+	_ = backend.Save(ctx, "key1", strings.NewReader("data1"))
+
+	// Reinitialize should clear data
+	_ = backend.Init(nil)
+
+	// Check that data is cleared
+	exists, _ := backend.Exists(ctx, "key1")
+	if exists {
+		t.Error("Expected data to be cleared after reinit")
+	}
+}
+
+// Helper type for testing error conditions
+type erroringReader struct{}
+
+func (e *erroringReader) Read(p []byte) (n int, err error) {
+	return 0, io.ErrUnexpectedEOF
+}
+
 // Filesystem Backend Tests
 func TestNewFileSystemBackend(t *testing.T) {
 	backend := NewFileSystemBackend()
@@ -561,5 +727,210 @@ func TestFileSystemBackendErrorCases(t *testing.T) {
 	_, err = backend.List(ctx, "test")
 	if err == nil {
 		t.Error("Expected error for List without basePath")
+	}
+}
+
+func TestFileSystemBackendContextCancellation(t *testing.T) {
+	tempDir := t.TempDir()
+	backend := NewFileSystemBackend()
+	_ = backend.Init(map[string]interface{}{"basePath": tempDir})
+
+	// Create a cancelled context
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	// Test Save with cancelled context
+	err := backend.Save(ctx, "key", strings.NewReader("data"))
+	if err == nil {
+		t.Error("Expected error for Save with cancelled context")
+	}
+
+	// Test Load with cancelled context
+	_, err = backend.Load(ctx, "key")
+	if err == nil {
+		t.Error("Expected error for Load with cancelled context")
+	}
+
+	// Test Delete with cancelled context - Delete doesn't support context cancellation
+	err = backend.Delete(ctx, "key")
+	// Delete doesn't check context, so this will return an error for key not found
+	if err == nil {
+		t.Error("Expected error when deleting non-existent key")
+	}
+
+	// Test Exists with cancelled context - Exists doesn't support context cancellation
+	exists, err := backend.Exists(ctx, "key")
+	if err != nil {
+		t.Errorf("Exists should not return error for cancelled context, got %v", err)
+	}
+	if exists {
+		t.Error("Key should not exist")
+	}
+
+	// Test List with cancelled context
+	// First save a file with valid context to ensure the walk has something to iterate
+	validCtx := context.Background()
+	_ = backend.Save(validCtx, "test-file", strings.NewReader("data"))
+
+	// Now test with cancelled context
+	_, err = backend.List(ctx, "prefix")
+	if err == nil {
+		t.Error("Expected error for List with cancelled context when iterating files")
+	}
+}
+
+func TestFileSystemBackendLoadNonExistent(t *testing.T) {
+	tempDir := t.TempDir()
+	backend := NewFileSystemBackend()
+	_ = backend.Init(map[string]interface{}{"basePath": tempDir})
+
+	ctx := context.Background()
+
+	// Try to load non-existent key
+	_, err := backend.Load(ctx, "non-existent")
+	if err == nil {
+		t.Error("Expected error when loading non-existent key")
+	}
+}
+
+func TestFileSystemBackendDeleteNonExistent(t *testing.T) {
+	tempDir := t.TempDir()
+	backend := NewFileSystemBackend()
+	_ = backend.Init(map[string]interface{}{"basePath": tempDir})
+
+	ctx := context.Background()
+
+	// Try to delete non-existent key
+	err := backend.Delete(ctx, "non-existent")
+	if err == nil {
+		t.Error("Expected error when deleting non-existent key")
+	}
+}
+
+func TestFileSystemBackendCleanupEmptyDirs(t *testing.T) {
+	tempDir := t.TempDir()
+	backend := NewFileSystemBackend()
+	_ = backend.Init(map[string]interface{}{"basePath": tempDir})
+
+	ctx := context.Background()
+
+	// Create nested file
+	key := "deep/nested/file.txt"
+	_ = backend.Save(ctx, key, strings.NewReader("data"))
+
+	// Delete the file
+	err := backend.Delete(ctx, key)
+	if err != nil {
+		t.Errorf("Expected no error from Delete, got %v", err)
+	}
+
+	// Check that empty directories were cleaned up
+	deepPath := filepath.Join(tempDir, "deep")
+	if _, err := os.Stat(deepPath); !os.IsNotExist(err) {
+		t.Error("Expected empty directories to be cleaned up")
+	}
+}
+
+func TestFileSystemBackendEmptyPrefixList(t *testing.T) {
+	tempDir := t.TempDir()
+	backend := NewFileSystemBackend()
+	_ = backend.Init(map[string]interface{}{"basePath": tempDir})
+
+	ctx := context.Background()
+
+	// Save multiple files
+	_ = backend.Save(ctx, "file1", strings.NewReader("data1"))
+	_ = backend.Save(ctx, "dir/file2", strings.NewReader("data2"))
+
+	// List with empty prefix should return all keys
+	keys, err := backend.List(ctx, "")
+	if err != nil {
+		t.Errorf("Expected no error from List with empty prefix, got %v", err)
+	}
+
+	if len(keys) != 2 {
+		t.Errorf("Expected 2 keys with empty prefix, got %d", len(keys))
+	}
+}
+
+func TestFileSystemBackendSaveReadError(t *testing.T) {
+	tempDir := t.TempDir()
+	backend := NewFileSystemBackend()
+	_ = backend.Init(map[string]interface{}{"basePath": tempDir})
+
+	ctx := context.Background()
+
+	// Create a reader that will error
+	errorReader := &erroringReader{}
+
+	err := backend.Save(ctx, "key", errorReader)
+	if err == nil {
+		t.Error("Expected error when Save encounters read error")
+	}
+}
+
+// Test Redis Backend
+func TestNewRedisBackend(t *testing.T) {
+	backend := NewRedisBackend()
+	if backend == nil {
+		t.Error("Expected redis backend to be created, got nil")
+	}
+}
+
+func TestRedisBackendInitError(t *testing.T) {
+	backend := NewRedisBackend()
+
+	// Init without config will use default values and try to connect
+	// Since we likely don't have Redis running, this will fail
+	err := backend.Init(nil)
+	// This will likely fail to connect, but that's expected
+	if err == nil {
+		// If it succeeds, Redis is running
+		t.Log("Redis appears to be running locally")
+	}
+
+	// Init with invalid config type for address still uses default
+	err = backend.Init(map[string]interface{}{
+		"address": 123, // Invalid type, but it will use default "localhost:6379"
+	})
+	// This will also likely fail to connect
+	if err == nil {
+		// If it succeeds, Redis is running
+		t.Log("Redis appears to be running locally")
+	}
+}
+
+// Test S3 Backend
+func TestNewS3Backend(t *testing.T) {
+	backend := NewS3Backend()
+	if backend == nil {
+		t.Error("Expected s3 backend to be created, got nil")
+	}
+}
+
+func TestS3BackendInitError(t *testing.T) {
+	backend := NewS3Backend()
+
+	// Init without required config should error
+	err := backend.Init(nil)
+	if err == nil {
+		t.Error("Expected error for Init without config")
+	}
+
+	// Init with missing bucket
+	err = backend.Init(map[string]interface{}{
+		"region": "us-west-2",
+	})
+	if err == nil {
+		t.Error("Expected error for Init without bucket")
+	}
+
+	// Init with invalid config type
+	err = backend.Init(map[string]interface{}{
+		"bucket": 123, // Invalid type
+		"region": "us-west-2",
+	})
+	if err == nil {
+		t.Error("Expected error for Init with invalid bucket type")
 	}
 }
