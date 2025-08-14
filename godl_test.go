@@ -3,13 +3,16 @@ package godl
 import (
 	"bytes"
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/forest6511/godl/pkg/types"
 	"github.com/forest6511/godl/pkg/validation"
 )
 
@@ -162,6 +165,87 @@ func TestDownloadWithResume(t *testing.T) {
 		t.Errorf("Expected content '%s', got %q", expectedContent, string(content))
 	}
 }
+
+func TestDownloaderMethods(t *testing.T) {
+	downloader := NewDownloader()
+
+	t.Run("UsePlugin", func(t *testing.T) {
+		// Create a mock plugin
+		mockPlugin := &mockTestPlugin{
+			name:    "test-plugin",
+			version: "1.0.0",
+		}
+
+		err := downloader.UsePlugin(mockPlugin)
+		if err != nil {
+			t.Errorf("UsePlugin() error = %v, wantErr false", err)
+		}
+	})
+
+	t.Run("RegisterProtocol", func(t *testing.T) {
+		mockProtocol := &mockTestProtocol{
+			scheme: "test",
+		}
+
+		_ = downloader.RegisterProtocol(mockProtocol)
+		// No error expected from RegisterProtocol
+	})
+
+	t.Run("SetStorageBackend", func(t *testing.T) {
+		mockBackend := &mockTestStorageBackend{
+			name: "test-storage",
+		}
+
+		err := downloader.SetStorageBackend("test", mockBackend)
+		if err != nil {
+			t.Errorf("SetStorageBackend() error = %v, wantErr false", err)
+		}
+	})
+}
+
+// Mock plugin for testing
+type mockTestPlugin struct {
+	name    string
+	version string
+}
+
+func (m *mockTestPlugin) Name() string                                           { return m.name }
+func (m *mockTestPlugin) Version() string                                        { return m.version }
+func (m *mockTestPlugin) Init(config map[string]interface{}) error               { return nil }
+func (m *mockTestPlugin) Close() error                                           { return nil }
+func (m *mockTestPlugin) ValidateAccess(operation string, resource string) error { return nil }
+
+// Mock protocol for testing
+type mockTestProtocol struct {
+	scheme string
+}
+
+func (m *mockTestProtocol) Scheme() string            { return m.scheme }
+func (m *mockTestProtocol) CanHandle(url string) bool { return true }
+func (m *mockTestProtocol) Download(ctx context.Context, url string, options *types.DownloadOptions) (*types.DownloadStats, error) {
+	return &types.DownloadStats{Success: true}, nil
+}
+
+// Mock storage backend for testing
+type mockTestStorageBackend struct {
+	name string
+}
+
+func (m *mockTestStorageBackend) Init(config map[string]interface{}) error { return nil }
+func (m *mockTestStorageBackend) Save(ctx context.Context, key string, data io.Reader) error {
+	return nil
+}
+func (m *mockTestStorageBackend) Load(ctx context.Context, key string) (io.ReadCloser, error) {
+	return io.NopCloser(strings.NewReader("")), nil
+}
+func (m *mockTestStorageBackend) Delete(ctx context.Context, key string) error { return nil }
+func (m *mockTestStorageBackend) Exists(ctx context.Context, key string) (bool, error) {
+	return false, nil
+}
+func (m *mockTestStorageBackend) List(ctx context.Context, prefix string) ([]string, error) {
+	return nil, nil
+}
+func (m *mockTestStorageBackend) Close() error { return nil }
 
 func TestGetFileInfo(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
