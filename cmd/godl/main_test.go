@@ -3170,10 +3170,8 @@ func TestRunPluginCommand(t *testing.T) {
 // Test simpler functions for coverage
 
 func TestStringSlice(t *testing.T) {
-	var s StringSlice
-
 	// Test String method
-	s = StringSlice{"a", "b", "c"}
+	s := StringSlice{"a", "b", "c"}
 	if s.String() != "a,b,c" {
 		t.Errorf("Expected 'a,b,c', got %q", s.String())
 	}
@@ -3241,7 +3239,7 @@ func TestShowPluginUsage(t *testing.T) {
 	// Test show plugin usage
 	showPluginUsage()
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = oldStdout
 
 	// Read output
@@ -3266,6 +3264,7 @@ func TestProgressDisplayAdvanced(t *testing.T) {
 	// Test progress display creation
 	if progress == nil {
 		t.Error("Expected progress display to be created")
+		return
 	}
 
 	// Test Start method

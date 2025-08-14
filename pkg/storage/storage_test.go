@@ -579,7 +579,7 @@ func TestStorageManagerAdvanced(t *testing.T) {
 		if err != nil {
 			t.Errorf("Load failed: %v", err)
 		}
-		defer reader.Close()
+		defer func() { _ = reader.Close() }()
 
 		loadedData, err := io.ReadAll(reader)
 		if err != nil {

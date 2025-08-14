@@ -486,6 +486,7 @@ func TestNewDefaultConfigManager(t *testing.T) {
 	config := manager.GetConfig()
 	if config == nil {
 		t.Error("GetConfig() should not return nil")
+		return
 	}
 
 	// Verify it uses default values
