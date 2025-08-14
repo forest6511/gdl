@@ -6,10 +6,43 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/forest6511/godl/pkg/storage"
 )
+
+// isPathUnder checks if childPath is under parentPath in a cross-platform way
+func isPathUnder(parentPath, childPath string) bool {
+	// Get absolute paths
+	absParent, err := filepath.Abs(parentPath)
+	if err != nil {
+		return false
+	}
+	absChild, err := filepath.Abs(childPath)
+	if err != nil {
+		return false
+	}
+
+	// Clean the paths
+	absParent = filepath.Clean(absParent)
+	absChild = filepath.Clean(absChild)
+
+	// On Windows, paths are case-insensitive
+	if runtime.GOOS == "windows" {
+		absParent = strings.ToLower(absParent)
+		absChild = strings.ToLower(absChild)
+	}
+
+	// Check if child is under parent
+	rel, err := filepath.Rel(absParent, absChild)
+	if err != nil {
+		return false
+	}
+
+	// If the relative path starts with ".." or is ".", then child is not under parent
+	return !strings.HasPrefix(rel, "..") && rel != "."
+}
 
 // FileSystemBackend implements storage using the local file system
 type FileSystemBackend struct {
@@ -28,8 +61,8 @@ func (fs *FileSystemBackend) Init(config map[string]interface{}) error {
 		return fmt.Errorf("basePath is required for filesystem backend")
 	}
 
-	// Expand tilde to home directory
-	if strings.HasPrefix(basePath, "~/") {
+	// Expand tilde to home directory (Unix-style only)
+	if strings.HasPrefix(basePath, "~/") && runtime.GOOS != "windows" {
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
 			return fmt.Errorf("failed to get user home directory: %w", err)
@@ -55,6 +88,13 @@ func (fs *FileSystemBackend) Init(config map[string]interface{}) error {
 
 // Save stores data to the file system at the specified key/path
 func (fs *FileSystemBackend) Save(ctx context.Context, key string, data io.Reader) error {
+	// Check for context cancellation
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	if fs.basePath == "" {
 		return storage.ErrBackendNotReady
 	}
@@ -69,7 +109,7 @@ func (fs *FileSystemBackend) Save(ctx context.Context, key string, data io.Reade
 
 	// Validate and sanitize the file path to prevent directory traversal
 	cleanPath := filepath.Clean(filePath)
-	if !strings.HasPrefix(cleanPath, fs.basePath) {
+	if !isPathUnder(fs.basePath, cleanPath) {
 		return fmt.Errorf("path outside base directory not allowed: %s", filePath)
 	}
 
@@ -112,6 +152,13 @@ func (fs *FileSystemBackend) Save(ctx context.Context, key string, data io.Reade
 
 // Load retrieves data from the file system for the given key/path
 func (fs *FileSystemBackend) Load(ctx context.Context, key string) (io.ReadCloser, error) {
+	// Check for context cancellation
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
 	if fs.basePath == "" {
 		return nil, storage.ErrBackendNotReady
 	}
@@ -120,7 +167,7 @@ func (fs *FileSystemBackend) Load(ctx context.Context, key string) (io.ReadClose
 
 	// Validate and sanitize the file path to prevent directory traversal
 	cleanPath := filepath.Clean(filePath)
-	if !strings.HasPrefix(cleanPath, fs.basePath) {
+	if !isPathUnder(fs.basePath, cleanPath) {
 		return nil, fmt.Errorf("path outside base directory not allowed: %s", filePath)
 	}
 
@@ -256,7 +303,7 @@ func (fs *FileSystemBackend) pathToKey(path string) string {
 // cleanupEmptyDirs removes empty parent directories up to the base path
 func (fs *FileSystemBackend) cleanupEmptyDirs(dir string) {
 	// Don't remove the base path itself
-	if dir == fs.basePath || !strings.HasPrefix(dir, fs.basePath) {
+	if dir == fs.basePath || !isPathUnder(fs.basePath, dir) {
 		return
 	}
 

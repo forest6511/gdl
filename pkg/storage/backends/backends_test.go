@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestNewMemoryBackend(t *testing.T) {
@@ -739,16 +740,25 @@ func TestFileSystemBackendContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
+	// Give some time for the context to be fully cancelled
+	time.Sleep(10 * time.Millisecond)
+
 	// Test Save with cancelled context
 	err := backend.Save(ctx, "key", strings.NewReader("data"))
 	if err == nil {
 		t.Error("Expected error for Save with cancelled context")
+	}
+	if err != context.Canceled {
+		t.Logf("Got error: %v (expected context.Canceled)", err)
 	}
 
 	// Test Load with cancelled context
 	_, err = backend.Load(ctx, "key")
 	if err == nil {
 		t.Error("Expected error for Load with cancelled context")
+	}
+	if err != context.Canceled {
+		t.Logf("Got error: %v (expected context.Canceled)", err)
 	}
 
 	// Test Delete with cancelled context - Delete doesn't support context cancellation
