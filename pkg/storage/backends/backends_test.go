@@ -934,3 +934,216 @@ func TestS3BackendInitError(t *testing.T) {
 		t.Error("Expected error for Init with invalid bucket type")
 	}
 }
+
+// Additional tests for Redis backend methods (without actual Redis connection)
+func TestRedisBackendMethods(t *testing.T) {
+	backend := NewRedisBackend()
+	ctx := context.Background()
+
+	// Test methods without initialization (should panic or error)
+	t.Run("Methods without initialization", func(t *testing.T) {
+		// These methods will panic with nil pointer dereference since client is nil
+		// We'll test each one and expect them to panic
+
+		// Save should panic
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("Expected panic for Save without Redis connection")
+			}
+		}()
+		_ = backend.Save(ctx, "key", strings.NewReader("data"))
+	})
+
+	t.Run("Load without initialization", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("Expected panic for Load without Redis connection")
+			}
+		}()
+		_, _ = backend.Load(ctx, "key")
+	})
+
+	t.Run("Delete without initialization", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("Expected panic for Delete without Redis connection")
+			}
+		}()
+		_ = backend.Delete(ctx, "key")
+	})
+
+	t.Run("Exists without initialization", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("Expected panic for Exists without Redis connection")
+			}
+		}()
+		_, _ = backend.Exists(ctx, "key")
+	})
+
+	t.Run("List without initialization", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("Expected panic for List without Redis connection")
+			}
+		}()
+		_, _ = backend.List(ctx, "prefix")
+	})
+
+	t.Run("Helper methods", func(t *testing.T) {
+		// Initialize with mock config first
+		config := map[string]interface{}{
+			"addr":     "localhost:9999", // Non-existent Redis
+			"password": "test",
+			"db":       0,
+		}
+		_ = backend.Init(config) // Ignore connection error
+
+		// buildKey method
+		key := backend.buildKey("test-key")
+		if key == "" {
+			t.Error("Expected non-empty built key")
+		}
+
+		// stripPrefix method
+		stripped := backend.stripPrefix("prefix:key")
+		if stripped == "" {
+			t.Error("Expected non-empty stripped key")
+		}
+
+		// Close method (should not error even without connection)
+		err := backend.Close()
+		if err != nil {
+			t.Errorf("Expected no error from Close, got %v", err)
+		}
+	})
+
+	t.Run("Configuration edge cases", func(t *testing.T) {
+		// Test with missing address
+		err := backend.Init(map[string]interface{}{
+			"password": "test",
+			"db":       0,
+		})
+		// Should use default address
+		if err == nil {
+			t.Log("Redis connection succeeded with default address")
+		}
+
+		// Test with invalid db type
+		err = backend.Init(map[string]interface{}{
+			"addr": "localhost:6379",
+			"db":   "invalid", // Invalid type
+		})
+		// Should use default db
+		if err == nil {
+			t.Log("Redis connection succeeded with default db")
+		}
+	})
+}
+
+// Additional tests for S3 backend methods (without actual S3 connection)
+func TestS3BackendMethods(t *testing.T) {
+	backend := NewS3Backend()
+	ctx := context.Background()
+
+	// Test methods without initialization (should panic)
+	t.Run("Methods without initialization", func(t *testing.T) {
+		// These methods will panic with nil pointer dereference since client is nil
+		// We'll test each one and expect them to panic
+
+		// Save should panic
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("Expected panic for Save without S3 connection")
+			}
+		}()
+		_ = backend.Save(ctx, "key", strings.NewReader("data"))
+	})
+
+	t.Run("Load without initialization", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("Expected panic for Load without S3 connection")
+			}
+		}()
+		_, _ = backend.Load(ctx, "key")
+	})
+
+	t.Run("Delete without initialization", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("Expected panic for Delete without S3 connection")
+			}
+		}()
+		_ = backend.Delete(ctx, "key")
+	})
+
+	t.Run("Exists without initialization", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("Expected panic for Exists without S3 connection")
+			}
+		}()
+		_, _ = backend.Exists(ctx, "key")
+	})
+
+	t.Run("List without initialization", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("Expected panic for List without S3 connection")
+			}
+		}()
+		_, _ = backend.List(ctx, "prefix")
+	})
+
+	t.Run("Helper methods", func(t *testing.T) {
+		// buildKey method
+		key := backend.buildKey("test-key")
+		if key == "" {
+			t.Error("Expected non-empty built key")
+		}
+
+		// stripPrefix method
+		stripped := backend.stripPrefix("prefix/key")
+		if stripped == "" {
+			t.Error("Expected non-empty stripped key")
+		}
+
+		// Close method (should not error even without connection)
+		err := backend.Close()
+		if err != nil {
+			t.Errorf("Expected no error from Close, got %v", err)
+		}
+	})
+
+	t.Run("Configuration edge cases", func(t *testing.T) {
+		// Test with missing region - should use default region
+		err := backend.Init(map[string]interface{}{
+			"bucket": "test-bucket",
+		})
+		// This might fail due to AWS credentials/network, but not due to missing region
+		if err != nil {
+			t.Logf("Init failed (expected due to AWS setup): %v", err)
+		}
+
+		// Test with invalid region type - should use default region
+		err = backend.Init(map[string]interface{}{
+			"bucket": "test-bucket",
+			"region": 123, // Invalid type, will use default
+		})
+		// This might fail due to AWS credentials/network, but not due to invalid region type
+		if err != nil {
+			t.Logf("Init failed (expected due to AWS setup): %v", err)
+		}
+
+		// Test with missing credentials but valid config
+		err = backend.Init(map[string]interface{}{
+			"bucket": "test-bucket",
+			"region": "us-west-2",
+		})
+		// This might fail due to missing AWS credentials, which is expected
+		if err != nil {
+			t.Logf("Init failed (expected due to AWS credentials): %v", err)
+		}
+	})
+}

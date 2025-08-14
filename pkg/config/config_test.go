@@ -471,3 +471,226 @@ func TestConfigManager_ReloadConfig(t *testing.T) {
 		t.Error("Expected Color to be false after reload")
 	}
 }
+
+// Test NewDefaultConfigManager function (0% coverage)
+func TestNewDefaultConfigManager(t *testing.T) {
+	manager, err := NewDefaultConfigManager()
+	if err != nil {
+		t.Fatalf("NewDefaultConfigManager() failed: %v", err)
+	}
+
+	if manager == nil {
+		t.Fatal("NewDefaultConfigManager() should not return nil")
+	}
+
+	config := manager.GetConfig()
+	if config == nil {
+		t.Error("GetConfig() should not return nil")
+	}
+
+	// Verify it uses default values
+	if config.Version != "1.0" {
+		t.Errorf("Expected version '1.0', got %s", config.Version)
+	}
+}
+
+// Test apply defaults functions (50% coverage)
+func TestConfigLoader_ApplyDefaults(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "apply_defaults_test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tempDir) }()
+
+	configPath := filepath.Join(tempDir, "partial_config.json")
+	loader := NewConfigLoader(configPath)
+
+	// Create a partial config with some fields missing
+	partialConfig := &Config{
+		RetryPolicy: RetryPolicyConfig{
+			MaxRetries: 0,  // Will be filled by defaults
+			Strategy:   "", // Will be filled by defaults
+		},
+		ErrorHandling: ErrorHandlingConfig{
+			ErrorFormat: "", // Will be filled by defaults
+		},
+		OutputFormat: OutputFormatConfig{
+			Format:          "", // Will be filled by defaults
+			LogLevel:        "", // Will be filled by defaults
+			TimestampFormat: "", // Will be filled by defaults
+		},
+		Timeouts: TimeoutConfig{
+			ConnectTimeout: 0, // Will be filled by defaults
+		},
+		Network: NetworkConfig{
+			UserAgent: "", // Will be filled by defaults
+		},
+		Storage: StorageConfig{
+			DefaultDownloadDir: "", // Will be filled by defaults
+		},
+	}
+
+	// Save partial config
+	err = loader.Save(partialConfig)
+	if err != nil {
+		t.Fatalf("Failed to save partial config: %v", err)
+	}
+
+	// Load config (should apply defaults)
+	loadedConfig, err := loader.Load()
+	if err != nil {
+		t.Fatalf("Load() failed: %v", err)
+	}
+
+	// Verify defaults were applied
+	if loadedConfig.RetryPolicy.MaxRetries == 0 {
+		t.Error("Expected MaxRetries to be filled with default value")
+	}
+
+	if loadedConfig.RetryPolicy.Strategy == "" {
+		t.Error("Expected Strategy to be filled with default value")
+	}
+
+	if loadedConfig.ErrorHandling.ErrorFormat == "" {
+		t.Error("Expected ErrorFormat to be filled with default value")
+	}
+
+	if loadedConfig.OutputFormat.Format == "" {
+		t.Error("Expected Format to be filled with default value")
+	}
+
+	if loadedConfig.OutputFormat.LogLevel == "" {
+		t.Error("Expected LogLevel to be filled with default value")
+	}
+
+	if loadedConfig.Timeouts.ConnectTimeout == 0 {
+		t.Error("Expected ConnectTimeout to be filled with default value")
+	}
+
+	if loadedConfig.Network.UserAgent == "" {
+		t.Error("Expected UserAgent to be filled with default value")
+	}
+
+	if loadedConfig.Storage.DefaultDownloadDir == "" {
+		t.Error("Expected DefaultDownloadDir to be filled with default value")
+	}
+
+	// Verify version was applied
+	if loadedConfig.Version == "" {
+		t.Error("Expected Version to be filled with default value")
+	}
+}
+
+// Test error scenarios
+func TestConfigLoader_LoadInvalidJSON(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "invalid_json_test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tempDir) }()
+
+	configPath := filepath.Join(tempDir, "invalid.json")
+
+	// Write invalid JSON
+	err = os.WriteFile(configPath, []byte("{ invalid json }"), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write invalid JSON: %v", err)
+	}
+
+	loader := NewConfigLoader(configPath)
+
+	// Should return error for invalid JSON
+	_, err = loader.Load()
+	if err == nil {
+		t.Error("Load() should fail with invalid JSON")
+	}
+}
+
+func TestConfigLoader_SaveDirectoryPermissionError(t *testing.T) {
+	// Try to save to a directory that doesn't exist and can't be created
+	configPath := "/root/nonexistent/config.json"
+	loader := NewConfigLoader(configPath)
+
+	config := DefaultConfig()
+
+	err := loader.Save(config)
+	if err == nil {
+		t.Error("Save() should fail when directory can't be created")
+	}
+}
+
+func TestDefaultConfigPath_Error(t *testing.T) {
+	// Test by temporarily unsetting HOME
+	oldHome := os.Getenv("HOME")
+	defer func() { _ = os.Setenv("HOME", oldHome) }()
+
+	// Unset HOME environment variable
+	_ = os.Unsetenv("HOME")
+
+	_, err := DefaultConfigPath()
+	if err == nil {
+		t.Error("DefaultConfigPath() should fail when HOME is not set")
+	}
+}
+
+// Test validate functions with more edge cases
+func TestConfig_ValidateEdgeCases(t *testing.T) {
+	// Test timeout edge cases
+	config := DefaultConfig()
+	config.Timeouts.ReadTimeout = -1
+
+	err := config.Validate()
+	if err == nil {
+		t.Error("Should fail validation with negative ReadTimeout")
+	}
+
+	// Test network edge cases
+	config = DefaultConfig()
+	config.Network.ChunkSize = -1
+
+	err = config.Validate()
+	if err == nil {
+		t.Error("Should fail validation with negative ChunkSize")
+	}
+
+	// Test storage edge cases
+	config = DefaultConfig()
+	config.Storage.MinFreeSpace = -1
+
+	err = config.Validate()
+	if err == nil {
+		t.Error("Should fail validation with negative MinFreeSpace")
+	}
+}
+
+// Test ReloadConfig error scenarios
+func TestConfigManager_ReloadConfigErrors(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "reload_error_test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tempDir) }()
+
+	configPath := filepath.Join(tempDir, "test_config.json")
+
+	manager, err := NewConfigManager(configPath)
+	if err != nil {
+		t.Fatalf("NewConfigManager() failed: %v", err)
+	}
+
+	// Remove the config file to simulate file not found
+	_ = os.Remove(configPath)
+
+	// Write invalid config
+	invalidConfigJSON := `{"retry_policy": {"max_retries": -1}}`
+	err = os.WriteFile(configPath, []byte(invalidConfigJSON), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write invalid config: %v", err)
+	}
+
+	// ReloadConfig should fail validation
+	err = manager.ReloadConfig()
+	if err == nil {
+		t.Error("ReloadConfig() should fail with invalid config")
+	}
+}

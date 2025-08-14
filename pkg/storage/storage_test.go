@@ -499,3 +499,328 @@ func TestStorageBackendInterface(t *testing.T) {
 		t.Errorf("Close failed: %v", err)
 	}
 }
+
+// Additional tests to improve coverage
+
+func TestStorageManagerAdvanced(t *testing.T) {
+	t.Run("Multiple backends", func(t *testing.T) {
+		manager := NewStorageManager()
+
+		// Register multiple backends
+		backend1 := newMockStorage("backend1")
+		backend2 := newMockStorage("backend2")
+
+		err := manager.Register("backend1", backend1)
+		if err != nil {
+			t.Fatalf("Failed to register backend1: %v", err)
+		}
+
+		err = manager.Register("backend2", backend2)
+		if err != nil {
+			t.Fatalf("Failed to register backend2: %v", err)
+		}
+
+		// Test getting specific backends
+		b1, err := manager.GetBackend("backend1")
+		if err != nil {
+			t.Errorf("Failed to get backend1: %v", err)
+		}
+		if b1 != backend1 {
+			t.Error("Got wrong backend1 instance")
+		}
+
+		b2, err := manager.GetBackend("backend2")
+		if err != nil {
+			t.Errorf("Failed to get backend2: %v", err)
+		}
+		if b2 != backend2 {
+			t.Error("Got wrong backend2 instance")
+		}
+	})
+
+	t.Run("Default backend operations", func(t *testing.T) {
+		manager := NewStorageManager()
+
+		// Test getting default when none set
+		_, err := manager.GetDefault()
+		if err == nil {
+			t.Error("Expected error when no default backend set")
+		}
+
+		// Register and set default
+		backend := newMockStorage("default")
+		err = manager.Register("default", backend)
+		if err != nil {
+			t.Fatalf("Failed to register backend: %v", err)
+		}
+
+		err = manager.SetDefault("default")
+		if err != nil {
+			t.Fatalf("Failed to set default: %v", err)
+		}
+
+		// Test all operations use default
+		ctx := context.Background()
+
+		// Save
+		data := strings.NewReader("test data")
+		err = manager.Save(ctx, "test.txt", data)
+		if err != nil {
+			t.Errorf("Save failed: %v", err)
+		}
+
+		// Check data was saved
+		if _, exists := backend.files["test.txt"]; !exists {
+			t.Error("Data was not saved to backend")
+		}
+
+		// Load
+		reader, err := manager.Load(ctx, "test.txt")
+		if err != nil {
+			t.Errorf("Load failed: %v", err)
+		}
+		defer reader.Close()
+
+		loadedData, err := io.ReadAll(reader)
+		if err != nil {
+			t.Errorf("Failed to read loaded data: %v", err)
+		}
+
+		if string(loadedData) != "test data" {
+			t.Errorf("Expected 'test data', got '%s'", string(loadedData))
+		}
+
+		// Exists
+		exists, err := manager.Exists(ctx, "test.txt")
+		if err != nil {
+			t.Errorf("Exists failed: %v", err)
+		}
+		if !exists {
+			t.Error("File should exist")
+		}
+
+		// List
+		files, err := manager.List(ctx, "")
+		if err != nil {
+			t.Errorf("List failed: %v", err)
+		}
+		if len(files) != 1 || files[0] != "test.txt" {
+			t.Errorf("Expected ['test.txt'], got %v", files)
+		}
+
+		// Delete
+		err = manager.Delete(ctx, "test.txt")
+		if err != nil {
+			t.Errorf("Delete failed: %v", err)
+		}
+
+		// Verify deleted
+		if _, exists := backend.files["test.txt"]; exists {
+			t.Error("File should have been deleted")
+		}
+	})
+}
+
+func TestMockStorageBackendEdgeCases(t *testing.T) {
+	backend := newMockStorage("test")
+	ctx := context.Background()
+
+	t.Run("Load non-existent file", func(t *testing.T) {
+		_, err := backend.Load(ctx, "non-existent.txt")
+		if err == nil {
+			t.Error("Expected error for non-existent file")
+		}
+	})
+
+	t.Run("Delete non-existent file", func(t *testing.T) {
+		// Delete should not error for non-existent files in our mock
+		err := backend.Delete(ctx, "non-existent.txt")
+		if err != nil {
+			t.Errorf("Delete non-existent should not error, got: %v", err)
+		}
+	})
+
+	t.Run("Exists for non-existent file", func(t *testing.T) {
+		exists, err := backend.Exists(ctx, "non-existent.txt")
+		if err != nil {
+			t.Errorf("Exists check should not error, got: %v", err)
+		}
+		if exists {
+			t.Error("Non-existent file should not exist")
+		}
+	})
+
+	t.Run("List with no files", func(t *testing.T) {
+		files, err := backend.List(ctx, "prefix")
+		if err != nil {
+			t.Errorf("List should not error, got: %v", err)
+		}
+		if len(files) != 0 {
+			t.Errorf("Expected empty list, got %v", files)
+		}
+	})
+
+	t.Run("List with prefix matching", func(t *testing.T) {
+		// Add some files
+		_ = backend.Save(ctx, "prefix_file1.txt", strings.NewReader("data1"))
+		_ = backend.Save(ctx, "prefix_file2.txt", strings.NewReader("data2"))
+		_ = backend.Save(ctx, "other_file.txt", strings.NewReader("data3"))
+
+		files, err := backend.List(ctx, "prefix_")
+		if err != nil {
+			t.Errorf("List should not error, got: %v", err)
+		}
+
+		if len(files) != 2 {
+			t.Errorf("Expected 2 files with prefix, got %d", len(files))
+		}
+
+		// Check that the right files are returned
+		expectedFiles := map[string]bool{
+			"prefix_file1.txt": false,
+			"prefix_file2.txt": false,
+		}
+
+		for _, file := range files {
+			if _, ok := expectedFiles[file]; ok {
+				expectedFiles[file] = true
+			}
+		}
+
+		for file, found := range expectedFiles {
+			if !found {
+				t.Errorf("Expected file %s not found in list", file)
+			}
+		}
+	})
+}
+
+func TestStorageManagerErrorHandling(t *testing.T) {
+	t.Run("Backend save error", func(t *testing.T) {
+		manager := NewStorageManager()
+		backend := newMockStorage("failing")
+		backend.failSave = true
+
+		err := manager.Register("failing", backend)
+		if err != nil {
+			t.Fatalf("Failed to register backend: %v", err)
+		}
+
+		err = manager.SetDefault("failing")
+		if err != nil {
+			t.Fatalf("Failed to set default: %v", err)
+		}
+
+		ctx := context.Background()
+		data := strings.NewReader("test")
+		err = manager.Save(ctx, "test.txt", data)
+		if err == nil {
+			t.Error("Expected save error from failing backend")
+		}
+	})
+
+	t.Run("Backend load error", func(t *testing.T) {
+		manager := NewStorageManager()
+		backend := newMockStorage("failing")
+		backend.failLoad = true
+
+		err := manager.Register("failing", backend)
+		if err != nil {
+			t.Fatalf("Failed to register backend: %v", err)
+		}
+
+		err = manager.SetDefault("failing")
+		if err != nil {
+			t.Fatalf("Failed to set default: %v", err)
+		}
+
+		ctx := context.Background()
+		_, err = manager.Load(ctx, "test.txt")
+		if err == nil {
+			t.Error("Expected load error from failing backend")
+		}
+	})
+
+	t.Run("Close with multiple backends", func(t *testing.T) {
+		manager := NewStorageManager()
+
+		// Register multiple backends
+		backend1 := newMockStorage("backend1")
+		backend2 := newMockStorage("backend2")
+
+		err := manager.Register("backend1", backend1)
+		if err != nil {
+			t.Fatalf("Failed to register backend1: %v", err)
+		}
+
+		err = manager.Register("backend2", backend2)
+		if err != nil {
+			t.Fatalf("Failed to register backend2: %v", err)
+		}
+
+		// Close should close all backends
+		err = manager.Close()
+		if err != nil {
+			t.Errorf("Close should not error, got: %v", err)
+		}
+	})
+}
+
+func TestStorageInitialization(t *testing.T) {
+	t.Run("Backend initialization", func(t *testing.T) {
+		backend := newMockStorage("test")
+
+		config := map[string]interface{}{
+			"setting1": "value1",
+			"setting2": 123,
+		}
+
+		err := backend.Init(config)
+		if err != nil {
+			t.Errorf("Init should not error, got: %v", err)
+		}
+	})
+
+	t.Run("Backend close", func(t *testing.T) {
+		backend := newMockStorage("test")
+
+		err := backend.Close()
+		if err != nil {
+			t.Errorf("Close should not error, got: %v", err)
+		}
+	})
+}
+
+func TestStorageErrors(t *testing.T) {
+	// Test that all error constants are defined and non-nil
+	errors := []error{
+		ErrBackendNotFound,
+		ErrNoDefaultBackend,
+		ErrKeyNotFound,
+		ErrInvalidConfig,
+		ErrBackendNotReady,
+		ErrUnsupportedOp,
+	}
+
+	for i, err := range errors {
+		if err == nil {
+			t.Errorf("Error %d should not be nil", i)
+		}
+		if err.Error() == "" {
+			t.Errorf("Error %d should have a message", i)
+		}
+	}
+
+	// Test specific error messages
+	if ErrBackendNotFound.Error() != "storage backend not found" {
+		t.Errorf("ErrBackendNotFound has wrong message: %s", ErrBackendNotFound.Error())
+	}
+
+	if ErrNoDefaultBackend.Error() != "no default storage backend configured" {
+		t.Errorf("ErrNoDefaultBackend has wrong message: %s", ErrNoDefaultBackend.Error())
+	}
+
+	if ErrKeyNotFound.Error() != "key not found in storage" {
+		t.Errorf("ErrKeyNotFound has wrong message: %s", ErrKeyNotFound.Error())
+	}
+}

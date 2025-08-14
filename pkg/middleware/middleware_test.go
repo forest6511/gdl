@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/http"
 	"testing"
 	"time"
 
@@ -673,4 +674,326 @@ func TestAdditionalHelperFunctions(t *testing.T) {
 			t.Error("Expected not to find 'missing' substring")
 		}
 	})
+}
+
+// Mock RateLimiter for testing
+type mockRateLimiter struct {
+	allowResult bool
+	waitError   error
+}
+
+func (m *mockRateLimiter) Allow() bool {
+	return m.allowResult
+}
+
+func (m *mockRateLimiter) Wait(ctx context.Context) error {
+	return m.waitError
+}
+
+func TestRateLimitMiddleware(t *testing.T) {
+	t.Run("AllowedRequest", func(t *testing.T) {
+		limiter := &mockRateLimiter{allowResult: true}
+		middleware := RateLimitMiddleware(limiter)
+
+		handler := func(ctx context.Context, req *DownloadRequest) (*DownloadResponse, error) {
+			return &DownloadResponse{}, nil
+		}
+
+		wrappedHandler := middleware(handler)
+		req := &DownloadRequest{URL: "http://example.com/test"}
+
+		resp, err := wrappedHandler(context.Background(), req)
+		if err != nil {
+			t.Errorf("Expected no error, got %v", err)
+		}
+		if resp == nil {
+			t.Error("Expected response, got nil")
+		}
+	})
+
+	t.Run("BlockedRequestWithWait", func(t *testing.T) {
+		limiter := &mockRateLimiter{allowResult: false, waitError: nil}
+		middleware := RateLimitMiddleware(limiter)
+
+		handler := func(ctx context.Context, req *DownloadRequest) (*DownloadResponse, error) {
+			return &DownloadResponse{}, nil
+		}
+
+		wrappedHandler := middleware(handler)
+		req := &DownloadRequest{URL: "http://example.com/test"}
+
+		resp, err := wrappedHandler(context.Background(), req)
+		if err != nil {
+			t.Errorf("Expected no error after wait, got %v", err)
+		}
+		if resp == nil {
+			t.Error("Expected response, got nil")
+		}
+	})
+
+	t.Run("BlockedRequestWithWaitError", func(t *testing.T) {
+		limiter := &mockRateLimiter{allowResult: false, waitError: fmt.Errorf("wait timeout")}
+		middleware := RateLimitMiddleware(limiter)
+
+		handler := func(ctx context.Context, req *DownloadRequest) (*DownloadResponse, error) {
+			return &DownloadResponse{}, nil
+		}
+
+		wrappedHandler := middleware(handler)
+		req := &DownloadRequest{URL: "http://example.com/test"}
+
+		_, err := wrappedHandler(context.Background(), req)
+		if err == nil {
+			t.Error("Expected error when wait fails")
+		}
+	})
+}
+
+// Mock AuthPlugin for testing
+type mockAuthPlugin struct {
+	authError error
+}
+
+func (m *mockAuthPlugin) Name() string {
+	return "mock-auth-plugin"
+}
+
+func (m *mockAuthPlugin) Version() string {
+	return "1.0.0"
+}
+
+func (m *mockAuthPlugin) Init(config map[string]interface{}) error {
+	return nil
+}
+
+func (m *mockAuthPlugin) Close() error {
+	return nil
+}
+
+func (m *mockAuthPlugin) ValidateAccess(operation string, resource string) error {
+	return nil
+}
+
+func (m *mockAuthPlugin) Authenticate(ctx context.Context, req *http.Request) error {
+	if m.authError != nil {
+		return m.authError
+	}
+	// Simulate adding authentication header
+	req.Header.Set("Authorization", "Bearer test-token")
+	return nil
+}
+
+func TestAuthenticationMiddleware(t *testing.T) {
+	t.Run("SuccessfulAuthentication", func(t *testing.T) {
+		auth := &mockAuthPlugin{}
+		middleware := AuthenticationMiddleware(auth)
+
+		handler := func(ctx context.Context, req *DownloadRequest) (*DownloadResponse, error) {
+			// Check that auth header was added
+			if req.Headers["Authorization"] != "Bearer test-token" {
+				t.Error("Expected Authorization header to be set")
+			}
+			return &DownloadResponse{}, nil
+		}
+
+		wrappedHandler := middleware(handler)
+		req := &DownloadRequest{
+			URL:     "http://example.com/test",
+			Headers: make(map[string]string),
+		}
+
+		resp, err := wrappedHandler(context.Background(), req)
+		if err != nil {
+			t.Errorf("Expected no error, got %v", err)
+		}
+		if resp == nil {
+			t.Error("Expected response, got nil")
+		}
+	})
+
+	t.Run("AuthenticationFailure", func(t *testing.T) {
+		auth := &mockAuthPlugin{authError: fmt.Errorf("auth failed")}
+		middleware := AuthenticationMiddleware(auth)
+
+		handler := func(ctx context.Context, req *DownloadRequest) (*DownloadResponse, error) {
+			return &DownloadResponse{}, nil
+		}
+
+		wrappedHandler := middleware(handler)
+		req := &DownloadRequest{
+			URL:     "http://example.com/test",
+			Headers: make(map[string]string),
+		}
+
+		_, err := wrappedHandler(context.Background(), req)
+		if err == nil {
+			t.Error("Expected authentication error")
+		}
+	})
+
+	t.Run("InvalidURL", func(t *testing.T) {
+		auth := &mockAuthPlugin{}
+		middleware := AuthenticationMiddleware(auth)
+
+		handler := func(ctx context.Context, req *DownloadRequest) (*DownloadResponse, error) {
+			return &DownloadResponse{}, nil
+		}
+
+		wrappedHandler := middleware(handler)
+		req := &DownloadRequest{
+			URL: "://invalid-url",
+		}
+
+		_, err := wrappedHandler(context.Background(), req)
+		if err == nil {
+			t.Error("Expected error for invalid URL")
+		}
+	})
+}
+
+func TestCompressionMiddleware(t *testing.T) {
+	t.Run("AddCompressionHeaders", func(t *testing.T) {
+		middleware := CompressionMiddleware(6)
+
+		handler := func(ctx context.Context, req *DownloadRequest) (*DownloadResponse, error) {
+			// Check compression headers were added
+			if req.Headers["Accept-Encoding"] != "gzip, deflate" {
+				t.Error("Expected Accept-Encoding header to be set")
+			}
+			return &DownloadResponse{}, nil
+		}
+
+		wrappedHandler := middleware(handler)
+		req := &DownloadRequest{URL: "http://example.com/test"}
+
+		resp, err := wrappedHandler(context.Background(), req)
+		if err != nil {
+			t.Errorf("Expected no error, got %v", err)
+		}
+		if resp == nil {
+			t.Error("Expected response, got nil")
+		}
+	})
+
+	t.Run("PreserveExistingHeaders", func(t *testing.T) {
+		middleware := CompressionMiddleware(6)
+
+		handler := func(ctx context.Context, req *DownloadRequest) (*DownloadResponse, error) {
+			// Check existing headers are preserved
+			if req.Headers["Accept-Encoding"] != "custom-encoding" {
+				t.Error("Expected existing Accept-Encoding header to be preserved")
+			}
+			return &DownloadResponse{}, nil
+		}
+
+		wrappedHandler := middleware(handler)
+		req := &DownloadRequest{
+			URL: "http://example.com/test",
+			Headers: map[string]string{
+				"Accept-Encoding": "custom-encoding",
+			},
+		}
+
+		_, err := wrappedHandler(context.Background(), req)
+		if err != nil {
+			t.Errorf("Expected no error, got %v", err)
+		}
+	})
+
+	t.Run("DetectCompressedResponse", func(t *testing.T) {
+		middleware := CompressionMiddleware(6)
+
+		handler := func(ctx context.Context, req *DownloadRequest) (*DownloadResponse, error) {
+			return &DownloadResponse{
+				Headers: map[string][]string{
+					"Content-Encoding": {"gzip"},
+				},
+			}, nil
+		}
+
+		wrappedHandler := middleware(handler)
+		req := &DownloadRequest{URL: "http://example.com/test"}
+
+		resp, err := wrappedHandler(context.Background(), req)
+		if err != nil {
+			t.Errorf("Expected no error, got %v", err)
+		}
+		if resp == nil {
+			t.Fatal("Expected response, got nil")
+		}
+
+		// Check metadata was set
+		if resp.Metadata["compressed"] != true {
+			t.Error("Expected compressed metadata to be true")
+		}
+		if resp.Metadata["compression_type"] != "gzip" {
+			t.Error("Expected compression_type to be gzip")
+		}
+	})
+
+	t.Run("HandlerError", func(t *testing.T) {
+		middleware := CompressionMiddleware(6)
+
+		handler := func(ctx context.Context, req *DownloadRequest) (*DownloadResponse, error) {
+			return nil, fmt.Errorf("handler error")
+		}
+
+		wrappedHandler := middleware(handler)
+		req := &DownloadRequest{URL: "http://example.com/test"}
+
+		_, err := wrappedHandler(context.Background(), req)
+		if err == nil {
+			t.Error("Expected handler error to be propagated")
+		}
+	})
+}
+
+func TestGenerateCacheKeyAdditional(t *testing.T) {
+	// Test with different request parameters
+	req1 := &DownloadRequest{URL: "http://example.com/file1.txt"}
+	req2 := &DownloadRequest{URL: "http://example.com/file2.txt"}
+
+	key1 := generateCacheKey(req1)
+	key2 := generateCacheKey(req2)
+
+	if key1 == key2 {
+		t.Error("Expected different cache keys for different URLs")
+	}
+
+	// Test with headers
+	req3 := &DownloadRequest{
+		URL: "http://example.com/file.txt",
+		Headers: map[string]string{
+			"Authorization": "Bearer token",
+		},
+	}
+
+	key3 := generateCacheKey(req3)
+	if key3 == "" {
+		t.Error("Expected non-empty cache key with headers")
+	}
+}
+
+func TestGetSchemeAdditional(t *testing.T) {
+	// Test edge cases
+	scheme := getScheme("")
+	if scheme != "unknown" {
+		t.Errorf("Expected 'unknown' scheme for empty URL, got %q", scheme)
+	}
+
+	scheme = getScheme("ftp://example.com/file.txt")
+	if scheme != "ftp" {
+		t.Errorf("Expected 'ftp', got %q", scheme)
+	}
+
+	scheme = getScheme("file:///path/to/file")
+	if scheme != "unknown" {
+		t.Errorf("Expected 'unknown' for file scheme (not implemented), got %q", scheme)
+	}
+
+	// Test malformed URL
+	scheme = getScheme("not-a-url")
+	if scheme != "unknown" {
+		t.Errorf("Expected 'unknown' for malformed URL, got %q", scheme)
+	}
 }

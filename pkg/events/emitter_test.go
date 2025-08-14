@@ -756,3 +756,131 @@ func BenchmarkEventEmitter(b *testing.B) {
 		}
 	})
 }
+
+// Test for uncovered functions
+func TestEventEmitterUncoveredFunctions(t *testing.T) {
+	t.Run("emitWithWorkerPool", func(t *testing.T) {
+		emitter := NewEventEmitter()
+		var executionCount int32
+
+		// Add multiple listeners to trigger worker pool
+		for i := 0; i < 15; i++ {
+			emitter.On(EventDownloadProgress, func(event Event) {
+				atomic.AddInt32(&executionCount, 1)
+			})
+		}
+
+		// Add a once listener to test removal logic
+		emitter.Once(EventDownloadProgress, func(event Event) {
+			atomic.AddInt32(&executionCount, 1)
+		})
+
+		event := Event{
+			Type: EventDownloadProgress,
+			Data: map[string]interface{}{"progress": 50},
+		}
+
+		// Emit the event asynchronously to trigger worker pool
+		emitter.Emit(event)
+
+		// Wait for async execution
+		time.Sleep(100 * time.Millisecond)
+
+		// Verify all listeners executed
+		if atomic.LoadInt32(&executionCount) != 16 {
+			t.Errorf("Expected 16 executions, got: %d", atomic.LoadInt32(&executionCount))
+		}
+
+		// Verify once listener was removed
+		count := emitter.ListenerCount(EventDownloadProgress)
+		if count != 15 {
+			t.Errorf("Expected 15 listeners after once removal, got: %d", count)
+		}
+	})
+
+	t.Run("Off edge cases", func(t *testing.T) {
+		emitter := NewEventEmitter()
+
+		// Test removing from closed emitter
+		emitter.Close()
+
+		listener := func(event Event) {}
+		emitter.Off(EventDownloadStarted, listener) // Should not panic
+
+		// Test removing non-existent listener from non-existent event type
+		emitter = NewEventEmitter()
+		emitter.Off(EventDownloadStarted, listener) // Should not panic
+	})
+
+	t.Run("Once edge cases", func(t *testing.T) {
+		emitter := NewEventEmitter()
+
+		// Test adding once listener to closed emitter
+		emitter.Close()
+
+		executed := false
+		listener := func(event Event) {
+			executed = true
+		}
+
+		emitter.Once(EventDownloadStarted, listener) // Should not panic
+
+		event := Event{Type: EventDownloadStarted}
+		emitter.EmitSync(event) // Should not execute on closed emitter
+
+		if executed {
+			t.Error("Listener should not execute on closed emitter")
+		}
+	})
+}
+
+// Test FilteredEventEmitter uncovered functions
+func TestFilteredEventEmitterUncovered(t *testing.T) {
+	baseEmitter := NewEventEmitter()
+	filter := func(event Event) bool {
+		return strings.Contains(string(event.Type), "Download")
+	}
+
+	filtered := NewFilteredEventEmitter(baseEmitter, filter)
+
+	t.Run("FilteredEventEmitter Off", func(t *testing.T) {
+		executed := false
+		listener := func(event Event) {
+			executed = true
+		}
+
+		// Add listener and then remove it
+		filtered.On(EventDownloadStarted, listener)
+		filtered.Off(EventDownloadStarted, listener)
+
+		// Verify listener was removed
+		event := Event{Type: EventDownloadStarted}
+		filtered.Emit(event)
+
+		time.Sleep(10 * time.Millisecond)
+
+		if executed {
+			t.Error("Listener should have been removed")
+		}
+	})
+
+	t.Run("FilteredEventEmitter Once", func(t *testing.T) {
+		executionCount := 0
+		listener := func(event Event) {
+			executionCount++
+		}
+
+		// Add once listener
+		filtered.Once(EventDownloadStarted, listener)
+
+		// Use the base emitter directly to trigger the listener since filtered would filter it
+		event := Event{Type: EventDownloadStarted}
+		baseEmitter.EmitSync(event) // This should trigger the listener
+		baseEmitter.EmitSync(event) // This should not trigger again due to once
+
+		// Should only execute once
+		if executionCount != 1 {
+			t.Errorf("Once listener should execute only once, got: %d executions", executionCount)
+		}
+	})
+}

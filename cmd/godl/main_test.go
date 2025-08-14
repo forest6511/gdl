@@ -3116,3 +3116,197 @@ func TestDisplayJSONProgress(t *testing.T) {
 		})
 	}
 }
+
+// Additional tests for improving coverage
+
+func TestPerformNetworkCheck(t *testing.T) {
+	cfg := &config{
+		checkConnectivity: true,
+		timeout:           5 * time.Second,
+	}
+
+	// Test network check
+	err := performNetworkCheck(context.Background(), cfg)
+	// This might fail if no internet, but should not panic
+	if err != nil {
+		t.Logf("Network check failed (expected if no internet): %v", err)
+	}
+}
+
+func TestPerformDiskSpaceCheck(t *testing.T) {
+	cfg := &config{
+		checkSpace: true,
+		output:     t.TempDir(),
+	}
+
+	// Test disk space check
+	err := performDiskSpaceCheck(t.TempDir()+"/test.txt", 1024, cfg) // 1KB
+	// Should work since we're asking for a tiny amount
+	if err != nil {
+		t.Errorf("Disk space check failed: %v", err)
+	}
+}
+
+func TestHandleDiskSpaceWarning(t *testing.T) {
+	tempDir := t.TempDir()
+	checker := &storage.SpaceChecker{}
+
+	// Test disk space warning
+	err := handleDiskSpaceWarning(checker, tempDir)
+	// Should not panic
+	if err != nil {
+		t.Logf("Disk space warning returned error (expected): %v", err)
+	}
+}
+
+func TestRunPluginCommand(t *testing.T) {
+	// Test with invalid plugin command
+	code := runPluginCommand([]string{"invalid-command"})
+	if code == 0 {
+		t.Error("Expected non-zero exit code for invalid plugin command")
+	}
+}
+
+// Test simpler functions for coverage
+
+func TestStringSlice(t *testing.T) {
+	var s StringSlice
+
+	// Test String method
+	s = StringSlice{"a", "b", "c"}
+	if s.String() != "a,b,c" {
+		t.Errorf("Expected 'a,b,c', got %q", s.String())
+	}
+
+	// Test Set method
+	var s2 StringSlice
+	_ = s2.Set("test")
+	if len(s2) != 1 || s2[0] != "test" {
+		t.Error("Set method failed")
+	}
+}
+
+func TestValidateChunkSizeAdditional(t *testing.T) {
+	// Test additional chunk size validation
+	err := validateChunkSize("512KB")
+	if err != nil {
+		t.Errorf("Valid chunk size failed: %v", err)
+	}
+}
+
+func TestParseSizeAdditional(t *testing.T) {
+	// Test additional size parsing
+	size, err := parseSize("2GB")
+	if err != nil {
+		t.Errorf("Failed to parse size: %v", err)
+	}
+	if size != 2*1024*1024*1024 {
+		t.Errorf("Expected 2GB, got %d", size)
+	}
+}
+
+func TestExtractFilenameFromURL(t *testing.T) {
+	// Test normal URL
+	filename := extractFilenameFromURL("https://example.com/path/file.txt")
+	if filename != "file.txt" {
+		t.Errorf("Expected 'file.txt', got %q", filename)
+	}
+
+	// Test URL without filename
+	filename = extractFilenameFromURL("https://example.com/")
+	if filename == "" {
+		t.Error("Expected some filename for URL without filename")
+	}
+}
+
+func TestFormatBytes(t *testing.T) {
+	// Test different byte sizes
+	formatted := formatBytes(1024)
+	if !strings.Contains(formatted, "KB") && !strings.Contains(formatted, "1024") {
+		t.Errorf("Expected formatted bytes to contain 'KB' or '1024', got %q", formatted)
+	}
+
+	formatted = formatBytes(1024 * 1024)
+	if !strings.Contains(formatted, "MB") && !strings.Contains(formatted, "1048576") {
+		t.Errorf("Expected formatted bytes to contain 'MB' or size, got %q", formatted)
+	}
+}
+
+func TestShowPluginUsage(t *testing.T) {
+	// Capture stdout
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	// Test show plugin usage
+	showPluginUsage()
+
+	w.Close()
+	os.Stdout = oldStdout
+
+	// Read output
+	output, _ := io.ReadAll(r)
+	outputStr := string(output)
+
+	if !strings.Contains(outputStr, "Plugin") {
+		t.Error("Expected plugin usage to contain 'Plugin'")
+	}
+}
+
+func TestProgressDisplayAdvanced(t *testing.T) {
+	cfg := &config{
+		quiet:       false,
+		verbose:     false,
+		progressBar: "simple",
+	}
+
+	formatter := ui.NewFormatter()
+	progress := newProgressDisplay(cfg, formatter)
+
+	// Test progress display creation
+	if progress == nil {
+		t.Error("Expected progress display to be created")
+	}
+
+	// Test Start method
+	progress.Start("test.txt", 1000)
+	if progress.filename != "test.txt" {
+		t.Error("Expected filename to be set")
+	}
+
+	// Test simple update
+	progress.Update(500, 500, 1000) // current, chunk, total
+
+	// Test Finish method with proper parameters
+	stats := &types.DownloadStats{Success: true}
+	progress.Finish("test.txt", stats)
+
+	// Test Error method with proper parameters
+	progress.Error("test.txt", fmt.Errorf("test error"))
+}
+
+func TestBuildProgressBarAdvanced(t *testing.T) {
+	// Test progress bar building
+	bar := buildProgressBar(50.0)
+	if len(bar) == 0 {
+		t.Error("Expected non-empty progress bar")
+	}
+}
+
+func TestInitializeFormatterAdvanced(t *testing.T) {
+	cfg := &config{
+		noColor: false,
+		quiet:   false,
+	}
+
+	// Test formatter initialization (it's a void function)
+	initializeFormatter(cfg)
+	// Just check it doesn't panic
+}
+
+func TestIsTerminal(t *testing.T) {
+	// Test terminal detection
+	result := isTerminal()
+	// Just check it doesn't panic
+	_ = result
+}
