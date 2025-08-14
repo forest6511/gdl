@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -608,6 +609,11 @@ func TestConfigLoader_LoadInvalidJSON(t *testing.T) {
 }
 
 func TestConfigLoader_SaveDirectoryPermissionError(t *testing.T) {
+	// Skip on Windows as permission model is different
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping permission test on Windows")
+	}
+
 	// Try to save to a directory that doesn't exist and can't be created
 	configPath := "/root/nonexistent/config.json"
 	loader := NewConfigLoader(configPath)
@@ -621,16 +627,23 @@ func TestConfigLoader_SaveDirectoryPermissionError(t *testing.T) {
 }
 
 func TestDefaultConfigPath_Error(t *testing.T) {
-	// Test by temporarily unsetting HOME
-	oldHome := os.Getenv("HOME")
-	defer func() { _ = os.Setenv("HOME", oldHome) }()
+	// Test by temporarily unsetting home directory environment variable
+	var homeVar string
+	if runtime.GOOS == "windows" {
+		homeVar = "USERPROFILE"
+	} else {
+		homeVar = "HOME"
+	}
 
-	// Unset HOME environment variable
-	_ = os.Unsetenv("HOME")
+	oldHome := os.Getenv(homeVar)
+	defer func() { _ = os.Setenv(homeVar, oldHome) }()
+
+	// Unset home environment variable
+	_ = os.Unsetenv(homeVar)
 
 	_, err := DefaultConfigPath()
 	if err == nil {
-		t.Error("DefaultConfigPath() should fail when HOME is not set")
+		t.Errorf("DefaultConfigPath() should fail when %s is not set", homeVar)
 	}
 }
 
