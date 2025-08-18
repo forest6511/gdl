@@ -1157,3 +1157,266 @@ func TestS3BackendMethods(t *testing.T) {
 		}
 	})
 }
+
+// Test isPathUnder function edge cases and error conditions
+func TestIsPathUnder(t *testing.T) {
+	tests := []struct {
+		name       string
+		parentPath string
+		childPath  string
+		expected   bool
+	}{
+		{
+			name:       "child under parent",
+			parentPath: "/home/user",
+			childPath:  "/home/user/documents",
+			expected:   true,
+		},
+		{
+			name:       "child not under parent",
+			parentPath: "/home/user",
+			childPath:  "/home/other",
+			expected:   false,
+		},
+		{
+			name:       "same path",
+			parentPath: "/home/user",
+			childPath:  "/home/user",
+			expected:   false, // rel == "." case
+		},
+		{
+			name:       "parent traversal attempt",
+			parentPath: "/home/user",
+			childPath:  "/home/user/../other",
+			expected:   false,
+		},
+		{
+			name:       "relative paths",
+			parentPath: ".",
+			childPath:  "subdir",
+			expected:   true,
+		},
+		{
+			name:       "complex relative path",
+			parentPath: "./parent",
+			childPath:  "./parent/child",
+			expected:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isPathUnder(tt.parentPath, tt.childPath)
+			if result != tt.expected {
+				t.Errorf("isPathUnder(%q, %q) = %v, want %v", tt.parentPath, tt.childPath, result, tt.expected)
+			}
+		})
+	}
+}
+
+// Test isPathUnder with invalid paths that cause filepath.Abs to fail
+func TestIsPathUnderWithInvalidPaths(t *testing.T) {
+	// Test with paths that will cause filepath.Abs to fail
+	// Use null byte which is invalid in paths
+	invalidPath := "/valid/path\x00invalid"
+
+	// Test parent path error
+	result := isPathUnder(invalidPath, "/valid/path")
+	if result != false {
+		t.Error("Expected false when parent path causes filepath.Abs error")
+	}
+
+	// Test child path error
+	result = isPathUnder("/valid/path", invalidPath)
+	if result != false {
+		t.Error("Expected false when child path causes filepath.Abs error")
+	}
+
+	// Test both paths causing errors
+	result = isPathUnder(invalidPath, invalidPath+"more")
+	if result != false {
+		t.Error("Expected false when both paths cause filepath.Abs errors")
+	}
+
+	// Test with extremely long paths as well
+	longPath := strings.Repeat("a", 4096)
+	result = isPathUnder(longPath, "/valid/path")
+	if result != false {
+		t.Error("Expected false when parent path is too long")
+	}
+}
+
+// Test isPathUnder with paths that cause filepath.Rel to fail
+func TestIsPathUnderWithRelError(t *testing.T) {
+	// Create paths that will cause filepath.Rel to fail
+	// On Unix systems, create paths on different volumes if possible
+	tempDir1 := t.TempDir()
+	tempDir2 := t.TempDir()
+
+	// These should work normally
+	result := isPathUnder(tempDir1, filepath.Join(tempDir1, "subdir"))
+	if !result {
+		t.Error("Expected true for valid parent-child relationship")
+	}
+
+	// Test with paths that might cause Rel to fail by using very different paths
+	result = isPathUnder(tempDir1, tempDir2)
+	if result {
+		t.Error("Expected false for unrelated directories")
+	}
+
+	// Test with paths that contain null bytes after being processed by filepath.Abs
+	// This should trigger the filepath.Rel error case
+	invalidChild := tempDir1 + "\x00invalid"
+	result = isPathUnder(tempDir1, invalidChild)
+	if result {
+		t.Error("Expected false for invalid child path with null byte")
+	}
+}
+
+// Test Windows path handling by mocking runtime.GOOS
+func TestIsPathUnderWindowsHandling(t *testing.T) {
+	// We can't easily mock runtime.GOOS in Go, but we can test the Windows logic
+	// by creating test cases that would behave differently on Windows vs Unix
+
+	tests := []struct {
+		name       string
+		parentPath string
+		childPath  string
+		// expected for case-sensitive (Unix) vs case-insensitive (Windows) systems
+		expectedUnix    bool
+		expectedWindows bool
+	}{
+		{
+			name:            "case sensitive paths",
+			parentPath:      "/Home/User",
+			childPath:       "/home/user/documents",
+			expectedUnix:    false, // case sensitive
+			expectedWindows: false, // different after cleaning
+		},
+		{
+			name:            "case insensitive match",
+			parentPath:      "/home/user",
+			childPath:       "/Home/User/Documents",
+			expectedUnix:    false, // case sensitive
+			expectedWindows: false, // different after cleaning
+		},
+		{
+			name:            "exact case match",
+			parentPath:      "/home/user",
+			childPath:       "/home/user/documents",
+			expectedUnix:    true,
+			expectedWindows: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isPathUnder(tt.parentPath, tt.childPath)
+			// Since we're testing on the current platform, we expect the appropriate result
+			// This test documents the behavior rather than testing cross-platform logic
+			t.Logf("isPathUnder(%q, %q) = %v", tt.parentPath, tt.childPath, result)
+		})
+	}
+}
+
+// Test filesystem backend home directory expansion (Unix-style only)
+func TestFileSystemBackendHomeDirectoryExpansion(t *testing.T) {
+	// Test the Unix-style home directory expansion
+	// This will only work on Unix systems, not Windows
+	backend := NewFileSystemBackend()
+
+	// On Unix systems, test tilde expansion
+	// On Windows, this path should be treated literally
+	config := map[string]interface{}{
+		"basePath": "~/test-godl",
+	}
+
+	err := backend.Init(config)
+	if err != nil {
+		// This might fail on Windows or if home directory can't be determined
+		t.Logf("Init with tilde path failed (expected on Windows): %v", err)
+	} else {
+		t.Log("Tilde expansion succeeded")
+	}
+}
+
+// Test directory traversal protection
+func TestFileSystemBackendDirectoryTraversalProtection(t *testing.T) {
+	tempDir := t.TempDir()
+	backend := NewFileSystemBackend()
+
+	config := map[string]interface{}{
+		"basePath": tempDir,
+	}
+	_ = backend.Init(config)
+
+	ctx := context.Background()
+
+	// Test various directory traversal attempts
+	maliciousKeys := []string{
+		"../../../etc/passwd",
+		"..\\..\\..\\windows\\system32\\config\\sam",
+		"./../../sensitive/file",
+		"subdir/../../../etc/hosts",
+	}
+
+	for _, key := range maliciousKeys {
+		t.Run("traversal_"+key, func(t *testing.T) {
+			err := backend.Save(ctx, key, strings.NewReader("malicious content"))
+			if err == nil {
+				t.Errorf("Expected error for directory traversal attempt with key: %s", key)
+			}
+
+			_, err = backend.Load(ctx, key)
+			if err == nil {
+				t.Errorf("Expected error for directory traversal attempt with key: %s", key)
+			}
+		})
+	}
+}
+
+// Test pathToKey function error handling
+func TestFileSystemBackendPathToKeyError(t *testing.T) {
+	backend := NewFileSystemBackend()
+
+	// Initialize with a valid base path
+	tempDir := t.TempDir()
+	config := map[string]interface{}{
+		"basePath": tempDir,
+	}
+	_ = backend.Init(config)
+
+	// Test pathToKey with a path that will cause filepath.Rel to fail
+	// Use a path with null bytes that should cause filepath.Rel to error
+	invalidPath := tempDir + "\x00invalid"
+
+	// This should test the error fallback in pathToKey
+	result := backend.pathToKey(invalidPath)
+
+	// Since filepath.Rel might not error with null bytes on some systems,
+	// we just verify the function doesn't panic and returns a string
+	if result == "" {
+		t.Error("Expected pathToKey to return non-empty result")
+	}
+	t.Logf("pathToKey with invalid path returned: %q", result)
+
+	// Test normal case to ensure it still works
+	normalPath := filepath.Join(tempDir, "subdir", "file.txt")
+	result = backend.pathToKey(normalPath)
+	expected := "subdir/file.txt" // Should use forward slashes
+	if result != expected {
+		t.Errorf("Expected %q, got %q", expected, result)
+	}
+
+	// Try to trigger filepath.Rel error with completely unrelated paths
+	// that are on different volumes/drives
+	if tempDir2 := t.TempDir(); tempDir2 != tempDir {
+		result = backend.pathToKey(tempDir2)
+		// Should still return something (either relative path or fallback)
+		if result == "" {
+			t.Error("Expected pathToKey to return non-empty result for unrelated path")
+		}
+		t.Logf("pathToKey with unrelated path returned: %q", result)
+	}
+}
