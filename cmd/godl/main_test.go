@@ -15,9 +15,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/forest6511/godl"
 	"github.com/forest6511/godl/internal/core"
 	"github.com/forest6511/godl/internal/storage"
 	downloadErrors "github.com/forest6511/godl/pkg/errors"
+	"github.com/forest6511/godl/pkg/ratelimit"
 	"github.com/forest6511/godl/pkg/types"
 	"github.com/forest6511/godl/pkg/ui"
 )
@@ -430,6 +432,107 @@ func TestMainLogicComponents(t *testing.T) {
 
 		if outputFile != "custom.zip" {
 			t.Errorf("Expected 'custom.zip', got %q", outputFile)
+		}
+	})
+}
+
+func TestMaxRateConfiguration(t *testing.T) {
+	t.Run("valid max rate configuration", func(t *testing.T) {
+		// Test the max rate configuration logic from main
+		cfg := &config{maxRate: "1MB/s"}
+
+		// Create options similar to main logic
+		options := &godl.Options{}
+
+		// Configure max rate if specified (simulating main.go logic)
+		if cfg.maxRate != "" {
+			if maxRateBytes, err := ratelimit.ParseRate(cfg.maxRate); err == nil {
+				options.MaxRate = maxRateBytes
+			} else {
+				t.Errorf("Unexpected error parsing max rate: %v", err)
+			}
+		}
+
+		expectedRate := int64(1024 * 1024) // 1MB
+		if options.MaxRate != expectedRate {
+			t.Errorf("Expected MaxRate %d, got %d", expectedRate, options.MaxRate)
+		}
+	})
+
+	t.Run("invalid max rate configuration", func(t *testing.T) {
+		// Test invalid max rate handling
+		cfg := &config{maxRate: "invalid-rate"}
+
+		// Create options similar to main logic
+		options := &godl.Options{}
+
+		// Configure max rate if specified (simulating main.go logic)
+		if cfg.maxRate != "" {
+			if maxRateBytes, err := ratelimit.ParseRate(cfg.maxRate); err == nil {
+				options.MaxRate = maxRateBytes
+			} else {
+				// This path should be taken for invalid rates
+				t.Logf("Expected error for invalid rate: %v", err)
+				// MaxRate should remain 0 (unlimited)
+				if options.MaxRate != 0 {
+					t.Errorf("Expected MaxRate to remain 0 for invalid input, got %d", options.MaxRate)
+				}
+			}
+		}
+	})
+
+	t.Run("empty max rate configuration", func(t *testing.T) {
+		// Test when max rate is not specified
+		cfg := &config{maxRate: ""}
+
+		// Create options similar to main logic
+		options := &godl.Options{}
+
+		// Configure max rate if specified (simulating main.go logic)
+		if cfg.maxRate != "" {
+			if maxRateBytes, err := ratelimit.ParseRate(cfg.maxRate); err == nil {
+				options.MaxRate = maxRateBytes
+			} else {
+				t.Errorf("Unexpected error: %v", err)
+			}
+		}
+
+		// MaxRate should remain 0 (unlimited) when not specified
+		if options.MaxRate != 0 {
+			t.Errorf("Expected MaxRate to remain 0 when not specified, got %d", options.MaxRate)
+		}
+	})
+
+	t.Run("various max rate formats", func(t *testing.T) {
+		testCases := []struct {
+			input    string
+			expected int64
+		}{
+			{"1024", 1024},
+			{"1K", 1024},
+			{"1KB/s", 1024},
+			{"2MB/s", 2 * 1024 * 1024},
+			{"0", 0}, // unlimited
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.input, func(t *testing.T) {
+				cfg := &config{maxRate: tc.input}
+				options := &godl.Options{}
+
+				// Configure max rate if specified (simulating main.go logic)
+				if cfg.maxRate != "" {
+					if maxRateBytes, err := ratelimit.ParseRate(cfg.maxRate); err == nil {
+						options.MaxRate = maxRateBytes
+					} else {
+						t.Errorf("Unexpected error for %s: %v", tc.input, err)
+					}
+				}
+
+				if options.MaxRate != tc.expected {
+					t.Errorf("For input %s: expected %d, got %d", tc.input, tc.expected, options.MaxRate)
+				}
+			})
 		}
 	})
 }
