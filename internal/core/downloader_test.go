@@ -4490,3 +4490,148 @@ func (r *slowReader) Read(p []byte) (n int, err error) {
 
 	return copy(p, []byte("some data")), nil
 }
+
+func TestDownloader_DownloadWithRateLimit(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", "200")
+		data := make([]byte, 200)
+		for i := range data {
+			data[i] = byte(i % 256)
+		}
+		_, _ = w.Write(data)
+	}))
+	defer server.Close()
+
+	t.Run("with rate limit enabled", func(t *testing.T) {
+		downloader := NewDownloader()
+		tempDir := t.TempDir()
+		dest := filepath.Join(tempDir, "rate_limit_test.bin")
+
+		options := &types.DownloadOptions{
+			MaxRate:   1024, // 1KB/s
+			ChunkSize: 64,   // Small chunks
+		}
+
+		start := time.Now()
+		stats, err := downloader.Download(context.Background(), server.URL, dest, options)
+		duration := time.Since(start)
+
+		if err != nil {
+			t.Fatalf("Download failed: %v", err)
+		}
+
+		if stats == nil {
+			t.Fatal("Expected stats to be returned")
+		}
+
+		// Verify file was downloaded
+		fileInfo, err := os.Stat(dest)
+		if err != nil {
+			t.Fatalf("Failed to stat downloaded file: %v", err)
+		}
+
+		if fileInfo.Size() != 200 {
+			t.Errorf("Expected file size 200, got %d", fileInfo.Size())
+		}
+
+		t.Logf("Download with rate limiting completed in %v", duration)
+	})
+
+	t.Run("with unlimited rate", func(t *testing.T) {
+		downloader := NewDownloader()
+		tempDir := t.TempDir()
+		dest := filepath.Join(tempDir, "unlimited_rate_test.bin")
+
+		options := &types.DownloadOptions{
+			MaxRate:   0, // Unlimited
+			ChunkSize: 64,
+		}
+
+		stats, err := downloader.Download(context.Background(), server.URL, dest, options)
+
+		if err != nil {
+			t.Fatalf("Download failed: %v", err)
+		}
+
+		if stats == nil {
+			t.Fatal("Expected stats to be returned")
+		}
+
+		// Verify file was downloaded
+		fileInfo, err := os.Stat(dest)
+		if err != nil {
+			t.Fatalf("Failed to stat downloaded file: %v", err)
+		}
+
+		if fileInfo.Size() != 200 {
+			t.Errorf("Expected file size 200, got %d", fileInfo.Size())
+		}
+	})
+}
+
+func TestDownloader_DownloadToWriterWithRateLimit(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", "150")
+		data := make([]byte, 150)
+		for i := range data {
+			data[i] = byte(i % 256)
+		}
+		_, _ = w.Write(data)
+	}))
+	defer server.Close()
+
+	t.Run("with rate limit", func(t *testing.T) {
+		downloader := NewDownloader()
+		var buf bytes.Buffer
+
+		options := &types.DownloadOptions{
+			MaxRate:   512, // 512 bytes/s
+			ChunkSize: 32,
+		}
+
+		stats, err := downloader.DownloadToWriter(context.Background(), server.URL, &buf, options)
+
+		if err != nil {
+			t.Fatalf("DownloadToWriter failed: %v", err)
+		}
+
+		if stats == nil {
+			t.Fatal("Expected stats to be returned")
+		}
+
+		if buf.Len() != 150 {
+			t.Errorf("Expected buffer length 150, got %d", buf.Len())
+		}
+	})
+}
+
+func TestDownloader_RateLimitErrorPaths(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", "100")
+		data := make([]byte, 100)
+		_, _ = w.Write(data)
+	}))
+	defer server.Close()
+
+	t.Run("rate limit with cancelled context", func(t *testing.T) {
+		downloader := NewDownloader()
+		tempDir := t.TempDir()
+		dest := filepath.Join(tempDir, "cancelled_test.bin")
+
+		// Use very slow rate to ensure rate limiting kicks in
+		options := &types.DownloadOptions{
+			MaxRate:   1, // 1 byte/s - very slow
+			ChunkSize: 10,
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+		defer cancel()
+
+		_, err := downloader.Download(ctx, server.URL, dest, options)
+
+		// Should get context deadline exceeded due to rate limiting
+		if err == nil {
+			t.Error("Expected error due to context timeout, got nil")
+		}
+	})
+}
