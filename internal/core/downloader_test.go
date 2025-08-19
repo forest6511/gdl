@@ -17,11 +17,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/forest6511/godl/internal/resume"
-	"github.com/forest6511/godl/internal/retry"
-	"github.com/forest6511/godl/internal/storage"
-	downloadErrors "github.com/forest6511/godl/pkg/errors"
-	"github.com/forest6511/godl/pkg/types"
+	"github.com/forest6511/gdl/internal/resume"
+	"github.com/forest6511/gdl/internal/retry"
+	"github.com/forest6511/gdl/internal/storage"
+	downloadErrors "github.com/forest6511/gdl/pkg/errors"
+	"github.com/forest6511/gdl/pkg/types"
 )
 
 func TestNewDownloader(t *testing.T) {
@@ -3075,7 +3075,7 @@ func TestDownloader_FinalCoverageGaps(t *testing.T) {
 		defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 		// Corrupt resume file to trigger load error
-		resumePath := tmpFile.Name() + ".godl.json"
+		resumePath := tmpFile.Name() + ".gdl.json"
 
 		_ = os.WriteFile(resumePath, []byte("invalid json"), 0o644)
 		defer func() { _ = os.Remove(resumePath) }()

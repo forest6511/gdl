@@ -1,6 +1,6 @@
 # Plugin Examples
 
-This directory contains example plugin implementations for the godl download tool. These examples demonstrate how to create different types of plugins and integrate them with the godl plugin system.
+This directory contains example plugin implementations for the gdl download tool. These examples demonstrate how to create different types of plugins and integrate them with the gdl plugin system.
 
 ## Available Plugin Examples
 
@@ -120,7 +120,7 @@ package main
 
 import (
     \"context\"
-    \"github.com/forest6511/godl/pkg/plugin\"
+    \"github.com/forest6511/gdl/pkg/plugin\"
 )
 
 type MyPlugin struct {
@@ -183,10 +183,10 @@ go test ./...
 
 ```bash
 # Install plugin
-godl plugin install ./my-plugin.so my-plugin
+gdl plugin install ./my-plugin.so my-plugin
 
 # Use plugin
-godl --plugin my-plugin https://example.com/file.zip
+gdl --plugin my-plugin https://example.com/file.zip
 ```
 
 ## Plugin Configuration
@@ -194,8 +194,8 @@ godl --plugin my-plugin https://example.com/file.zip
 ### Global Plugin Directory
 
 Plugins are typically installed in:
-- Linux/macOS: `~/.godl/plugins/`
-- Windows: `%APPDATA%/godl/plugins/`
+- Linux/macOS: `~/.gdl/plugins/`
+- Windows: `%APPDATA%/gdl/plugins/`
 
 ### Configuration Files
 
@@ -236,10 +236,10 @@ go test ./...
 # Build plugin
 go build -buildmode=plugin -o oauth2.so
 
-# Test with godl
+# Test with gdl
 echo \"test config\" > config.json
-godl plugin load ./oauth2.so --config config.json
-godl --plugin oauth2 https://secure-api.example.com/file.zip
+gdl plugin load ./oauth2.so --config config.json
+gdl --plugin oauth2 https://secure-api.example.com/file.zip
 ```
 
 ### Benchmark Testing
@@ -253,33 +253,33 @@ go test -bench=. ./...
 ### List Available Plugins
 
 ```bash
-godl plugin list
+gdl plugin list
 ```
 
 ### Install Plugin
 
 ```bash
-godl plugin install /path/to/plugin.so plugin-name
-godl plugin install github.com/user/plugin plugin-name
+gdl plugin install /path/to/plugin.so plugin-name
+gdl plugin install github.com/user/plugin plugin-name
 ```
 
 ### Enable/Disable Plugin
 
 ```bash
-godl plugin enable plugin-name
-godl plugin disable plugin-name
+gdl plugin enable plugin-name
+gdl plugin disable plugin-name
 ```
 
 ### Plugin Information
 
 ```bash
-godl plugin info plugin-name
+gdl plugin info plugin-name
 ```
 
 ### Remove Plugin
 
 ```bash
-godl plugin remove plugin-name
+gdl plugin remove plugin-name
 ```
 
 ## Best Practices

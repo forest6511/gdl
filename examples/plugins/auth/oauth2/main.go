@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/forest6511/godl/pkg/plugin"
+	"github.com/forest6511/gdl/pkg/plugin"
 )
 
 // OAuth2Plugin implements authentication using OAuth2 flow

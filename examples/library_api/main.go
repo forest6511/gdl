@@ -1,4 +1,4 @@
-// Package main demonstrates the complete godl library API usage
+// Package main demonstrates the complete gdl library API usage
 // with practical examples of all public functions and features.
 //
 // Usage:
@@ -21,7 +21,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/forest6511/godl"
+	"github.com/forest6511/gdl"
 )
 
 func main() {
@@ -53,7 +53,7 @@ func example1BasicDownload() {
 	url := "https://httpbin.org/bytes/1024"
 	filename := "basic_download.bin"
 
-	stats, err := godl.Download(context.Background(), url, filename)
+	stats, err := gdl.Download(context.Background(), url, filename)
 	if err != nil {
 		log.Printf("Error: %v\n", err)
 		return
@@ -71,17 +71,17 @@ func example2ProgressTracking() {
 	filename := "progress_download.bin"
 
 	// Create progress callback
-	progressCallback := func(p godl.Progress) {
+	progressCallback := func(p gdl.Progress) {
 		fmt.Printf("\rProgress: %.1f%% (%d/%d bytes) Speed: %.2f KB/s",
 			p.Percentage, p.BytesDownloaded, p.TotalSize, float64(p.Speed)/1024)
 	}
 
-	options := &godl.Options{
+	options := &gdl.Options{
 		ProgressCallback:  progressCallback,
 		OverwriteExisting: true,
 	}
 
-	stats, err := godl.DownloadWithOptions(context.Background(), url, filename, options)
+	stats, err := gdl.DownloadWithOptions(context.Background(), url, filename, options)
 	if err != nil {
 		log.Printf("Error: %v\n", err)
 		return
@@ -99,19 +99,19 @@ func example3DownloadWithOptions() {
 	url := "https://httpbin.org/bytes/51200"
 	filename := "options_download.bin"
 
-	options := &godl.Options{
+	options := &gdl.Options{
 		MaxConcurrency:    4,
 		ChunkSize:         12800, // 12.5KB chunks
 		EnableResume:      true,
 		OverwriteExisting: true,
 		Headers: map[string]string{
-			"User-Agent": "godl-examples/1.0",
+			"User-Agent": "gdl-examples/1.0",
 		},
 		Timeout: 30 * time.Second,
 	}
 
 	start := time.Now()
-	stats, err := godl.DownloadWithOptions(context.Background(), url, filename, options)
+	stats, err := gdl.DownloadWithOptions(context.Background(), url, filename, options)
 	if err != nil {
 		log.Printf("Error: %v\n", err)
 		return
@@ -128,7 +128,7 @@ func example4DownloadToMemory() {
 
 	url := "https://httpbin.org/bytes/2048"
 
-	data, stats, err := godl.DownloadToMemory(context.Background(), url)
+	data, stats, err := gdl.DownloadToMemory(context.Background(), url)
 	if err != nil {
 		log.Printf("Error: %v\n", err)
 		return
@@ -147,13 +147,13 @@ func example5ErrorHandling() {
 	url := "https://invalid-domain-that-does-not-exist.com/file.bin"
 	filename := "error_test.bin"
 
-	options := &godl.Options{
+	options := &gdl.Options{
 		RetryAttempts: 2,
 		Timeout:       5 * time.Second,
 	}
 
 	fmt.Println("Attempting download with retry...")
-	stats, err := godl.DownloadWithOptions(context.Background(), url, filename, options)
+	stats, err := gdl.DownloadWithOptions(context.Background(), url, filename, options)
 	if err != nil {
 		fmt.Printf("Download failed as expected: %v (stats: %v)\n",
 			err, stats != nil)

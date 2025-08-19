@@ -14,7 +14,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/forest6511/godl/pkg/errors"
+	"github.com/forest6511/gdl/pkg/errors"
 )
 
 // ErrorSimulator provides comprehensive error simulation capabilities for testing

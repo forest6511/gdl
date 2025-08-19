@@ -8,7 +8,7 @@ import (
 	"image/png"
 
 	"github.com/disintegration/imaging"
-	"github.com/forest6511/godl/pkg/plugin"
+	"github.com/forest6511/gdl/pkg/plugin"
 )
 
 // ImageOptimizerPlugin implements image optimization transformation

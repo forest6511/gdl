@@ -1,6 +1,6 @@
-# VSCode Configuration for godl
+# VSCode Configuration for gdl
 
-This directory contains VSCode workspace configuration for the godl project.
+This directory contains VSCode workspace configuration for the gdl project.
 
 ## Files
 

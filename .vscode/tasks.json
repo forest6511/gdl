@@ -5,7 +5,7 @@
       "label": "go: build",
       "type": "shell",
       "command": "go",
-      "args": ["build", "-o", "bin/godl", "./cmd/godl/"],
+      "args": ["build", "-o", "bin/gdl", "./cmd/gdl/"],
       "group": {
         "kind": "build",
         "isDefault": true
@@ -137,7 +137,7 @@
       "label": "docker: build",
       "type": "shell",
       "command": "docker",
-      "args": ["build", "-f", "docker/Dockerfile", "-t", "godl:local", "."],
+      "args": ["build", "-f", "docker/Dockerfile", "-t", "gdl:local", "."],
       "group": "build",
       "presentation": {
         "echo": true,

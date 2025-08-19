@@ -1,6 +1,6 @@
 # Extension Examples
 
-This directory contains examples of how to extend godl's functionality through various extension points.
+This directory contains examples of how to extend gdl's functionality through various extension points.
 
 ## Available Examples
 
@@ -57,7 +57,7 @@ cd examples/extensions/database-protocol
 go test ./...
 ```
 
-### Integration with godl
+### Integration with gdl
 
 ```go
 // Load custom extension
@@ -87,4 +87,4 @@ When adding new extension examples:
 4. Update this README
 5. Follow the existing patterns
 
-For more information on extending godl, see the [Extension Guide](../../docs/EXTENDING.md).
+For more information on extending gdl, see the [Extension Guide](../../docs/EXTENDING.md).

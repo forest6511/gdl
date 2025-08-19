@@ -1,4 +1,4 @@
-// Package core provides the core implementation of the godl download functionality.
+// Package core provides the core implementation of the gdl download functionality.
 package core
 
 import (
@@ -15,14 +15,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/forest6511/godl/internal/network"
-	"github.com/forest6511/godl/internal/recovery"
-	"github.com/forest6511/godl/internal/retry"
-	"github.com/forest6511/godl/internal/storage"
-	"github.com/forest6511/godl/pkg/errors"
-	"github.com/forest6511/godl/pkg/progress"
-	"github.com/forest6511/godl/pkg/ratelimit"
-	"github.com/forest6511/godl/pkg/types"
+	"github.com/forest6511/gdl/internal/network"
+	"github.com/forest6511/gdl/internal/recovery"
+	"github.com/forest6511/gdl/internal/retry"
+	"github.com/forest6511/gdl/internal/storage"
+	"github.com/forest6511/gdl/pkg/errors"
+	"github.com/forest6511/gdl/pkg/progress"
+	"github.com/forest6511/gdl/pkg/ratelimit"
+	"github.com/forest6511/gdl/pkg/types"
 )
 
 // DefaultChunkSize is the default size for reading chunks during download.
@@ -32,7 +32,7 @@ const DefaultChunkSize = 32 * 1024 // 32KB
 const DefaultTimeout = 30 * time.Minute
 
 // DefaultUserAgent is the default User-Agent string used for HTTP requests.
-const DefaultUserAgent = "godl/1.0"
+const DefaultUserAgent = "gdl/1.0"
 
 // Downloader implements the types.Downloader interface and provides
 // comprehensive HTTP/HTTPS download functionality with error handling,

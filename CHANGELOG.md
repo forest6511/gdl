@@ -68,6 +68,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CI job naming conflicts
 - Docker environment test issues
 
-[Unreleased]: https://github.com/forest6511/godl/compare/v0.9.2...HEAD
-[0.9.2]: https://github.com/forest6511/godl/compare/v0.9.0...v0.9.2
-[0.9.0]: https://github.com/forest6511/godl/releases/tag/v0.9.0
+[Unreleased]: https://github.com/forest6511/gdl/compare/v0.9.2...HEAD
+[0.9.2]: https://github.com/forest6511/gdl/compare/v0.9.0...v0.9.2
+[0.9.0]: https://github.com/forest6511/gdl/releases/tag/v0.9.0

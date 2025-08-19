@@ -31,7 +31,7 @@ jobs:
             packages: "./internal/core/..."
             coverage-flag: "internal-core"
           - name: "CLI Commands"
-            packages: "./cmd/godl/..."
+            packages: "./cmd/gdl/..."
             coverage-flag: "cli"
           - name: "Storage & Network"
             packages: "./internal/storage/... ./internal/network/... ./internal/concurrent/..."
@@ -163,8 +163,8 @@ jobs:
           token: ${{ env.CODECOV_TOKEN }}
           file: ./coverage.out
           flags: unittests
-          name: godl-coverage
-          slug: forest6511/godl
+          name: gdl-coverage
+          slug: forest6511/gdl
 
       - name: Upload coverage artifacts
         uses: actions/upload-artifact@v4

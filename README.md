@@ -1,11 +1,11 @@
-# godl - Go Downloader
+# gdl - Go Downloader
 
 A fast, concurrent, and feature-rich file downloader library and CLI tool written in Go.
 
-[![CI/CD Pipeline](https://github.com/forest6511/godl/actions/workflows/main.yml/badge.svg)](https://github.com/forest6511/godl/actions/workflows/main.yml)
-[![Go Report Card](https://img.shields.io/badge/go%20report-A+-brightgreen.svg)](https://goreportcard.com/report/github.com/forest6511/godl)
-[![codecov](https://codecov.io/github/forest6511/godl/graph/badge.svg?token=1TgwtCRWqV)](https://codecov.io/github/forest6511/godl)
-[![Go Reference](https://pkg.go.dev/badge/github.com/forest6511/godl.svg)](https://pkg.go.dev/github.com/forest6511/godl)
+[![CI/CD Pipeline](https://github.com/forest6511/gdl/actions/workflows/main.yml/badge.svg)](https://github.com/forest6511/gdl/actions/workflows/main.yml)
+[![Go Report Card](https://img.shields.io/badge/go%20report-A+-brightgreen.svg)](https://goreportcard.com/report/github.com/forest6511/gdl)
+[![codecov](https://codecov.io/github/forest6511/gdl/graph/badge.svg?token=1TgwtCRWqV)](https://codecov.io/github/forest6511/gdl)
+[![Go Reference](https://pkg.go.dev/badge/github.com/forest6511/gdl.svg)](https://pkg.go.dev/github.com/forest6511/gdl)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## ✨ Features
@@ -29,31 +29,31 @@ A fast, concurrent, and feature-rich file downloader library and CLI tool writte
 
 #### Go Install
 ```bash
-go install github.com/forest6511/godl/cmd/godl@latest
+go install github.com/forest6511/gdl/cmd/gdl@latest
 ```
 
 #### Homebrew (macOS/Linux)
 ```bash
 brew tap forest6511/tap
-brew install godl
+brew install gdl
 ```
 
 #### Docker
 ```bash
 # Pull from GitHub Container Registry
-docker pull ghcr.io/forest6511/godl:latest
+docker pull ghcr.io/forest6511/gdl:latest
 
 # Download a file
-docker run --rm -v $(pwd):/downloads ghcr.io/forest6511/godl:latest \
+docker run --rm -v $(pwd):/downloads ghcr.io/forest6511/gdl:latest \
   -o /downloads/file.zip https://example.com/file.zip
 ```
 
 #### Binary Downloads
-Download pre-built binaries from [GitHub Releases](https://github.com/forest6511/godl/releases)
+Download pre-built binaries from [GitHub Releases](https://github.com/forest6511/gdl/releases)
 
 ### As a library
 ```bash
-go get github.com/forest6511/godl
+go get github.com/forest6511/gdl
 ```
 
 ## 🚀 Quick Start
@@ -61,22 +61,22 @@ go get github.com/forest6511/godl
 ### CLI Usage
 ```bash
 # Simple download
-godl https://example.com/file.zip
+gdl https://example.com/file.zip
 
 # Concurrent download with custom settings
-godl --concurrent 8 --chunk-size 2MB -o myfile.zip https://example.com/file.zip
+gdl --concurrent 8 --chunk-size 2MB -o myfile.zip https://example.com/file.zip
 
 # With bandwidth limiting
-godl --max-rate 1MB/s https://example.com/large-file.zip
-godl --max-rate 500k --concurrent 2 https://example.com/file.zip
+gdl --max-rate 1MB/s https://example.com/large-file.zip
+gdl --max-rate 500k --concurrent 2 https://example.com/file.zip
 
 # With custom headers and resume
-godl -H "Authorization: Bearer token" --resume https://example.com/file.zip
+gdl -H "Authorization: Bearer token" --resume https://example.com/file.zip
 
 # Using plugins
-godl plugin install oauth2-auth
-godl plugin list
-godl --plugin oauth2-auth https://secure-api.example.com/file.zip
+gdl plugin install oauth2-auth
+gdl plugin list
+gdl --plugin oauth2-auth https://secure-api.example.com/file.zip
 ```
 
 ### Library Usage
@@ -87,12 +87,12 @@ import (
     "bytes"
     "context"
     "fmt"
-    "github.com/forest6511/godl"
+    "github.com/forest6511/gdl"
 )
 
 func main() {
     // Simple download using Download function
-    stats, err := godl.Download(context.Background(), 
+    stats, err := gdl.Download(context.Background(), 
         "https://example.com/file.zip", "file.zip")
     if err != nil {
         panic(err)
@@ -100,16 +100,16 @@ func main() {
     fmt.Printf("Downloaded %d bytes in %v\n", stats.BytesDownloaded, stats.Duration)
     
     // Download with progress callback and bandwidth limiting using DownloadWithOptions
-    options := &godl.Options{
+    options := &gdl.Options{
         MaxConcurrency: 4,
         MaxRate: 1024 * 1024, // 1MB/s rate limit
-        ProgressCallback: func(p godl.Progress) {
+        ProgressCallback: func(p gdl.Progress) {
             fmt.Printf("Progress: %.1f%% Speed: %.2f MB/s\n", 
                 p.Percentage, float64(p.Speed)/1024/1024)
         },
     }
     
-    stats, err = godl.DownloadWithOptions(context.Background(),
+    stats, err = gdl.DownloadWithOptions(context.Background(),
         "https://example.com/file.zip", "file.zip", options)
     if err == nil {
         fmt.Printf("Download completed successfully! Average speed: %.2f MB/s\n", 
@@ -117,7 +117,7 @@ func main() {
     }
     
     // Download to memory using DownloadToMemory
-    data, stats, err := godl.DownloadToMemory(context.Background(),
+    data, stats, err := gdl.DownloadToMemory(context.Background(),
         "https://example.com/small-file.txt")
     if err == nil {
         fmt.Printf("Downloaded %d bytes to memory in %v\n", len(data), stats.Duration)
@@ -125,28 +125,28 @@ func main() {
     
     // Download to any io.Writer using DownloadToWriter
     var buffer bytes.Buffer
-    stats, err = godl.DownloadToWriter(context.Background(),
+    stats, err = gdl.DownloadToWriter(context.Background(),
         "https://example.com/data.json", &buffer)
     if err == nil {
         fmt.Printf("Downloaded to buffer: %d bytes\n", stats.BytesDownloaded)
     }
         
     // Resume a partial download using DownloadWithResume
-    stats, err = godl.DownloadWithResume(context.Background(),
+    stats, err = gdl.DownloadWithResume(context.Background(),
         "https://example.com/large-file.zip", "large-file.zip")
     if err == nil && stats.Resumed {
         fmt.Printf("Successfully resumed download: %d bytes\n", stats.BytesDownloaded)
     }
         
     // Get file information without downloading using GetFileInfo
-    fileInfo, err := godl.GetFileInfo(context.Background(),
+    fileInfo, err := gdl.GetFileInfo(context.Background(),
         "https://example.com/file.zip")
     if err == nil {
         fmt.Printf("File size: %d bytes\n", fileInfo.Size)
     }
     
     // Using the extensible Downloader with plugins
-    downloader := godl.NewDownloader()
+    downloader := gdl.NewDownloader()
     
     // Register custom protocol handler
     err = downloader.RegisterProtocol(customProtocolHandler)
@@ -176,7 +176,7 @@ func main() {
 - **[🚨 Error Handling](docs/errors/README.md)** - Error types and handling strategies
 - **[🔌 Plugin Development](docs/PLUGIN_DEVELOPMENT.md)** - Plugin development guide
 - **[🚀 Extending Guide](docs/EXTENDING.md)** - Extension points and customization
-- **[📦 Go Package Docs](https://pkg.go.dev/github.com/forest6511/godl)** - Generated Go documentation
+- **[📦 Go Package Docs](https://pkg.go.dev/github.com/forest6511/gdl)** - Generated Go documentation
 
 ## 📋 Complete CLI Reference
 
@@ -271,7 +271,7 @@ go build -buildmode=plugin -o s3.so
 
 ### Key Concepts: Resume vs. Retry
 
-The terms "Resume" and "Retry" sound similar but handle different situations. Understanding the difference is key to using `godl` effectively.
+The terms "Resume" and "Retry" sound similar but handle different situations. Understanding the difference is key to using `gdl` effectively.
 
 |          | Retry                                  | Resume                                     |
 | :------- | :------------------------------------- | :----------------------------------------- |
@@ -283,9 +283,9 @@ The terms "Resume" and "Retry" sound similar but handle different situations. Un
 #### Scenario: Combining Resume and Retry
 
 1.  **Day 1:** You start downloading a 10GB file. It gets to 5GB, and you stop the program (e.g., with Ctrl+C). (-> **Interruption**)
-2.  **Day 2:** You run the same command again with resume enabled. `godl` detects the incomplete 5GB file and starts downloading from that point. (-> This is a **Resumed** download)
+2.  **Day 2:** You run the same command again with resume enabled. `gdl` detects the incomplete 5GB file and starts downloading from that point. (-> This is a **Resumed** download)
 3.  During the download of the remaining 5GB, your network connection briefly drops, causing a timeout error.
-4.  `godl` automatically waits a moment and re-attempts the failed request. (-> This is a **Retry**)
+4.  `gdl` automatically waits a moment and re-attempts the failed request. (-> This is a **Retry**)
 5.  The download then completes successfully.
 
 In this case, the final `DownloadStats` would be `Resumed: true` and `Retries: 1`.
@@ -308,13 +308,13 @@ For the complete project structure, see [Directory Structure](docs/DIRECTORY_STR
 - **Event System** (`pkg/events`): Download lifecycle events
 - **Middleware Layer** (`pkg/middleware`): Request/response processing
 - **Protocol Registry** (`pkg/protocols`): Custom protocol handlers
-- **CLI Interface** (`cmd/godl`): Command-line tool implementation
+- **CLI Interface** (`cmd/gdl`): Command-line tool implementation
 
 ### Plugin Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      godl Core                              │
+│                       gdl Core                              │
 ├─────────────────────────────────────────────────────────────┤
 │                 Plugin Manager                              │
 ├─────────────────────────────────────────────────────────────┤
@@ -401,8 +401,8 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 ### Development Setup
 ```bash
 # Clone the repository
-git clone https://github.com/forest6511/godl.git
-cd godl
+git clone https://github.com/forest6511/gdl.git
+cd gdl
 
 # Install dependencies
 go mod download
@@ -420,7 +420,7 @@ make ci-check
 go test ./...
 
 # Build CLI
-go build -o godl ./cmd/godl/
+go build -o gdl ./cmd/gdl/
 ```
 
 ### Pre-commit Checks

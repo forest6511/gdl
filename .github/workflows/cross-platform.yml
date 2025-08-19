@@ -82,15 +82,15 @@ jobs:
           fi
 
       - name: Build binary
-        run: go build -v ./cmd/godl/
+        run: go build -v ./cmd/gdl/
 
       - name: Test binary execution
         shell: bash
         run: |
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            ./godl.exe --version
+            ./gdl.exe --version
           else
-            ./godl --version
+            ./gdl --version
           fi
 
       - name: Summary

@@ -175,8 +175,8 @@ act --version
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/forest6511/godl.git
-cd godl
+git clone https://github.com/forest6511/gdl.git
+cd gdl
 
 # 2. Install dependencies
 go mod download

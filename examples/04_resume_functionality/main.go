@@ -18,7 +18,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/forest6511/godl"
+	"github.com/forest6511/gdl"
 )
 
 func main() {
@@ -76,12 +76,12 @@ func main() {
 	fmt.Printf("   %s\n", testFile.description)
 
 	// First download with resume enabled
-	opts := &godl.Options{
+	opts := &gdl.Options{
 		MaxConcurrency:    4,
 		ChunkSize:         64 * 1024,
 		EnableResume:      true,
 		OverwriteExisting: false, // Don't overwrite to allow resume
-		ProgressCallback: func(p godl.Progress) {
+		ProgressCallback: func(p gdl.Progress) {
 			fmt.Printf("\r📈 Progress: %.1f%% (%s/%s) Speed: %s/s",
 				p.Percentage,
 				formatBytes(p.BytesDownloaded),
@@ -91,7 +91,7 @@ func main() {
 	}
 
 	start := time.Now()
-	stats, err := godl.DownloadWithOptions(ctx, testFile.url, destPath, opts)
+	stats, err := gdl.DownloadWithOptions(ctx, testFile.url, destPath, opts)
 	elapsed := time.Since(start)
 
 	if err != nil {
@@ -122,12 +122,12 @@ func main() {
 
 	var interrupted bool
 
-	opts = &godl.Options{
+	opts = &gdl.Options{
 		MaxConcurrency:    6,
 		ChunkSize:         128 * 1024,
 		EnableResume:      true,
 		OverwriteExisting: true,
-		ProgressCallback: func(p godl.Progress) {
+		ProgressCallback: func(p gdl.Progress) {
 			fmt.Printf("\r🔄 Partial download: %.1f%% (%s/%s) Speed: %s/s",
 				p.Percentage,
 				formatBytes(p.BytesDownloaded),
@@ -147,7 +147,7 @@ func main() {
 	}
 
 	start = time.Now()
-	_, err = godl.DownloadWithOptions(interruptCtx, testFile.url, partialPath, opts)
+	_, err = gdl.DownloadWithOptions(interruptCtx, testFile.url, partialPath, opts)
 	elapsed = time.Since(start)
 
 	var partialSize int64
@@ -173,12 +173,12 @@ func main() {
 
 	var resumeStart int64
 
-	opts = &godl.Options{
+	opts = &gdl.Options{
 		MaxConcurrency:    6,
 		ChunkSize:         128 * 1024,
 		EnableResume:      true,
 		OverwriteExisting: false, // Important: don't overwrite partial file
-		ProgressCallback: func(p godl.Progress) {
+		ProgressCallback: func(p gdl.Progress) {
 			if resumeStart == 0 && p.BytesDownloaded > partialSize {
 				resumeStart = partialSize
 				fmt.Printf("\n🔄 Resume detected! Starting from %s\n", formatBytes(resumeStart))
@@ -193,7 +193,7 @@ func main() {
 	}
 
 	start = time.Now()
-	stats, err = godl.DownloadWithOptions(ctx, testFile.url, partialPath, opts)
+	stats, err = gdl.DownloadWithOptions(ctx, testFile.url, partialPath, opts)
 	elapsed = time.Since(start)
 
 	if err != nil {
@@ -256,12 +256,12 @@ func main() {
 
 		var configInterrupted bool
 
-		opts = &godl.Options{
+		opts = &gdl.Options{
 			MaxConcurrency:    config.maxConns,
 			ChunkSize:         config.chunkSize,
 			EnableResume:      true,
 			OverwriteExisting: true,
-			ProgressCallback: func(p godl.Progress) {
+			ProgressCallback: func(p gdl.Progress) {
 				if p.Percentage >= 25.0 && !configInterrupted {
 					configInterrupted = true
 					go func() {
@@ -274,7 +274,7 @@ func main() {
 
 		fmt.Printf("   📥 Starting download (will interrupt at 25%%)...\n")
 
-		_, err = godl.DownloadWithOptions(configCtx, testFile.url, configPath, opts)
+		_, err = gdl.DownloadWithOptions(configCtx, testFile.url, configPath, opts)
 
 		var interruptedSize int64
 
@@ -291,7 +291,7 @@ func main() {
 		fmt.Printf("   🔄 Resuming with same configuration...\n")
 
 		start = time.Now()
-		stats, err = godl.DownloadWithOptions(ctx, testFile.url, configPath, opts)
+		stats, err = gdl.DownloadWithOptions(ctx, testFile.url, configPath, opts)
 		elapsed = time.Since(start)
 
 		if err != nil {
@@ -325,7 +325,7 @@ func main() {
 
 	fmt.Printf("📥 Step 1: Normal download of %s\n", testFile.name)
 
-	opts = &godl.Options{
+	opts = &gdl.Options{
 		MaxConcurrency:    4,
 		EnableResume:      false,
 		OverwriteExisting: true,
@@ -333,7 +333,7 @@ func main() {
 	}
 
 	start = time.Now()
-	_, err = godl.DownloadWithOptions(ctx, testFile.url, normalPath, opts)
+	_, err = gdl.DownloadWithOptions(ctx, testFile.url, normalPath, opts)
 	normalElapsed := time.Since(start)
 
 	if err != nil {
@@ -357,11 +357,11 @@ func main() {
 
 	var partialInterrupted bool
 
-	opts = &godl.Options{
+	opts = &gdl.Options{
 		MaxConcurrency:    4,
 		EnableResume:      true,
 		OverwriteExisting: true,
-		ProgressCallback: func(p godl.Progress) {
+		ProgressCallback: func(p gdl.Progress) {
 			if p.Percentage >= 50.0 && !partialInterrupted {
 				partialInterrupted = true
 				go partialCancel()
@@ -369,7 +369,7 @@ func main() {
 		},
 	}
 
-	_, err = godl.DownloadWithOptions(partialCtx, testFile.url, resumePath, opts)
+	_, err = gdl.DownloadWithOptions(partialCtx, testFile.url, resumePath, opts)
 
 	var partialInfo os.FileInfo
 	if partialInterrupted && errors.Is(err, context.Canceled) {
@@ -391,7 +391,7 @@ func main() {
 	opts.Quiet = true
 
 	start = time.Now()
-	_, err = godl.DownloadWithOptions(ctx, testFile.url, resumePath, opts)
+	_, err = gdl.DownloadWithOptions(ctx, testFile.url, resumePath, opts)
 	resumeElapsed := time.Since(start)
 
 	if err != nil {

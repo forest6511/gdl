@@ -1,6 +1,6 @@
-# Contributing to godl
+# Contributing to gdl
 
-Thank you for your interest in contributing to godl! This guide will help you get started.
+Thank you for your interest in contributing to gdl! This guide will help you get started.
 
 ## Getting Started
 
@@ -12,8 +12,8 @@ Thank you for your interest in contributing to godl! This guide will help you ge
 ### Fork and Clone
 
 1. Fork the repository on GitHub
-2. Clone your fork: `git clone https://github.com/yourusername/godl.git`
-3. Add upstream remote: `git remote add upstream https://github.com/forest6511/godl.git`
+2. Clone your fork: `git clone https://github.com/yourusername/gdl.git`
+3. Add upstream remote: `git remote add upstream https://github.com/forest6511/gdl.git`
 4. Create a feature branch: `git checkout -b feature/your-feature`
 
 ## Development Guidelines
@@ -298,7 +298,7 @@ git commit  # Try again with formatted code
 // It returns download statistics and any error encountered.
 //
 // Example:
-//   stats, err := godl.DownloadWithOptions(ctx, url, dest, &Options{
+//   stats, err := gdl.DownloadWithOptions(ctx, url, dest, &Options{
 //       MaxConcurrency: 4,
 //       ProgressCallback: func(p Progress) { ... },
 //   })

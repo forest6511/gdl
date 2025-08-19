@@ -1,5 +1,5 @@
 // Package main demonstrates feature parity verification between
-// the godl CLI tool and library API to ensure consistent behavior.
+// the gdl CLI tool and library API to ensure consistent behavior.
 //
 // Usage:
 //   go run main.go
@@ -22,7 +22,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/forest6511/godl"
+	"github.com/forest6511/gdl"
 )
 
 // This program verifies feature parity between CLI and Library interfaces
@@ -75,7 +75,7 @@ func main() {
 }
 
 func buildCLITool() error {
-	cmd := exec.Command("go", "build", "-o", "godl_test", "../../cmd/godl/")
+	cmd := exec.Command("go", "build", "-o", "gdl_test", "../../cmd/gdl/")
 	return cmd.Run()
 }
 
@@ -84,7 +84,7 @@ func testBasicDownload() error {
 
 	// Library test
 	libFile := "lib_basic.bin"
-	_, err := godl.Download(context.Background(), url, libFile)
+	_, err := gdl.Download(context.Background(), url, libFile)
 	if err != nil {
 		return fmt.Errorf("library download failed: %w", err)
 	}
@@ -101,7 +101,7 @@ func testBasicDownload() error {
 
 	// CLI test
 	cliFile := "cli_basic.bin"
-	cmd := exec.Command("./godl_test", "-o", cliFile, url)
+	cmd := exec.Command("./gdl_test", "-o", cliFile, url)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("CLI download failed: %w", err)
 	}
@@ -125,15 +125,15 @@ func testDownloadWithOptions() error {
 	libFile := "lib_options.bin"
 	progressCalled := false
 
-	options := &godl.Options{
-		ProgressCallback: func(p godl.Progress) {
+	options := &gdl.Options{
+		ProgressCallback: func(p gdl.Progress) {
 			progressCalled = true
 		},
 		MaxConcurrency:    2,
 		OverwriteExisting: true,
 	}
 
-	_, err := godl.DownloadWithOptions(context.Background(), url, libFile, options)
+	_, err := gdl.DownloadWithOptions(context.Background(), url, libFile, options)
 	if err != nil {
 		return fmt.Errorf("library download with options failed: %w", err)
 	}
@@ -144,7 +144,7 @@ func testDownloadWithOptions() error {
 
 	// CLI test with options
 	cliFile := "cli_options.bin"
-	cmd := exec.Command("./godl_test", "--concurrent", "2", "-o", cliFile, url)
+	cmd := exec.Command("./gdl_test", "--concurrent", "2", "-o", cliFile, url)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("CLI download with options failed: %w", err)
 	}
@@ -157,7 +157,7 @@ func testDownloadToMemory() error {
 	url := "https://httpbin.org/bytes/2048"
 
 	// Library test (memory download - CLI doesn't support this)
-	data, _, err := godl.DownloadToMemory(context.Background(), url)
+	data, _, err := gdl.DownloadToMemory(context.Background(), url)
 	if err != nil {
 		return fmt.Errorf("library download to memory failed: %w", err)
 	}
@@ -174,15 +174,15 @@ func testCustomHeaders() error {
 
 	// Library test with custom headers
 	libFile := "lib_headers.json"
-	options := &godl.Options{
+	options := &gdl.Options{
 		Headers: map[string]string{
 			"X-Custom-Header": "test-value",
-			"User-Agent":      "godl-test/1.0",
+			"User-Agent":      "gdl-test/1.0",
 		},
 		OverwriteExisting: true,
 	}
 
-	_, err := godl.DownloadWithOptions(context.Background(), url, libFile, options)
+	_, err := gdl.DownloadWithOptions(context.Background(), url, libFile, options)
 	if err != nil {
 		return fmt.Errorf("library download with headers failed: %w", err)
 	}
@@ -190,9 +190,9 @@ func testCustomHeaders() error {
 
 	// CLI test with headers
 	cliFile := "cli_headers.json"
-	cmd := exec.Command("./godl_test",
+	cmd := exec.Command("./gdl_test",
 		"-H", "X-Custom-Header: test-value",
-		"--user-agent", "godl-test/1.0",
+		"--user-agent", "gdl-test/1.0",
 		"-o", cliFile, url)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("CLI download with headers failed: %w", err)
@@ -208,12 +208,12 @@ func testTimeoutHandling() error {
 
 	// Library test with short timeout
 	libFile := "lib_timeout.bin"
-	options := &godl.Options{
+	options := &gdl.Options{
 		Timeout:           1 * time.Second,
 		OverwriteExisting: true,
 	}
 
-	_, err := godl.DownloadWithOptions(context.Background(), url, libFile, options)
+	_, err := gdl.DownloadWithOptions(context.Background(), url, libFile, options)
 	if err == nil {
 		_ = os.Remove(libFile)
 		return fmt.Errorf("library: expected timeout, but succeeded")
@@ -222,7 +222,7 @@ func testTimeoutHandling() error {
 
 	// CLI test with short timeout
 	cliFile := "cli_timeout.bin"
-	cmd := exec.Command("./godl_test", "--timeout", "1s", "-o", cliFile, url)
+	cmd := exec.Command("./gdl_test", "--timeout", "1s", "-o", cliFile, url)
 	if err := cmd.Run(); err == nil {
 		_ = os.Remove(cliFile)
 		return fmt.Errorf("CLI: expected timeout, but succeeded")
@@ -243,11 +243,11 @@ func testForceOverwrite() error {
 		return fmt.Errorf("failed to create existing file: %w", err)
 	}
 
-	options := &godl.Options{
+	options := &gdl.Options{
 		OverwriteExisting: true,
 	}
 
-	_, err := godl.DownloadWithOptions(context.Background(), url, libFile, options)
+	_, err := gdl.DownloadWithOptions(context.Background(), url, libFile, options)
 	if err != nil {
 		return fmt.Errorf("library overwrite failed: %w", err)
 	}
@@ -269,7 +269,7 @@ func testForceOverwrite() error {
 		return fmt.Errorf("failed to create existing file for CLI: %w", err)
 	}
 
-	cmd := exec.Command("./godl_test", "-f", "-o", cliFile, url)
+	cmd := exec.Command("./gdl_test", "-f", "-o", cliFile, url)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("CLI overwrite failed: %w", err)
 	}

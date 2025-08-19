@@ -1,4 +1,4 @@
-# Full godl configuration example with all features
+# Full gdl configuration example with all features
 version: "1.0"
 
 # Advanced retry policy configuration
@@ -23,7 +23,7 @@ error_handling:
   verbose_errors: true
   show_stack_trace: false
   log_errors: true
-  log_file: "./logs/godl-errors.log"
+  log_file: "./logs/gdl-errors.log"
   fail_fast: false
   error_format: "structured"
   recovery_enabled: true
@@ -51,7 +51,7 @@ timeouts:
 # Advanced network configuration
 network:
   max_concurrent_connections: 10
-  user_agent: "godl/1.0 (advanced-config)"
+  user_agent: "gdl/1.0 (advanced-config)"
   follow_redirects: true
   max_redirects: 10
   enable_compression: true

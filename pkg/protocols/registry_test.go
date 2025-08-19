@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/forest6511/godl/pkg/types"
+	"github.com/forest6511/gdl/pkg/types"
 )
 
 // Mock protocol handler for testing

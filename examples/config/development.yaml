@@ -35,7 +35,7 @@ timeouts:
 # Development network settings
 network:
   max_concurrent_connections: 2
-  user_agent: "godl-dev/1.0"
+  user_agent: "gdl-dev/1.0"
   follow_redirects: true
   max_redirects: 5
   proxy_url: "http://localhost:8080"  # Local development proxy

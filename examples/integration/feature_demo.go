@@ -1,4 +1,4 @@
-// Package main provides a comprehensive demonstration of all godl features
+// Package main provides a comprehensive demonstration of all gdl features
 // This program shows both library and CLI integration working together
 package main
 
@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/forest6511/godl"
+	"github.com/forest6511/gdl"
 )
 
 func main() {
@@ -135,13 +135,13 @@ func runLibraryDemos(baseURL string) {
 	// 1. Basic download
 	fmt.Println("  1. Basic Download...")
 
-	_, err := godl.Download(ctx, baseURL+"/file", "demo_basic.txt")
+	_, err := gdl.Download(ctx, baseURL+"/file", "demo_basic.txt")
 	checkResult("Basic Download", err)
 
 	// 2. Download with options
 	fmt.Println("  2. Download with Advanced Options...")
 
-	opts := &godl.Options{
+	opts := &gdl.Options{
 		MaxConcurrency: 4,
 		ChunkSize:      1024,
 		Timeout:        30 * time.Second,
@@ -152,7 +152,7 @@ func runLibraryDemos(baseURL string) {
 		EnableResume:      true,
 		OverwriteExisting: true,
 		CreateDirs:        true,
-		ProgressCallback: func(p godl.Progress) {
+		ProgressCallback: func(p gdl.Progress) {
 			if p.TotalSize > 0 && p.Percentage > 0 {
 				fmt.Printf("    Progress: %.1f%% (%d/%d bytes)\n",
 					p.Percentage, p.BytesDownloaded, p.TotalSize)
@@ -162,13 +162,13 @@ func runLibraryDemos(baseURL string) {
 
 	_ = os.MkdirAll("demo_downloads", 0o750)
 
-	_, err = godl.DownloadWithOptions(ctx, baseURL+"/largefile", "demo_downloads/advanced.bin", opts)
+	_, err = gdl.DownloadWithOptions(ctx, baseURL+"/largefile", "demo_downloads/advanced.bin", opts)
 	checkResult("Advanced Options Download", err)
 
 	// 3. Download to memory
 	fmt.Println("  3. Download to Memory...")
 
-	data, _, err := godl.DownloadToMemory(ctx, baseURL+"/json")
+	data, _, err := gdl.DownloadToMemory(ctx, baseURL+"/json")
 	if err == nil {
 		fmt.Printf("    Downloaded %d bytes to memory\n", len(data))
 	}
@@ -182,7 +182,7 @@ func runLibraryDemos(baseURL string) {
 	if err == nil {
 		defer func() { _ = file.Close() }()
 
-		_, err = godl.DownloadToWriter(ctx, baseURL+"/json", file)
+		_, err = gdl.DownloadToWriter(ctx, baseURL+"/json", file)
 	}
 
 	checkResult("Writer Download", err)
@@ -190,13 +190,13 @@ func runLibraryDemos(baseURL string) {
 	// 5. Resume download
 	fmt.Println("  5. Resume Download...")
 
-	_, err = godl.DownloadWithResume(ctx, baseURL+"/largefile", "demo_resume.bin")
+	_, err = gdl.DownloadWithResume(ctx, baseURL+"/largefile", "demo_resume.bin")
 	checkResult("Resume Download", err)
 
 	// 6. Get file info
 	fmt.Println("  6. Get File Information...")
 
-	info, err := godl.GetFileInfo(ctx, baseURL+"/largefile")
+	info, err := gdl.GetFileInfo(ctx, baseURL+"/largefile")
 	if err == nil && info != nil {
 		fmt.Printf("    File size: %d bytes, Content-Type: %s, Ranges: %v\n",
 			info.Size, info.ContentType, info.SupportsRanges)
@@ -205,11 +205,11 @@ func runLibraryDemos(baseURL string) {
 	checkResult("Get File Info", err)
 }
 
-// buildCLI builds the godl CLI binary.
+// buildCLI builds the gdl CLI binary.
 func buildCLI() {
 	fmt.Println("🔨 Building CLI binary...")
 
-	cmd := exec.Command("go", "build", "-o", "godl", "./cmd/godl")
+	cmd := exec.Command("go", "build", "-o", "gdl", "./cmd/gdl")
 
 	cmd.Dir = "."
 	if err := cmd.Run(); err != nil {
@@ -225,11 +225,11 @@ func runCLIDemos(baseURL string) {
 
 	// Basic CLI usage
 	fmt.Println("  1. Basic CLI Download...")
-	runCLICommand("./godl", "-o", "cli_basic.txt", baseURL+"/file")
+	runCLICommand("./gdl", "-o", "cli_basic.txt", baseURL+"/file")
 
 	// Advanced headers
 	fmt.Println("  2. CLI with Custom Headers...")
-	runCLICommand("./godl",
+	runCLICommand("./gdl",
 		"-H", "X-Demo: CLI",
 		"-H", "Authorization: Bearer demo123",
 		"-o", "cli_headers.json",
@@ -237,7 +237,7 @@ func runCLIDemos(baseURL string) {
 
 	// Concurrent download
 	fmt.Println("  3. CLI Concurrent Download...")
-	runCLICommand("./godl",
+	runCLICommand("./gdl",
 		"--concurrent", "4",
 		"--chunk-size", "2KB",
 		"--verbose",
@@ -247,7 +247,7 @@ func runCLIDemos(baseURL string) {
 	// Progress bar variations
 	fmt.Println("  4. CLI Progress Bar Types...")
 	runCLICommand(
-		"./godl",
+		"./gdl",
 		"--progress-bar",
 		"simple",
 		"-o",
@@ -255,7 +255,7 @@ func runCLIDemos(baseURL string) {
 		baseURL+"/file",
 	)
 	runCLICommand(
-		"./godl",
+		"./gdl",
 		"--progress-bar",
 		"detailed",
 		"-o",
@@ -263,7 +263,7 @@ func runCLIDemos(baseURL string) {
 		baseURL+"/file",
 	)
 	runCLICommand(
-		"./godl",
+		"./gdl",
 		"--progress-bar",
 		"json",
 		"-o",
@@ -273,7 +273,7 @@ func runCLIDemos(baseURL string) {
 
 	// Advanced features
 	fmt.Println("  5. CLI Advanced Features...")
-	runCLICommand("./godl",
+	runCLICommand("./gdl",
 		"--max-redirects", "5",
 		"--retry", "3",
 		"--retry-delay", "1s",
@@ -285,8 +285,8 @@ func runCLIDemos(baseURL string) {
 
 	// Quiet and verbose modes
 	fmt.Println("  6. CLI Output Modes...")
-	runCLICommand("./godl", "--quiet", "-o", "cli_quiet.txt", baseURL+"/file")
-	runCLICommand("./godl", "--verbose", "-o", "cli_verbose.json", baseURL+"/json")
+	runCLICommand("./gdl", "--quiet", "-o", "cli_quiet.txt", baseURL+"/file")
+	runCLICommand("./gdl", "--verbose", "-o", "cli_verbose.json", baseURL+"/json")
 }
 
 // runIntegrationTests runs comprehensive integration tests.
@@ -299,8 +299,8 @@ func runIntegrationTests(baseURL string) {
 	ctx := context.Background()
 
 	// Download same file with library and CLI
-	_, err1 := godl.Download(ctx, baseURL+"/file", "integration_lib.txt")
-	runCLICommand("./godl", "-o", "integration_cli.txt", baseURL+"/file")
+	_, err1 := gdl.Download(ctx, baseURL+"/file", "integration_lib.txt")
+	runCLICommand("./gdl", "-o", "integration_cli.txt", baseURL+"/file")
 
 	// Compare files
 	lib_data, _ := os.ReadFile("integration_lib.txt")
@@ -316,7 +316,7 @@ func runIntegrationTests(baseURL string) {
 	fmt.Println("  2. Feature Compatibility Test...")
 
 	// Library with all features
-	opts := &godl.Options{
+	opts := &gdl.Options{
 		MaxConcurrency:    2,
 		ChunkSize:         1024,
 		UserAgent:         "Integration/1.0",
@@ -328,7 +328,7 @@ func runIntegrationTests(baseURL string) {
 
 	_ = os.MkdirAll("integration_test", 0o750)
 
-	_, err2 := godl.DownloadWithOptions(
+	_, err2 := gdl.DownloadWithOptions(
 		ctx,
 		baseURL+"/largefile",
 		"integration_test/lib_full.bin",
@@ -336,7 +336,7 @@ func runIntegrationTests(baseURL string) {
 	)
 
 	// CLI with equivalent features
-	runCLICommand("./godl",
+	runCLICommand("./gdl",
 		"--concurrent", "2",
 		"--chunk-size", "1KB",
 		"--user-agent", "Integration/1.0",
@@ -358,9 +358,9 @@ func runIntegrationTests(baseURL string) {
 	fmt.Println("  3. Error Handling Test...")
 
 	// Test with invalid URL
-	_, err_lib := godl.Download(ctx, "http://invalid-url-test.local/file", "error_test.txt")
+	_, err_lib := gdl.Download(ctx, "http://invalid-url-test.local/file", "error_test.txt")
 	cmd_err := exec.Command(
-		"./godl",
+		"./gdl",
 		"-o",
 		"error_cli_test.txt",
 		"http://invalid-url-test.local/file",
@@ -407,7 +407,7 @@ func cleanup() {
 		"cli_*.txt", "cli_*.json", "cli_*.bin",
 		"integration_*.txt", "integration_*.bin",
 		"error_*.txt",
-		"godl", // CLI binary
+		"gdl", // CLI binary
 	}
 
 	for _, pattern := range patterns {

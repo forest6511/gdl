@@ -1,6 +1,6 @@
-# GODL CLI Examples and Usage Guide
+# GDL CLI Examples and Usage Guide
 
-This guide provides comprehensive examples for using the GODL command-line tool in various scenarios.
+This guide provides comprehensive examples for using the GDL command-line tool in various scenarios.
 
 ## Table of Contents
 
@@ -18,26 +18,26 @@ This guide provides comprehensive examples for using the GODL command-line tool 
 ### Simple Download
 Download a file to the current directory:
 ```bash
-godl download "https://example.com/file.zip"
+gdl download "https://example.com/file.zip"
 ```
 
 ### Download to Specific Location
 Specify the output file path:
 ```bash
-godl download "https://example.com/file.zip" -o "/downloads/myfile.zip"
-godl download "https://example.com/file.zip" --output "/downloads/myfile.zip"
+gdl download "https://example.com/file.zip" -o "/downloads/myfile.zip"
+gdl download "https://example.com/file.zip" --output "/downloads/myfile.zip"
 ```
 
 ### Download to Directory
 Download to a specific directory (filename auto-detected):
 ```bash
-godl download "https://example.com/file.zip" --output-dir "/downloads"
+gdl download "https://example.com/file.zip" --output-dir "/downloads"
 ```
 
 ### Create Parent Directories
 Automatically create parent directories if they don't exist:
 ```bash
-godl download "https://example.com/file.zip" -o "/new/path/file.zip" --create-dirs
+gdl download "https://example.com/file.zip" -o "/new/path/file.zip" --create-dirs
 ```
 
 ## Advanced Downloads
@@ -45,27 +45,27 @@ godl download "https://example.com/file.zip" -o "/new/path/file.zip" --create-di
 ### Resume Interrupted Downloads
 Resume a partially downloaded file:
 ```bash
-godl download "https://example.com/largefile.zip" --resume
+gdl download "https://example.com/largefile.zip" --resume
 ```
 
 ### Concurrent Downloads
 Use multiple connections for faster downloads:
 ```bash
 # Use 4 concurrent connections
-godl download "https://example.com/file.zip" --concurrent 4
+gdl download "https://example.com/file.zip" --concurrent 4
 
 # Set global concurrent limit
-godl config set network.max_concurrent_downloads 6
+gdl config set network.max_concurrent_downloads 6
 ```
 
 ### Custom Timeouts
 Configure timeout values for slow connections:
 ```bash
 # Set overall timeout to 10 minutes
-godl download "https://example.com/file.zip" --timeout 600s
+gdl download "https://example.com/file.zip" --timeout 600s
 
 # Configure specific timeouts
-godl download "https://example.com/file.zip" \
+gdl download "https://example.com/file.zip" \
   --connect-timeout 30s \
   --read-timeout 120s
 ```
@@ -74,10 +74,10 @@ godl download "https://example.com/file.zip" \
 Configure retry behavior for unreliable connections:
 ```bash
 # Retry up to 10 times with exponential backoff
-godl download "https://example.com/file.zip" --retry 10 --retry-delay 2s
+gdl download "https://example.com/file.zip" --retry 10 --retry-delay 2s
 
 # Custom retry strategy
-godl download "https://example.com/file.zip" \
+gdl download "https://example.com/file.zip" \
   --retry 5 \
   --retry-strategy exponential \
   --retry-max-delay 60s
@@ -86,7 +86,7 @@ godl download "https://example.com/file.zip" \
 ### Overwrite Existing Files
 Overwrite files that already exist:
 ```bash
-godl download "https://example.com/file.zip" --overwrite
+gdl download "https://example.com/file.zip" --overwrite
 ```
 
 ## Authentication
@@ -95,10 +95,10 @@ godl download "https://example.com/file.zip" --overwrite
 Use username and password:
 ```bash
 # URL-embedded credentials
-godl download "https://username:password@example.com/file.zip"
+gdl download "https://username:password@example.com/file.zip"
 
 # Using headers
-godl download "https://example.com/file.zip" \
+gdl download "https://example.com/file.zip" \
   --header "Authorization: Basic $(echo -n 'username:password' | base64)"
 ```
 
@@ -106,11 +106,11 @@ godl download "https://example.com/file.zip" \
 Use API tokens:
 ```bash
 # Bearer token
-godl download "https://api.example.com/file.zip" \
+gdl download "https://api.example.com/file.zip" \
   --header "Authorization: Bearer your_token_here"
 
 # Token from file
-godl download "https://api.example.com/file.zip" \
+gdl download "https://api.example.com/file.zip" \
   --header "Authorization: Bearer $(cat ~/.tokens/api_token)"
 ```
 
@@ -118,11 +118,11 @@ godl download "https://api.example.com/file.zip" \
 Use API keys:
 ```bash
 # API key in header
-godl download "https://api.example.com/file.zip" \
+gdl download "https://api.example.com/file.zip" \
   --header "X-API-Key: your_api_key"
 
 # Multiple headers
-godl download "https://api.example.com/file.zip" \
+gdl download "https://api.example.com/file.zip" \
   --header "X-API-Key: your_api_key" \
   --header "X-Client-Version: 1.0"
 ```
@@ -130,7 +130,7 @@ godl download "https://api.example.com/file.zip" \
 ### Custom User Agent
 Set a custom User-Agent string:
 ```bash
-godl download "https://example.com/file.zip" \
+gdl download "https://example.com/file.zip" \
   --user-agent "Mozilla/5.0 (compatible; MyBot/1.0)"
 ```
 
@@ -140,7 +140,7 @@ godl download "https://example.com/file.zip" \
 Download multiple URLs:
 ```bash
 # Multiple URLs as arguments
-godl download \
+gdl download \
   "https://example.com/file1.zip" \
   "https://example.com/file2.zip" \
   "https://example.com/file3.zip"
@@ -157,10 +157,10 @@ https://example.com/file3.zip
 EOF
 
 # Download all URLs
-godl download -f urls.txt --output-dir "/downloads"
+gdl download -f urls.txt --output-dir "/downloads"
 
 # With concurrency limit
-godl download -f urls.txt --concurrent 3 --output-dir "/downloads"
+gdl download -f urls.txt --concurrent 3 --output-dir "/downloads"
 ```
 
 ### Batch Download with Individual Settings
@@ -171,8 +171,8 @@ echo '{"retry_policy": {"max_retries": 10}}' > config1.json
 echo '{"timeouts": {"download_timeout": "1h"}}' > config2.json
 
 # Download with specific configs
-godl download "https://unreliable.com/file.zip" --config config1.json
-godl download "https://slow.com/largefile.zip" --config config2.json
+gdl download "https://unreliable.com/file.zip" --config config1.json
+gdl download "https://slow.com/largefile.zip" --config config2.json
 ```
 
 ## Error Handling
@@ -181,36 +181,36 @@ godl download "https://slow.com/largefile.zip" --config config2.json
 Enable detailed output for debugging:
 ```bash
 # Verbose output to console
-godl download "https://example.com/file.zip" --verbose
+gdl download "https://example.com/file.zip" --verbose
 
 # Save logs to file
-godl download "https://example.com/file.zip" --log-file download.log
+gdl download "https://example.com/file.zip" --log-file download.log
 
 # Both verbose and logging
-godl download "https://example.com/file.zip" --verbose --log-file debug.log
+gdl download "https://example.com/file.zip" --verbose --log-file debug.log
 ```
 
 ### Structured Error Output
 Get machine-readable error information:
 ```bash
 # JSON output format
-godl download "https://example.com/file.zip" --format json
+gdl download "https://example.com/file.zip" --format json
 
 # Include error details
-godl download "https://example.com/file.zip" --format json --include-errors
+gdl download "https://example.com/file.zip" --format json --include-errors
 ```
 
 ### Error Recovery
 Handle specific error scenarios:
 ```bash
 # Continue on non-fatal errors
-godl download -f urls.txt --continue-on-error
+gdl download -f urls.txt --continue-on-error
 
 # Fail fast (stop on first error)
-godl download -f urls.txt --fail-fast
+gdl download -f urls.txt --fail-fast
 
 # Custom error handling
-godl download "https://example.com/file.zip" \
+gdl download "https://example.com/file.zip" \
   --on-error "retry:3,delay:5s" \
   --on-fatal-error "log,exit"
 ```
@@ -220,59 +220,59 @@ godl download "https://example.com/file.zip" \
 ### View Current Configuration
 ```bash
 # Show all configuration
-godl config show
+gdl config show
 
 # Show specific section
-godl config show retry_policy
-godl config show timeouts
+gdl config show retry_policy
+gdl config show timeouts
 
 # Show in different formats
-godl config show --format json
-godl config show --format yaml
+gdl config show --format json
+gdl config show --format yaml
 ```
 
 ### Modify Configuration
 ```bash
 # Set retry policy
-godl config set retry_policy.max_retries 10
-godl config set retry_policy.strategy "exponential"
+gdl config set retry_policy.max_retries 10
+gdl config set retry_policy.strategy "exponential"
 
 # Set timeout values
-godl config set timeouts.download_timeout "30m"
-godl config set timeouts.connect_timeout "15s"
+gdl config set timeouts.download_timeout "30m"
+gdl config set timeouts.connect_timeout "15s"
 
 # Set network options
-godl config set network.max_concurrent_downloads 8
-godl config set network.chunk_size 65536
+gdl config set network.max_concurrent_downloads 8
+gdl config set network.chunk_size 65536
 ```
 
 ### Configuration Profiles
 Use different configurations for different scenarios:
 ```bash
 # Create configuration profiles
-godl config create-profile "slow-network" \
+gdl config create-profile "slow-network" \
   --set retry_policy.max_retries=10 \
   --set network.chunk_size=8192 \
   --set timeouts.read_timeout="300s"
 
-godl config create-profile "fast-network" \
+gdl config create-profile "fast-network" \
   --set network.max_concurrent_downloads=12 \
   --set network.chunk_size=131072
 
 # Use specific profile
-godl download "https://example.com/file.zip" --profile "slow-network"
+gdl download "https://example.com/file.zip" --profile "slow-network"
 ```
 
 ### Environment-Based Configuration
 Use environment variables to override settings:
 ```bash
 # Set environment variables
-export GODL_MAX_RETRIES=5
-export GODL_CHUNK_SIZE=32768
-export GODL_OUTPUT_DIR="/downloads"
+export GDL_MAX_RETRIES=5
+export GDL_CHUNK_SIZE=32768
+export GDL_OUTPUT_DIR="/downloads"
 
 # These will override config file settings
-godl download "https://example.com/file.zip"
+gdl download "https://example.com/file.zip"
 ```
 
 ## Troubleshooting
@@ -281,65 +281,65 @@ godl download "https://example.com/file.zip"
 Test and diagnose network issues:
 ```bash
 # Test network connectivity
-godl --check-network
+gdl --check-network
 
 # Test specific URL
-godl head "https://example.com/file.zip"
+gdl head "https://example.com/file.zip"
 
 # Network diagnostics with download
-godl download "https://example.com/file.zip" --diagnose
+gdl download "https://example.com/file.zip" --diagnose
 ```
 
 ### Connection Testing
 Test different connection methods:
 ```bash
 # Test with IPv4 only
-godl download "https://example.com/file.zip" --ipv4-only
+gdl download "https://example.com/file.zip" --ipv4-only
 
 # Test with different DNS servers
-godl download "https://example.com/file.zip" --dns "8.8.8.8,8.8.4.4"
+gdl download "https://example.com/file.zip" --dns "8.8.8.8,8.8.4.4"
 
 # Test with proxy
-godl download "https://example.com/file.zip" --proxy "http://proxy:8080"
+gdl download "https://example.com/file.zip" --proxy "http://proxy:8080"
 ```
 
 ### SSL/TLS Issues
 Handle SSL certificate problems:
 ```bash
 # Ignore SSL certificate errors (for testing only)
-godl download "https://self-signed.badssl.com/file.zip" --insecure
+gdl download "https://self-signed.badssl.com/file.zip" --insecure
 
 # Use specific CA bundle
-godl download "https://example.com/file.zip" --ca-bundle "/path/to/ca-bundle.pem"
+gdl download "https://example.com/file.zip" --ca-bundle "/path/to/ca-bundle.pem"
 
 # Show SSL certificate information
-godl head "https://example.com/file.zip" --show-cert
+gdl head "https://example.com/file.zip" --show-cert
 ```
 
 ### Performance Debugging
 Analyze download performance:
 ```bash
 # Show transfer statistics
-godl download "https://example.com/file.zip" --stats
+gdl download "https://example.com/file.zip" --stats
 
 # Benchmark download speed
-godl --speed-test "https://example.com/file.zip"
+gdl --speed-test "https://example.com/file.zip"
 
 # Profile download performance
-godl download "https://example.com/file.zip" --profile-performance
+gdl download "https://example.com/file.zip" --profile-performance
 ```
 
 ### Server Compatibility
 Handle different server behaviors:
 ```bash
 # Disable range requests (for servers that don't support them)
-godl download "https://example.com/file.zip" --no-ranges
+gdl download "https://example.com/file.zip" --no-ranges
 
 # Limit redirects
-godl download "https://example.com/file.zip" --max-redirects 3
+gdl download "https://example.com/file.zip" --max-redirects 3
 
 # Handle non-standard headers
-godl download "https://example.com/file.zip" \
+gdl download "https://example.com/file.zip" \
   --header "Accept: */*" \
   --header "Connection: close"
 ```
@@ -350,12 +350,12 @@ godl download "https://example.com/file.zip" \
 Optimize for fast networks:
 ```bash
 # High-performance configuration
-godl config set network.max_concurrent_downloads 12
-godl config set network.chunk_size 131072
-godl config set network.buffer_size 32768
+gdl config set network.max_concurrent_downloads 12
+gdl config set network.chunk_size 131072
+gdl config set network.buffer_size 32768
 
 # Download with optimized settings
-godl download "https://example.com/file.zip" \
+gdl download "https://example.com/file.zip" \
   --concurrent 8 \
   --chunk-size 131072
 ```
@@ -364,13 +364,13 @@ godl download "https://example.com/file.zip" \
 Optimize for slow or unreliable networks:
 ```bash
 # Slow network configuration
-godl config set network.max_concurrent_downloads 2
-godl config set network.chunk_size 16384
-godl config set retry_policy.max_retries 10
-godl config set timeouts.read_timeout "300s"
+gdl config set network.max_concurrent_downloads 2
+gdl config set network.chunk_size 16384
+gdl config set retry_policy.max_retries 10
+gdl config set timeouts.read_timeout "300s"
 
 # Download with conservative settings
-godl download "https://example.com/file.zip" \
+gdl download "https://example.com/file.zip" \
   --concurrent 1 \
   --chunk-size 8192 \
   --retry 15
@@ -380,12 +380,12 @@ godl download "https://example.com/file.zip" \
 Optimize for low memory usage:
 ```bash
 # Memory-efficient configuration
-godl config set network.buffer_size 4096
-godl config set network.chunk_size 16384
-godl config set network.max_concurrent_downloads 2
+gdl config set network.buffer_size 4096
+gdl config set network.chunk_size 16384
+gdl config set network.max_concurrent_downloads 2
 
 # Download with minimal memory usage
-godl download "https://example.com/largefile.zip" \
+gdl download "https://example.com/largefile.zip" \
   --chunk-size 8192 \
   --concurrent 1
 ```
@@ -394,12 +394,12 @@ godl download "https://example.com/largefile.zip" \
 Optimize for very large downloads:
 ```bash
 # Large file configuration
-godl config set timeouts.download_timeout "4h"
-godl config set storage.resume_support true
-godl config set retry_policy.max_retries 20
+gdl config set timeouts.download_timeout "4h"
+gdl config set storage.resume_support true
+gdl config set retry_policy.max_retries 20
 
 # Download large file with resume and extended timeouts
-godl download "https://example.com/10gb-file.zip" \
+gdl download "https://example.com/10gb-file.zip" \
   --resume \
   --timeout 14400s \
   --retry 20 \
@@ -411,12 +411,12 @@ godl download "https://example.com/10gb-file.zip" \
 ### Downloading Software Releases
 ```bash
 # Download latest release from GitHub
-godl download "https://github.com/user/repo/releases/latest/download/app.zip" \
+gdl download "https://github.com/user/repo/releases/latest/download/app.zip" \
   -o "~/Downloads/app-latest.zip" \
   --resume
 
 # Download specific version with authentication
-godl download "https://github.com/private/repo/releases/download/v1.0.0/app.zip" \
+gdl download "https://github.com/private/repo/releases/download/v1.0.0/app.zip" \
   --header "Authorization: token ghp_your_token" \
   -o "~/Downloads/app-v1.0.0.zip"
 ```
@@ -424,7 +424,7 @@ godl download "https://github.com/private/repo/releases/download/v1.0.0/app.zip"
 ### Media Files
 ```bash
 # Download video with resume support
-godl download "https://example.com/video.mp4" \
+gdl download "https://example.com/video.mp4" \
   --resume \
   --timeout 1800s \
   -o "~/Videos/video.mp4"
@@ -436,7 +436,7 @@ https://example.com/video2.mp4
 https://example.com/audio.mp3
 EOF
 
-godl download -f media_urls.txt \
+gdl download -f media_urls.txt \
   --output-dir "~/Media" \
   --concurrent 2 \
   --resume
@@ -445,14 +445,14 @@ godl download -f media_urls.txt \
 ### Dataset Downloads
 ```bash
 # Download research dataset
-godl download "https://data.example.com/dataset.tar.gz" \
+gdl download "https://data.example.com/dataset.tar.gz" \
   -o "~/Research/dataset.tar.gz" \
   --timeout 7200s \
   --resume \
   --verify-checksum "sha256:abc123..."
 
 # Download and extract automatically
-godl download "https://data.example.com/dataset.tar.gz" \
+gdl download "https://data.example.com/dataset.tar.gz" \
   -o "~/Research/dataset.tar.gz" \
   --resume \
   --extract \
@@ -462,16 +462,16 @@ godl download "https://data.example.com/dataset.tar.gz" \
 ### Corporate/Enterprise Usage
 ```bash
 # Download through corporate proxy
-godl download "https://vendor.com/software.zip" \
+gdl download "https://vendor.com/software.zip" \
   --proxy "http://proxy.company.com:8080" \
   --header "User-Agent: Company-Downloader/1.0" \
   --ca-bundle "/etc/ssl/corporate-ca.pem" \
   -o "/opt/software/software.zip"
 
 # Batch download with logging for audit
-godl download -f software_urls.txt \
+gdl download -f software_urls.txt \
   --output-dir "/opt/software" \
-  --log-file "/var/log/godl/downloads.log" \
+  --log-file "/var/log/gdl/downloads.log" \
   --format json \
   --concurrent 3
 ```
@@ -481,45 +481,45 @@ godl download -f software_urls.txt \
 ### Built-in Help
 ```bash
 # General help
-godl --help
-godl help
+gdl --help
+gdl help
 
 # Command-specific help
-godl help download
-godl download --help
+gdl help download
+gdl download --help
 
 # Configuration help
-godl help config
-godl config --help
+gdl help config
+gdl config --help
 ```
 
 ### Context-Sensitive Help
 ```bash
 # Get help for specific error
-godl help error network_error
+gdl help error network_error
 
 # Troubleshooting guides
-godl help troubleshoot slow-downloads
-godl help troubleshoot connection-issues
+gdl help troubleshoot slow-downloads
+gdl help troubleshoot connection-issues
 
 # Example commands for scenarios
-godl examples batch-download
-godl examples authentication
+gdl examples batch-download
+gdl examples authentication
 ```
 
 ### Diagnostic Commands
 ```bash
 # System information
-godl --version
-godl --system-info
+gdl --version
+gdl --system-info
 
 # Configuration validation
-godl config validate
-godl config doctor
+gdl config validate
+gdl config doctor
 
 # Network diagnostics
-godl --check-network
-godl --test-dns
+gdl --check-network
+gdl --test-dns
 ```
 
 For more detailed information, see:

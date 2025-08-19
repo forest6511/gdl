@@ -3,7 +3,7 @@
 
 set -e
 
-REPO="forest6511/godl"
+REPO="forest6511/gdl"
 LABELS_FILE=".github/labels.json"
 
 # Colors for output

@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/forest6511/godl/pkg/errors"
+	"github.com/forest6511/gdl/pkg/errors"
 	"golang.org/x/sys/windows"
 )
 
@@ -54,10 +54,10 @@ const (
 	DefaultWarningThreshold = 0.9
 
 	// TempFilePrefix is the prefix used for temporary files.
-	TempFilePrefix = "godl_temp_"
+	TempFilePrefix = "gdl_temp_"
 
 	// PartialFileExtension is the extension used for partial downloads.
-	PartialFileExtension = ".godl.partial"
+	PartialFileExtension = ".gdl.partial"
 	// LargeFileThreshold defines what constitutes a large file (100MB).
 	LargeFileThreshold = 100 * 1024 * 1024
 
@@ -411,7 +411,7 @@ func (sc *SpaceChecker) CreateTempFile(dir, pattern string) (*os.File, error) {
 	return tempFile, nil
 }
 
-// CleanupTempFiles removes temporary files created by godl.
+// CleanupTempFiles removes temporary files created by gdl.
 func (sc *SpaceChecker) CleanupTempFiles() (uint64, error) {
 	var totalFreed uint64
 
@@ -747,7 +747,7 @@ func ValidateWritePermissions(targetPath string) error {
 	}
 
 	// Try creating a temporary file to test write permissions
-	tempFile, err := os.CreateTemp(dir, "godl_write_test_")
+	tempFile, err := os.CreateTemp(dir, "gdl_write_test_")
 	if err != nil {
 		return errors.WrapError(err, errors.CodePermissionDenied,
 			"Cannot write to target directory")

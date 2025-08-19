@@ -9,7 +9,7 @@ import (
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/option"
 
-	"github.com/forest6511/godl/pkg/plugin"
+	"github.com/forest6511/gdl/pkg/plugin"
 )
 
 // GCSPlugin implements storage using Google Cloud Storage

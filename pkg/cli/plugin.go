@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/forest6511/godl/pkg/plugin"
+	"github.com/forest6511/gdl/pkg/plugin"
 )
 
 // PluginRegistry manages CLI plugin operations
@@ -372,7 +372,7 @@ func GetDefaultPluginDir() string {
 	if err != nil {
 		return "./plugins"
 	}
-	return filepath.Join(homeDir, ".godl", "plugins")
+	return filepath.Join(homeDir, ".gdl", "plugins")
 }
 
 // GetDefaultConfigFile returns the default plugin config file
@@ -381,5 +381,5 @@ func GetDefaultConfigFile() string {
 	if err != nil {
 		return "./plugins.json"
 	}
-	return filepath.Join(homeDir, ".godl", "plugins.json")
+	return filepath.Join(homeDir, ".gdl", "plugins.json")
 }

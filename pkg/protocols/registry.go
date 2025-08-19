@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/forest6511/godl/pkg/types"
+	"github.com/forest6511/gdl/pkg/types"
 )
 
 // ProtocolRegistry manages and dispatches to different protocol handlers

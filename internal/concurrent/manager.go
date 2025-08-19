@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/forest6511/godl/pkg/progress"
-	"github.com/forest6511/godl/pkg/ratelimit"
-	"github.com/forest6511/godl/pkg/types"
+	"github.com/forest6511/gdl/pkg/progress"
+	"github.com/forest6511/gdl/pkg/ratelimit"
+	"github.com/forest6511/gdl/pkg/types"
 )
 
 type ConcurrentDownloadManager struct {

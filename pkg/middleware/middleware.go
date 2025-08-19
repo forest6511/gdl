@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/forest6511/godl/pkg/plugin"
-	"github.com/forest6511/godl/pkg/types"
+	"github.com/forest6511/gdl/pkg/plugin"
+	"github.com/forest6511/gdl/pkg/types"
 )
 
 // Handler represents a download handler function

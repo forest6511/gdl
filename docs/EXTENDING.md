@@ -1,6 +1,6 @@
-# Extending godl
+# Extending gdl
 
-This guide covers advanced extension points and customization options for the godl download tool.
+This guide covers advanced extension points and customization options for the gdl download tool.
 
 ## Table of Contents
 
@@ -17,7 +17,7 @@ This guide covers advanced extension points and customization options for the go
 
 ## Overview
 
-godl provides multiple extension points to customize and enhance its functionality:
+gdl provides multiple extension points to customize and enhance its functionality:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -25,7 +25,7 @@ godl provides multiple extension points to customize and enhance its functionali
 ├─────────────────────────────────────────────────────────────┤
 │  Protocols │ Storage │ Middleware │ UI │ Events │ Config   │
 ├─────────────────────────────────────────────────────────────┤
-│                      godl Core Engine                      │
+│                       gdl Core Engine                      │
 ├─────────────────────────────────────────────────────────────┤
 │                   Plugin System                            │
 └─────────────────────────────────────────────────────────────┘
@@ -637,7 +637,7 @@ func (h *AnalyticsEventHandler) flushEvents(events []*AnalyticsEvent) {
 ### Event Emitter Integration
 
 ```go
-// Integrate with godl's event system
+// Integrate with gdl's event system
 func (d *Downloader) setupEventHandlers() {
     // Add analytics handler
     analyticsHandler := NewAnalyticsEventHandler(analyticsCollector)
@@ -1000,7 +1000,7 @@ func TestCustomExtension_Integration(t *testing.T) {
     defer server.Close()
     
     // Create downloader with custom extensions
-    downloader := godl.NewDownloader()
+    downloader := gdl.NewDownloader()
     
     // Add custom protocol handler
     customHandler := &CustomProtocolHandler{}

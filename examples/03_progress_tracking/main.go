@@ -20,7 +20,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/forest6511/godl"
+	"github.com/forest6511/gdl"
 )
 
 func main() {
@@ -77,11 +77,11 @@ func main() {
 
 	destPath := filepath.Join(examplesDir, "basic_"+testFile.name)
 
-	opts := &godl.Options{
+	opts := &gdl.Options{
 		MaxConcurrency:    4,
 		ChunkSize:         64 * 1024, // 64KB
 		OverwriteExisting: true,
-		ProgressCallback: func(p godl.Progress) {
+		ProgressCallback: func(p gdl.Progress) {
 			fmt.Printf("\r📈 Progress: %.1f%% (%s/%s) Speed: %s/s ETA: %s",
 				p.Percentage,
 				formatBytes(p.BytesDownloaded),
@@ -92,7 +92,7 @@ func main() {
 	}
 
 	start := time.Now()
-	stats, err := godl.DownloadWithOptions(ctx, testFile.url, destPath, opts)
+	stats, err := gdl.DownloadWithOptions(ctx, testFile.url, destPath, opts)
 	elapsed := time.Since(start)
 
 	if err != nil {
@@ -123,11 +123,11 @@ func main() {
 
 	destPath = filepath.Join(examplesDir, "detailed_"+testFile.name)
 
-	opts = &godl.Options{
+	opts = &gdl.Options{
 		MaxConcurrency:    6,
 		ChunkSize:         128 * 1024, // 128KB
 		OverwriteExisting: true,
-		ProgressCallback: func(p godl.Progress) {
+		ProgressCallback: func(p gdl.Progress) {
 			updates := atomic.AddInt64(&progressUpdates, 1)
 
 			// Track speed statistics
@@ -157,7 +157,7 @@ func main() {
 	}
 
 	start = time.Now()
-	stats, err = godl.DownloadWithOptions(ctx, testFile.url, destPath, opts)
+	stats, err = gdl.DownloadWithOptions(ctx, testFile.url, destPath, opts)
 	elapsed = time.Since(start)
 
 	if err != nil {
@@ -182,11 +182,11 @@ func main() {
 
 	destPath = filepath.Join(examplesDir, "visual_"+testFile.name)
 
-	opts = &godl.Options{
+	opts = &gdl.Options{
 		MaxConcurrency:    8,
 		ChunkSize:         256 * 1024, // 256KB
 		OverwriteExisting: true,
-		ProgressCallback: func(p godl.Progress) {
+		ProgressCallback: func(p gdl.Progress) {
 			progressBar := createProgressBar(p.Percentage, 40)
 
 			fmt.Printf("\r%s %.1f%% [%s] %s/%s (%s/s) ETA:%s",
@@ -201,7 +201,7 @@ func main() {
 	}
 
 	start = time.Now()
-	stats, err = godl.DownloadWithOptions(ctx, testFile.url, destPath, opts)
+	stats, err = gdl.DownloadWithOptions(ctx, testFile.url, destPath, opts)
 	elapsed = time.Since(start)
 
 	if err != nil {
@@ -226,11 +226,11 @@ func main() {
 
 	var cancelled bool
 
-	opts = &godl.Options{
+	opts = &gdl.Options{
 		MaxConcurrency:    4,
 		ChunkSize:         128 * 1024,
 		OverwriteExisting: true,
-		ProgressCallback: func(p godl.Progress) {
+		ProgressCallback: func(p gdl.Progress) {
 			fmt.Printf("\r🔄 Cancellation demo: %.1f%% (%s/%s) Speed: %s/s",
 				p.Percentage,
 				formatBytes(p.BytesDownloaded),
@@ -250,7 +250,7 @@ func main() {
 	}
 
 	start = time.Now()
-	stats, err = godl.DownloadWithOptions(cancelCtx, testFile.url, destPath, opts)
+	stats, err = gdl.DownloadWithOptions(cancelCtx, testFile.url, destPath, opts)
 	elapsed = time.Since(start)
 
 	if err != nil {
@@ -285,11 +285,11 @@ func main() {
 
 		stageStart := time.Now()
 
-		opts = &godl.Options{
+		opts = &gdl.Options{
 			MaxConcurrency:    4,
 			ChunkSize:         64 * 1024,
 			OverwriteExisting: true,
-			ProgressCallback: func(p godl.Progress) {
+			ProgressCallback: func(p gdl.Progress) {
 				stageElapsed := time.Since(stageStart)
 
 				fmt.Printf("\r🎯 Stage %d: %.1f%% | %s/%s | %s/s | Elapsed: %v | ETA: %v",
@@ -303,7 +303,7 @@ func main() {
 			},
 		}
 
-		stats, err := godl.DownloadWithOptions(ctx, testFile.url, destPath, opts)
+		stats, err := gdl.DownloadWithOptions(ctx, testFile.url, destPath, opts)
 		if err != nil {
 			log.Printf("\n❌ Stage %d failed: %v", stage, err)
 			break

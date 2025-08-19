@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/forest6511/godl/pkg/ratelimit"
+	"github.com/forest6511/gdl/pkg/ratelimit"
 )
 
 type Progress struct {

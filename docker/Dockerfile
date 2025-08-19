@@ -20,8 +20,8 @@ COPY . .
 # Build the binary
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -ldflags="-w -s -X main.version=docker" \
-    -o godl \
-    ./cmd/godl
+    -o gdl \
+    ./cmd/gdl
 
 # Runtime stage
 FROM scratch
@@ -30,7 +30,7 @@ FROM scratch
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 # Copy the binary
-COPY --from=builder /build/godl /godl
+COPY --from=builder /build/gdl /gdl
 
 # Set the entrypoint
-ENTRYPOINT ["/godl"]
+ENTRYPOINT ["/gdl"]

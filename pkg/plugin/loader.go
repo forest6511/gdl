@@ -49,7 +49,7 @@ type LoaderConfig struct {
 func NewPluginLoader(config *LoaderConfig) *PluginLoader {
 	if config == nil {
 		config = &LoaderConfig{
-			SearchPaths:    []string{"./plugins", "/usr/local/lib/godl/plugins"},
+			SearchPaths:    []string{"./plugins", "/usr/local/lib/gdl/plugins"},
 			VerifyChecksum: false,
 			MaxPluginSize:  100 * 1024 * 1024, // 100MB default
 		}

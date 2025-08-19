@@ -9,7 +9,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
-	"github.com/forest6511/godl/pkg/storage"
+	"github.com/forest6511/gdl/pkg/storage"
 )
 
 // RedisBackend implements storage using Redis for metadata and small objects

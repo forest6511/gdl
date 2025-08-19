@@ -66,13 +66,13 @@ Same tag process as Option 1/2
 
 ```bash
 # Build
-docker build -f docker/Dockerfile -t godl:local .
+docker build -f docker/Dockerfile -t gdl:local .
 
 # Run
-docker run --rm godl:local --help
+docker run --rm gdl:local --help
 
 # Download a file
-docker run --rm -v $(pwd):/downloads godl:local \
+docker run --rm -v $(pwd):/downloads gdl:local \
   -o /downloads/file.zip \
   https://example.com/file.zip
 ```

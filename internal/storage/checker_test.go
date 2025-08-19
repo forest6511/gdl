@@ -632,7 +632,7 @@ func TestSpaceChecker_performCleanup_AllTypes(t *testing.T) {
 		fileName    string
 	}{
 		{"TemporaryFiles", CleanupTemporaryFiles, "test.tmp"},
-		{"PartialDownloads", CleanupPartialDownloads, "test.godl.partial"},
+		{"PartialDownloads", CleanupPartialDownloads, "test.gdl.partial"},
 		{"EmptyDirectories", CleanupEmptyDirectories, "empty_dir"},
 		{"OldDownloads", CleanupOldDownloads, "old_download.zip"},
 		{"LargeFiles", CleanupLargeFiles, "large_file.bin"},

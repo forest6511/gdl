@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/forest6511/godl/pkg/errors"
+	"github.com/forest6511/gdl/pkg/errors"
 )
 
 func TestNewHelpProvider(t *testing.T) {
@@ -115,7 +115,7 @@ func TestHelpProvider_GetQuickHelp(t *testing.T) {
 		t.Error("GetQuickHelp should return non-empty help")
 	}
 
-	if !strings.Contains(help, "# GODL Quick Help") {
+	if !strings.Contains(help, "# GDL Quick Help") {
 		t.Error("Quick help should contain title")
 	}
 
@@ -127,7 +127,7 @@ func TestHelpProvider_GetQuickHelp(t *testing.T) {
 		t.Error("Quick help should contain quick fixes section")
 	}
 
-	if !strings.Contains(help, "godl download") {
+	if !strings.Contains(help, "gdl download") {
 		t.Error("Quick help should contain basic download command")
 	}
 }
@@ -155,13 +155,13 @@ func TestHelpProvider_GetContextualHelp(t *testing.T) {
 
 	// Test quick context
 	help = hp.GetContextualHelp("quick")
-	if !strings.Contains(help, "GODL Quick Help") {
+	if !strings.Contains(help, "GDL Quick Help") {
 		t.Error("Quick context should return quick help")
 	}
 
 	// Test unknown context
 	help = hp.GetContextualHelp("unknown")
-	if !strings.Contains(help, "GODL Quick Help") {
+	if !strings.Contains(help, "GDL Quick Help") {
 		t.Error("Unknown context should return quick help as fallback")
 	}
 }
@@ -285,7 +285,7 @@ func TestCommandExamples_Download(t *testing.T) {
 	foundBasicExample := false
 
 	for _, example := range examples {
-		if strings.Contains(example.Command, "godl download") &&
+		if strings.Contains(example.Command, "gdl download") &&
 			strings.Contains(example.Description, "Basic") {
 			foundBasicExample = true
 
@@ -322,7 +322,7 @@ func TestCommandExamples_Config(t *testing.T) {
 	foundShowExample := false
 
 	for _, example := range examples {
-		if strings.Contains(example.Command, "godl config show") {
+		if strings.Contains(example.Command, "gdl config show") {
 			foundShowExample = true
 			break
 		}
@@ -345,7 +345,7 @@ func TestFormatHelp(t *testing.T) {
 
 func TestExample_Structure(t *testing.T) {
 	example := Example{
-		Command:     "godl download https://example.com/file.zip",
+		Command:     "gdl download https://example.com/file.zip",
 		Description: "Basic download example",
 		Tags:        []string{"basic", "simple"},
 	}

@@ -17,7 +17,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/forest6511/godl"
+	"github.com/forest6511/gdl"
 )
 
 func main() {
@@ -72,14 +72,14 @@ func main() {
 
 		start := time.Now()
 
-		opts := &godl.Options{
+		opts := &gdl.Options{
 			MaxConcurrency:    1,         // Force single-threaded
 			ChunkSize:         64 * 1024, // 64KB chunks
 			OverwriteExisting: true,
 		}
 
 		destPath := filepath.Join(examplesDir, "single_"+testFile.name)
-		_, err := godl.DownloadWithOptions(ctx, testFile.url, destPath, opts)
+		_, err := gdl.DownloadWithOptions(ctx, testFile.url, destPath, opts)
 
 		elapsed := time.Since(start)
 		singleThreadTimes[testFile.name] = elapsed
@@ -155,12 +155,12 @@ func main() {
 
 			start := time.Now()
 
-			opts := &godl.Options{
+			opts := &gdl.Options{
 				MaxConcurrency:    config.maxConns,
 				ChunkSize:         config.chunkSize,
 				MaxRate:           config.maxRate,
 				OverwriteExisting: true,
-				UserAgent:         "godl-concurrent-example/1.0",
+				UserAgent:         "gdl-concurrent-example/1.0",
 				Headers: map[string]string{
 					"X-Download-Method": "concurrent",
 				},
@@ -169,7 +169,7 @@ func main() {
 			destPath := filepath.Join(examplesDir,
 				fmt.Sprintf("%s_%s", config.name, testFile.name))
 
-			_, err := godl.DownloadWithOptions(ctx, testFile.url, destPath, opts)
+			_, err := gdl.DownloadWithOptions(ctx, testFile.url, destPath, opts)
 			elapsed := time.Since(start)
 
 			if err != nil {
@@ -207,7 +207,7 @@ func main() {
 		fmt.Printf("📥 Downloading %s with adaptive settings...\n", testFile.name)
 
 		// Get file info first to determine optimal settings
-		fileInfo, err := godl.GetFileInfo(ctx, testFile.url)
+		fileInfo, err := gdl.GetFileInfo(ctx, testFile.url)
 		if err != nil {
 			log.Printf("❌ Failed to get file info for %s: %v", testFile.name, err)
 			continue
@@ -237,17 +237,17 @@ func main() {
 
 		start := time.Now()
 
-		opts := &godl.Options{
+		opts := &gdl.Options{
 			MaxConcurrency:    maxConns,
 			ChunkSize:         chunkSize,
 			OverwriteExisting: true,
 			EnableResume:      true, // Enable resume for robustness
 			RetryAttempts:     3,    // Retry on failures
-			UserAgent:         "godl-adaptive-example/1.0",
+			UserAgent:         "gdl-adaptive-example/1.0",
 		}
 
 		destPath := filepath.Join(examplesDir, "adaptive_"+testFile.name)
-		_, err = godl.DownloadWithOptions(ctx, testFile.url, destPath, opts)
+		_, err = gdl.DownloadWithOptions(ctx, testFile.url, destPath, opts)
 		elapsed := time.Since(start)
 
 		if err != nil {

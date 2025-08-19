@@ -1,4 +1,4 @@
-module github.com/forest6511/godl
+module github.com/forest6511/gdl
 
 go 1.23.0
 

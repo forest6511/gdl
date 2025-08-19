@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/forest6511/godl/pkg/storage"
+	"github.com/forest6511/gdl/pkg/storage"
 )
 
 // MemoryBackend implements in-memory storage for testing and temporary use

@@ -55,8 +55,8 @@ func TestDefaultConfig(t *testing.T) {
 		t.Errorf("Expected ConnectTimeout 10s, got %v", config.Timeouts.ConnectTimeout)
 	}
 
-	if config.Network.UserAgent != "godl/1.0" {
-		t.Errorf("Expected UserAgent 'godl/1.0', got %s", config.Network.UserAgent)
+	if config.Network.UserAgent != "gdl/1.0" {
+		t.Errorf("Expected UserAgent 'gdl/1.0', got %s", config.Network.UserAgent)
 	}
 
 	if config.Network.MaxConcurrentDownloads != 4 {

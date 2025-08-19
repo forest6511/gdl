@@ -7,7 +7,7 @@ import (
 	"plugin"
 	"sync"
 
-	"github.com/forest6511/godl/pkg/types"
+	"github.com/forest6511/gdl/pkg/types"
 )
 
 // HookType represents different types of plugin hooks
