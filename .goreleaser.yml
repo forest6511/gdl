@@ -156,6 +156,10 @@ dockers:
     extra_files:
       - go.mod
       - go.sum
+      - cmd
+      - internal
+      - pkg
+      - gdl.go
     build_flag_templates:
       - "--pull"
       - "--label=org.opencontainers.image.created={{.Date}}"
