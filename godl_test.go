@@ -499,7 +499,7 @@ func TestDownloadWithMaxRate(t *testing.T) {
 	}
 
 	tmpDir, _ := os.MkdirTemp("", "godl_test")
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 	dest := filepath.Join(tmpDir, "maxrate_test.txt")
 
 	start := time.Now()
@@ -540,7 +540,7 @@ func TestDownloadWithUnlimitedRate(t *testing.T) {
 	}
 
 	tmpDir, _ := os.MkdirTemp("", "godl_test")
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 	dest := filepath.Join(tmpDir, "unlimited_test.txt")
 
 	stats, err := DownloadWithOptions(context.Background(), server.URL, dest, opts)
