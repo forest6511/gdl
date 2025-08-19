@@ -1,11 +1,11 @@
 # Directory Structure
 
-Complete project organization and file structure for the godl project.
+Complete project organization and file structure for the gdl project.
 
 ## Project Layout
 
 ```
-godl/
+gdl/
 ├── .github/                    # GitHub configuration and workflows
 │   ├── ISSUE_TEMPLATE/         # Issue templates
 │   │   ├── bug_report.md       # Bug report template
@@ -27,7 +27,7 @@ godl/
 │       └── README.md           # Workflow documentation
 │
 ├── cmd/                        # Command-line applications
-│   └── godl/                   # Main CLI tool
+│   └── gdl/                   # Main CLI tool
 │       ├── main.go             # CLI entry point
 │       └── main_test.go        # CLI tests
 │
@@ -203,8 +203,8 @@ godl/
 ├── README.md                   # Project documentation
 ├── go.mod                      # Go module definition
 ├── go.sum                      # Go module checksums
-├── godl.go                     # Main library API
-├── godl_test.go                # Library API tests
+├── gdl.go                     # Main library API
+├── gdl_test.go                # Library API tests
 └── Makefile                    # Build and development tasks
 ```
 
@@ -243,10 +243,10 @@ godl/
 ## Package Organization
 
 ### Public API (`/`)
-- **godl.go**: Main library entry point providing the public API
-- **godl_test.go**: Public API tests
+- **gdl.go**: Main library entry point providing the public API
+- **gdl_test.go**: Public API tests
 
-### Command Line (`cmd/godl/`)
+### Command Line (`cmd/gdl/`)
 - **main.go**: CLI application with all command-line features
 - **main_test.go**: CLI functionality tests
 
@@ -291,7 +291,7 @@ Exported packages that can be used by library consumers:
 The following are generated during build/test:
 
 ```
-godl                    # CLI binary (from go build)
+gdl                    # CLI binary (from go build)
 coverage.out            # Test coverage report
 coverage.html           # HTML coverage report
 benchmark.txt           # Benchmark results
@@ -328,7 +328,7 @@ Located in `.github/workflows/`:
 
 The project follows Go module best practices:
 
-- Single module at root (`github.com/forest6511/godl`)
+- Single module at root (`github.com/forest6511/gdl`)
 - Public API at module root
 - Internal packages hidden from consumers
 - Versioned releases following semantic versioning

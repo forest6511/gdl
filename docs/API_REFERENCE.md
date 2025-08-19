@@ -1,6 +1,6 @@
 # API Reference
 
-Complete API documentation for the godl library.
+Complete API documentation for the gdl library.
 
 ## Table of Contents
 
@@ -17,13 +17,13 @@ Complete API documentation for the godl library.
 ## Quick Start
 
 ```go
-import "github.com/forest6511/godl"
+import "github.com/forest6511/gdl"
 ```
 
 ### Simple Download
 
 ```go
-err := godl.Download(context.Background(), url, filename)
+err := gdl.Download(context.Background(), url, filename)
 if err != nil {
     log.Fatal(err)
 }
@@ -32,18 +32,18 @@ if err != nil {
 ### Download with Options
 
 ```go
-options := &godl.Options{
+options := &gdl.Options{
     MaxConcurrency:    8,
     ChunkSize:         1024 * 1024, // 1MB chunks
     MaxRate:           2 * 1024 * 1024, // 2MB/s rate limit
     EnableResume:      true,
     OverwriteExisting: false,
-    ProgressCallback: func(p godl.Progress) {
+    ProgressCallback: func(p gdl.Progress) {
         fmt.Printf("Progress: %.1f%%\n", p.Percentage)
     },
 }
 
-err := godl.DownloadWithOptions(context.Background(), url, filename, options)
+err := gdl.DownloadWithOptions(context.Background(), url, filename, options)
 ```
 
 ## Main Functions
@@ -243,7 +243,7 @@ const (
 ### Error Checking
 
 ```go
-stats, err := godl.Download(ctx, url, filename, options)
+stats, err := gdl.Download(ctx, url, filename, options)
 if err != nil {
     if dlErr, ok := err.(*types.DownloadError); ok {
         switch dlErr.Code {
@@ -268,13 +268,13 @@ if err != nil {
 ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 defer cancel()
 
-stats, err := godl.Download(ctx, url, filename, options)
+stats, err := gdl.Download(ctx, url, filename, options)
 ```
 
 ### Custom HTTP Client
 
 ```go
-import "github.com/forest6511/godl/internal/core"
+import "github.com/forest6511/gdl/internal/core"
 
 client := &http.Client{
     Timeout: 60 * time.Second,
@@ -310,7 +310,7 @@ for _, job := range jobs {
     go func(j downloadJob) {
         defer wg.Done()
         
-        stats, err := godl.Download(context.Background(), 
+        stats, err := gdl.Download(context.Background(), 
             j.URL, j.Filename, nil)
         if err != nil {
             log.Printf("Failed to download %s: %v", j.URL, err)
@@ -333,7 +333,7 @@ for stats := range results {
 
 ```go
 var buf bytes.Buffer
-stats, err := godl.DownloadToWriter(ctx, url, &buf, options)
+stats, err := gdl.DownloadToWriter(ctx, url, &buf, options)
 if err != nil {
     log.Fatal(err)
 }
@@ -356,7 +356,7 @@ options := &types.DownloadOptions{
     Resume: resumeOffset > 0,
 }
 
-stats, err := godl.Download(ctx, url, filename, options)
+stats, err := gdl.Download(ctx, url, filename, options)
 if stats.Resumed {
     fmt.Printf("Resumed from byte %d\n", resumeOffset)
 }
@@ -378,7 +378,7 @@ type Downloader struct {
 }
 
 // Create a new extensible downloader
-downloader := godl.NewDownloader()
+downloader := gdl.NewDownloader()
 
 // Register plugins
 err := downloader.UsePlugin(oauthPlugin)

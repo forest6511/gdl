@@ -1,6 +1,6 @@
 # CLI Reference
 
-Complete command-line interface documentation for godl.
+Complete command-line interface documentation for gdl.
 
 ## Table of Contents
 
@@ -16,40 +16,40 @@ Complete command-line interface documentation for godl.
 ### Using go install
 
 ```bash
-go install github.com/forest6511/godl/cmd/godl@latest
+go install github.com/forest6511/gdl/cmd/gdl@latest
 ```
 
 ### Building from source
 
 ```bash
-git clone https://github.com/forest6511/godl.git
-cd godl
-go build -o godl ./cmd/godl/
-sudo mv godl /usr/local/bin/
+git clone https://github.com/forest6511/gdl.git
+cd gdl
+go build -o gdl ./cmd/gdl/
+sudo mv gdl /usr/local/bin/
 ```
 
 ## Basic Usage
 
 ```bash
-godl [OPTIONS] URL
+gdl [OPTIONS] URL
 ```
 
 ### Simple download
 
 ```bash
-godl https://example.com/file.zip
+gdl https://example.com/file.zip
 ```
 
 ### Specify output filename
 
 ```bash
-godl -o myfile.zip https://example.com/file.zip
+gdl -o myfile.zip https://example.com/file.zip
 ```
 
 ### Show help
 
 ```bash
-godl --help
+gdl --help
 ```
 
 ## Command Options
@@ -84,7 +84,7 @@ godl --help
 | | `--max-redirects` | Maximum number of redirects | 10 |
 | `-k` | `--insecure` | Skip SSL certificate verification | false |
 | | `--proxy` | HTTP proxy URL | none |
-| | `--user-agent` | Custom User-Agent string | godl/version |
+| | `--user-agent` | Custom User-Agent string | gdl/version |
 
 ### Header Options
 
@@ -124,119 +124,119 @@ godl --help
 
 ```bash
 # Simple download
-godl https://example.com/file.zip
+gdl https://example.com/file.zip
 
 # Save with specific name
-godl -o archive.zip https://example.com/file.zip
+gdl -o archive.zip https://example.com/file.zip
 
 # Download to specific directory
-godl -o /downloads/file.zip https://example.com/file.zip
+gdl -o /downloads/file.zip https://example.com/file.zip
 
 # Create directories if needed
-godl --create-dirs -o path/to/file.zip https://example.com/file.zip
+gdl --create-dirs -o path/to/file.zip https://example.com/file.zip
 ```
 
 ### Concurrent Downloads
 
 ```bash
 # Use 8 concurrent connections
-godl -c 8 https://example.com/large-file.iso
+gdl -c 8 https://example.com/large-file.iso
 
 # Specify chunk size
-godl --concurrent 4 --chunk-size 2MB https://example.com/file.zip
+gdl --concurrent 4 --chunk-size 2MB https://example.com/file.zip
 
 # Limit download rate
-godl --max-rate 1MB/s https://example.com/large-file.zip
-godl --max-rate 500k --concurrent 2 https://example.com/file.zip
+gdl --max-rate 1MB/s https://example.com/large-file.zip
+gdl --max-rate 500k --concurrent 2 https://example.com/file.zip
 
 # Disable concurrent download
-godl --no-concurrent https://example.com/file.zip
+gdl --no-concurrent https://example.com/file.zip
 ```
 
 ### Resume Downloads
 
 ```bash
 # Enable resume support
-godl --resume https://example.com/large-file.iso
+gdl --resume https://example.com/large-file.iso
 
 # Continue partial download
-godl --continue-partial -o partial.zip https://example.com/file.zip
+gdl --continue-partial -o partial.zip https://example.com/file.zip
 ```
 
 ### Custom Headers
 
 ```bash
 # Single header
-godl -H "Authorization: Bearer token123" https://api.example.com/file
+gdl -H "Authorization: Bearer token123" https://api.example.com/file
 
 # Multiple headers
-godl -H "Authorization: Bearer token123" \
+gdl -H "Authorization: Bearer token123" \
      -H "X-Custom-Header: value" \
      https://api.example.com/file
 
 # Custom User-Agent
-godl --user-agent "MyApp/1.0" https://example.com/file.zip
+gdl --user-agent "MyApp/1.0" https://example.com/file.zip
 ```
 
 ### Network Configuration
 
 ```bash
 # Set timeout
-godl --timeout 5m https://example.com/large-file.iso
+gdl --timeout 5m https://example.com/large-file.iso
 
 # Configure retries
-godl --retry 5 --retry-delay 2s https://unreliable.com/file.zip
+gdl --retry 5 --retry-delay 2s https://unreliable.com/file.zip
 
 # Use proxy
-godl --proxy http://proxy.example.com:8080 https://example.com/file.zip
+gdl --proxy http://proxy.example.com:8080 https://example.com/file.zip
 
 # Skip SSL verification (not recommended)
-godl -k https://self-signed.example.com/file.zip
+gdl -k https://self-signed.example.com/file.zip
 ```
 
 ### Progress Display
 
 ```bash
 # Quiet mode (no output)
-godl -q https://example.com/file.zip
+gdl -q https://example.com/file.zip
 
 # Verbose mode (detailed output)
-godl -v https://example.com/file.zip
+gdl -v https://example.com/file.zip
 
 # Simple progress bar
-godl --progress-bar simple https://example.com/file.zip
+gdl --progress-bar simple https://example.com/file.zip
 
 # JSON progress output
-godl --progress-bar json https://example.com/file.zip
+gdl --progress-bar json https://example.com/file.zip
 
 # No colors
-godl --no-color https://example.com/file.zip
+gdl --no-color https://example.com/file.zip
 ```
 
 ### Pre-download Checks
 
 ```bash
 # Check network connectivity
-godl --check-connectivity https://example.com/file.zip
+gdl --check-connectivity https://example.com/file.zip
 
 # Disable disk space check
-godl --check-space=false https://example.com/large-file.iso
+gdl --check-space=false https://example.com/large-file.iso
 ```
 
 ### Force Overwrite
 
 ```bash
 # Overwrite existing file
-godl -f -o existing.zip https://example.com/file.zip
+gdl -f -o existing.zip https://example.com/file.zip
 
 # Interactive mode (will prompt)
-godl --interactive -o existing.zip https://example.com/file.zip
+gdl --interactive -o existing.zip https://example.com/file.zip
 ```
 
 ### Complex Example
 
 ```bash
-godl \
+gdl \
   --concurrent 8 \
   --chunk-size 4MB \
   --max-rate 2MB/s \
@@ -260,19 +260,19 @@ godl \
 
 ```bash
 # Set default concurrent connections
-export GODL_CONCURRENT=8
+export GDL_CONCURRENT=8
 
 # Set default chunk size
-export GODL_CHUNK_SIZE=4MB
+export GDL_CHUNK_SIZE=4MB
 
 # Set default timeout
-export GODL_TIMEOUT=10m
+export GDL_TIMEOUT=10m
 ```
 
 ### Config File (Future)
 
 ```yaml
-# ~/.godl/config.yaml
+# ~/.gdl/config.yaml
 concurrent: 8
 chunk-size: 4MB
 timeout: 10m
@@ -304,17 +304,17 @@ headers:
 ```bash
 # Add to ~/.bashrc
 complete -W "--help --version --output --force --concurrent --chunk-size \
-  --max-rate --resume --retry --timeout --quiet --verbose" godl
+  --max-rate --resume --retry --timeout --quiet --verbose" gdl
 ```
 
 ### Aliases
 
 ```bash
 # Add to ~/.bashrc or ~/.zshrc
-alias dl='godl'
-alias dlr='godl --resume'
-alias dlf='godl --force'
-alias dlv='godl --verbose'
+alias dl='gdl'
+alias dlr='gdl --resume'
+alias dlf='gdl --force'
+alias dlv='gdl --verbose'
 ```
 
 ### Function Wrapper
@@ -325,7 +325,7 @@ download() {
     local url="$1"
     local filename="${2:-$(basename "$url")}"
     
-    godl \
+    gdl \
         --resume \
         --concurrent 8 \
         --max-rate 5MB/s \
@@ -343,7 +343,7 @@ download() {
 **Problem**: Download fails with "connection refused"
 ```bash
 # Check connectivity first
-godl --check-connectivity --verbose https://example.com/file.zip
+gdl --check-connectivity --verbose https://example.com/file.zip
 ```
 
 **Problem**: "Insufficient disk space" error
@@ -351,24 +351,24 @@ godl --check-connectivity --verbose https://example.com/file.zip
 # Check available space
 df -h .
 # Download to different location
-godl -o /path/with/space/file.zip https://example.com/file.zip
+gdl -o /path/with/space/file.zip https://example.com/file.zip
 ```
 
 **Problem**: SSL certificate error
 ```bash
 # For self-signed certificates only (not recommended for production)
-godl --insecure https://self-signed.example.com/file.zip
+gdl --insecure https://self-signed.example.com/file.zip
 ```
 
 **Problem**: Slow download speed
 ```bash
 # Increase concurrent connections
-godl --concurrent 16 --chunk-size 8MB https://example.com/large-file.iso
+gdl --concurrent 16 --chunk-size 8MB https://example.com/large-file.iso
 ```
 
 ### Debug Mode
 
 ```bash
 # Maximum verbosity for debugging
-godl --verbose --progress-bar detailed https://example.com/file.zip 2>&1 | tee download.log
+gdl --verbose --progress-bar detailed https://example.com/file.zip 2>&1 | tee download.log
 ```

@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/forest6511/godl/internal/network"
-	"github.com/forest6511/godl/internal/storage"
-	"github.com/forest6511/godl/pkg/errors"
+	"github.com/forest6511/gdl/internal/network"
+	"github.com/forest6511/gdl/internal/storage"
+	"github.com/forest6511/gdl/pkg/errors"
 )
 
 func TestNewRecoveryAdvisor(t *testing.T) {

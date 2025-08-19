@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/forest6511/godl/pkg/ratelimit"
+	"github.com/forest6511/gdl/pkg/ratelimit"
 )
 
 func TestNewWorker(t *testing.T) {

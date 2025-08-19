@@ -1,6 +1,6 @@
 # Plugin Development Guide
 
-This guide provides comprehensive information for developing plugins for the godl download tool.
+This guide provides comprehensive information for developing plugins for the gdl download tool.
 
 ## Table of Contents
 
@@ -17,7 +17,7 @@ This guide provides comprehensive information for developing plugins for the god
 
 ## Overview
 
-godl's plugin system allows developers to extend the downloader's functionality through well-defined interfaces. Plugins can provide:
+gdl's plugin system allows developers to extend the downloader's functionality through well-defined interfaces. Plugins can provide:
 
 - **Authentication mechanisms** (OAuth2, API keys, custom schemes)
 - **Protocol support** (FTP, S3, custom protocols)
@@ -29,7 +29,7 @@ godl's plugin system allows developers to extend the downloader's functionality 
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      godl Core                              │
+│                      gdl Core                              │
 ├─────────────────────────────────────────────────────────────┤
 │                 Plugin Manager                              │
 ├─────────────────────────────────────────────────────────────┤
@@ -134,7 +134,7 @@ type TransformPlugin interface {
 ### Prerequisites
 
 - Go 1.21 or later
-- godl development environment
+- gdl development environment
 
 ### Project Structure
 
@@ -155,14 +155,14 @@ your-plugin/
 
 ```bash
 # Create plugin directory
-mkdir my-godl-plugin
-cd my-godl-plugin
+mkdir my-gdl-plugin
+cd my-gdl-plugin
 
 # Initialize Go module
-go mod init github.com/youruser/my-godl-plugin
+go mod init github.com/youruser/my-gdl-plugin
 
-# Add godl dependency
-go get github.com/forest6511/godl
+# Add gdl dependency
+go get github.com/forest6511/gdl
 ```
 
 ## Creating Your First Plugin
@@ -176,7 +176,7 @@ package main
 import (
     "context"
     "fmt"
-    "github.com/forest6511/godl/pkg/plugin"
+    "github.com/forest6511/gdl/pkg/plugin"
 )
 
 // SimpleAuthPlugin implements a basic API key authentication
@@ -531,8 +531,8 @@ func TestPlugin_Integration(t *testing.T) {
     err := manager.Register(pluginInstance)
     require.NoError(t, err)
     
-    // Test with godl downloader
-    downloader := godl.NewDownloader()
+    // Test with gdl downloader
+    downloader := gdl.NewDownloader()
     err = downloader.UsePlugin(pluginInstance)
     require.NoError(t, err)
     
@@ -573,11 +573,11 @@ Create a `plugin.json` metadata file:
 {
     "name": "simple-auth",
     "version": "1.0.0",
-    "description": "Simple API key authentication plugin for godl",
+    "description": "Simple API key authentication plugin for gdl",
     "author": "Your Name",
     "license": "MIT",
     "type": "auth",
-    "godl_version": ">=1.0.0",
+    "gdl_version": ">=1.0.0",
     "dependencies": {},
     "configuration_schema": {
         "type": "object",
@@ -607,7 +607,7 @@ git tag v1.0.0
 git push origin v1.0.0
 
 # Install from Git
-godl plugin install github.com/youruser/my-godl-plugin simple-auth
+gdl plugin install github.com/youruser/my-gdl-plugin simple-auth
 ```
 
 ## Examples
@@ -648,7 +648,7 @@ See `examples/plugins/transform/image-optimizer/` for a content transformation p
 Enable debug logging:
 
 ```bash
-GODL_DEBUG=1 godl --plugin your-plugin https://example.com/file
+GDL_DEBUG=1 gdl --plugin your-plugin https://example.com/file
 ```
 
 ### Plugin Validation
@@ -656,7 +656,7 @@ GODL_DEBUG=1 godl --plugin your-plugin https://example.com/file
 Use built-in validation:
 
 ```bash
-godl plugin validate ./your-plugin.so
+gdl plugin validate ./your-plugin.so
 ```
 
 ## Resources

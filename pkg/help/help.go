@@ -1,11 +1,11 @@
-// Package help provides context-sensitive help and guidance for the godl CLI tool.
+// Package help provides context-sensitive help and guidance for the gdl CLI tool.
 package help
 
 import (
 	"fmt"
 	"strings"
 
-	"github.com/forest6511/godl/pkg/errors"
+	"github.com/forest6511/gdl/pkg/errors"
 )
 
 // HelpProvider provides context-sensitive help and error guidance.
@@ -81,7 +81,7 @@ func (hp *HelpProvider) GetCommandHelp(command string) string {
 	examples, exists := hp.commandExamples[command]
 	if !exists {
 		help.WriteString("No specific help available for this command.\n")
-		help.WriteString("Run 'godl --help' for general usage information.\n")
+		help.WriteString("Run 'gdl --help' for general usage information.\n")
 
 		return help.String()
 	}
@@ -202,18 +202,18 @@ func (hp *HelpProvider) GetTroubleshootingHelp(scenario string) string {
 
 // GetQuickHelp returns quick help for common scenarios.
 func (hp *HelpProvider) GetQuickHelp() string {
-	return `# GODL Quick Help
+	return `# GDL Quick Help
 
 ## Common Commands
 
 ### Basic Download
 ` + "```bash" + `
-godl download "https://example.com/file.zip"
+gdl download "https://example.com/file.zip"
 ` + "```" + `
 
 ### Download with Options
 ` + "```bash" + `
-godl download "https://example.com/file.zip" \
+gdl download "https://example.com/file.zip" \
   --output "/downloads/myfile.zip" \
   --retry 5 \
   --timeout 300s
@@ -221,12 +221,12 @@ godl download "https://example.com/file.zip" \
 
 ### Resume Download
 ` + "```bash" + `
-godl download "https://example.com/file.zip" --resume
+gdl download "https://example.com/file.zip" --resume
 ` + "```" + `
 
 ### Batch Download
 ` + "```bash" + `
-godl download -f urls.txt --concurrent 4
+gdl download -f urls.txt --concurrent 4
 ` + "```" + `
 
 ## Quick Fixes
@@ -234,22 +234,22 @@ godl download -f urls.txt --concurrent 4
 ### Connection Issues
 ` + "```bash" + `
 # Test connectivity
-godl --check-network
+gdl --check-network
 
 # Use different DNS
-godl download "https://example.com/file.zip" --dns "8.8.8.8"
+gdl download "https://example.com/file.zip" --dns "8.8.8.8"
 
 # Increase timeout
-godl download "https://example.com/file.zip" --timeout 600s
+gdl download "https://example.com/file.zip" --timeout 600s
 ` + "```" + `
 
 ### File Issues
 ` + "```bash" + `
 # Overwrite existing file
-godl download "https://example.com/file.zip" --overwrite
+gdl download "https://example.com/file.zip" --overwrite
 
 # Download to different location
-godl download "https://example.com/file.zip" -o "/tmp/file.zip"
+gdl download "https://example.com/file.zip" -o "/tmp/file.zip"
 
 # Check available space
 df -h /downloads
@@ -258,22 +258,22 @@ df -h /downloads
 ### Debug Issues
 ` + "```bash" + `
 # Enable verbose output
-godl download "https://example.com/file.zip" --verbose
+gdl download "https://example.com/file.zip" --verbose
 
 # Save logs
-godl download "https://example.com/file.zip" --log-file debug.log
+gdl download "https://example.com/file.zip" --log-file debug.log
 
 # Test URL only
-godl head "https://example.com/file.zip"
+gdl head "https://example.com/file.zip"
 ` + "```" + `
 
 ## Get More Help
-- ` + "`godl help <command>`" + ` - Command-specific help
-- ` + "`godl troubleshoot <issue>`" + ` - Troubleshooting guide
-- ` + "`godl config --help`" + ` - Configuration help
-- ` + "`godl examples`" + ` - More examples
+- ` + "`gdl help <command>`" + ` - Command-specific help
+- ` + "`gdl troubleshoot <issue>`" + ` - Troubleshooting guide
+- ` + "`gdl config --help`" + ` - Configuration help
+- ` + "`gdl examples`" + ` - More examples
 
-For detailed documentation, visit: https://github.com/forest6511/godl/docs`
+For detailed documentation, visit: https://github.com/forest6511/gdl/docs`
 }
 
 // initializeCommandExamples sets up command examples.
@@ -281,52 +281,52 @@ func (hp *HelpProvider) initializeCommandExamples() {
 	// Download command examples
 	hp.commandExamples["download"] = []Example{
 		{
-			Command:     "godl download \"https://example.com/file.zip\"",
+			Command:     "gdl download \"https://example.com/file.zip\"",
 			Description: "Basic download to current directory",
 			Tags:        []string{"basic", "simple"},
 		},
 		{
-			Command:     "godl download \"https://example.com/file.zip\" -o \"/downloads/myfile.zip\"",
+			Command:     "gdl download \"https://example.com/file.zip\" -o \"/downloads/myfile.zip\"",
 			Description: "Download to specific location",
 			Tags:        []string{"output", "path"},
 		},
 		{
-			Command:     "godl download \"https://example.com/file.zip\" --resume",
+			Command:     "gdl download \"https://example.com/file.zip\" --resume",
 			Description: "Resume interrupted download",
 			Tags:        []string{"resume", "recovery"},
 		},
 		{
-			Command:     "godl download \"https://example.com/file.zip\" --retry 10 --timeout 600s",
+			Command:     "gdl download \"https://example.com/file.zip\" --retry 10 --timeout 600s",
 			Description: "Download with custom retry and timeout settings",
 			Tags:        []string{"retry", "timeout", "reliability"},
 		},
 		{
-			Command:     "godl download \"https://example.com/file.zip\" --concurrent 8",
+			Command:     "gdl download \"https://example.com/file.zip\" --concurrent 8",
 			Description: "Download with multiple concurrent connections",
 			Tags:        []string{"concurrent", "performance"},
 		},
 		{
-			Command:     "godl download \"https://example.com/file.zip\" --header \"Authorization: Bearer token123\"",
+			Command:     "gdl download \"https://example.com/file.zip\" --header \"Authorization: Bearer token123\"",
 			Description: "Download with authentication header",
 			Tags:        []string{"auth", "headers", "security"},
 		},
 		{
-			Command:     "godl download -f urls.txt --concurrent 4 --output-dir \"/downloads\"",
+			Command:     "gdl download -f urls.txt --concurrent 4 --output-dir \"/downloads\"",
 			Description: "Batch download from URL list",
 			Tags:        []string{"batch", "multiple", "file"},
 		},
 		{
-			Command:     "godl download \"https://example.com/file.zip\" --verbose --log-file download.log",
+			Command:     "gdl download \"https://example.com/file.zip\" --verbose --log-file download.log",
 			Description: "Download with detailed logging",
 			Tags:        []string{"debug", "logging", "verbose"},
 		},
 		{
-			Command:     "godl download \"https://example.com/file.zip\" --chunk-size 16384 --buffer-size 8192",
+			Command:     "gdl download \"https://example.com/file.zip\" --chunk-size 16384 --buffer-size 8192",
 			Description: "Download with optimized buffer settings for slow connections",
 			Tags:        []string{"performance", "optimization", "slow-network"},
 		},
 		{
-			Command:     "godl download \"https://example.com/file.zip\" --user-agent \"Mozilla/5.0\" --max-redirects 5",
+			Command:     "gdl download \"https://example.com/file.zip\" --user-agent \"Mozilla/5.0\" --max-redirects 5",
 			Description: "Download with custom user agent and redirect handling",
 			Tags:        []string{"user-agent", "redirects", "compatibility"},
 		},
@@ -335,27 +335,27 @@ func (hp *HelpProvider) initializeCommandExamples() {
 	// Config command examples
 	hp.commandExamples["config"] = []Example{
 		{
-			Command:     "godl config show",
+			Command:     "gdl config show",
 			Description: "Display current configuration",
 			Tags:        []string{"view", "current"},
 		},
 		{
-			Command:     "godl config set retry_policy.max_retries 10",
+			Command:     "gdl config set retry_policy.max_retries 10",
 			Description: "Set maximum retry attempts",
 			Tags:        []string{"retry", "set"},
 		},
 		{
-			Command:     "godl config set timeouts.download_timeout \"1h\"",
+			Command:     "gdl config set timeouts.download_timeout \"1h\"",
 			Description: "Set download timeout to 1 hour",
 			Tags:        []string{"timeout", "duration"},
 		},
 		{
-			Command:     "godl config reset",
+			Command:     "gdl config reset",
 			Description: "Reset configuration to defaults",
 			Tags:        []string{"reset", "defaults"},
 		},
 		{
-			Command:     "godl config validate",
+			Command:     "gdl config validate",
 			Description: "Validate current configuration",
 			Tags:        []string{"validate", "check"},
 		},
@@ -364,12 +364,12 @@ func (hp *HelpProvider) initializeCommandExamples() {
 	// Head command examples
 	hp.commandExamples["head"] = []Example{
 		{
-			Command:     "godl head \"https://example.com/file.zip\"",
+			Command:     "gdl head \"https://example.com/file.zip\"",
 			Description: "Get file information without downloading",
 			Tags:        []string{"info", "test"},
 		},
 		{
-			Command:     "godl head \"https://example.com/file.zip\" --format json",
+			Command:     "gdl head \"https://example.com/file.zip\" --format json",
 			Description: "Get file information in JSON format",
 			Tags:        []string{"json", "format"},
 		},
@@ -397,7 +397,7 @@ func (hp *HelpProvider) initializeErrorGuides() {
 				Commands: []string{
 					"ping google.com",
 					"curl -I https://httpbin.org/get",
-					"godl --check-network",
+					"gdl --check-network",
 				},
 				Priority: 1,
 			},
@@ -405,7 +405,7 @@ func (hp *HelpProvider) initializeErrorGuides() {
 				Title:       "Test Alternative DNS Servers",
 				Description: "Try using different DNS servers if DNS resolution is failing.",
 				Commands: []string{
-					"godl config set network.dns_servers \"8.8.8.8,8.8.4.4\"",
+					"gdl config set network.dns_servers \"8.8.8.8,8.8.4.4\"",
 					"nslookup example.com 8.8.8.8",
 				},
 				Priority: 2,
@@ -416,7 +416,7 @@ func (hp *HelpProvider) initializeErrorGuides() {
 				Commands: []string{
 					"export HTTP_PROXY=http://proxy.example.com:8080",
 					"export HTTPS_PROXY=http://proxy.example.com:8080",
-					"godl config set network.proxy \"http://proxy.example.com:8080\"",
+					"gdl config set network.proxy \"http://proxy.example.com:8080\"",
 				},
 				Priority: 3,
 			},
@@ -424,20 +424,20 @@ func (hp *HelpProvider) initializeErrorGuides() {
 				Title:       "Increase Timeout Values",
 				Description: "For slow networks, increase timeout values to allow more time for connection.",
 				Commands: []string{
-					"godl download \"https://example.com/file.zip\" --timeout 300s",
-					"godl config set timeouts.connect_timeout \"30s\"",
-					"godl config set timeouts.read_timeout \"120s\"",
+					"gdl download \"https://example.com/file.zip\" --timeout 300s",
+					"gdl config set timeouts.connect_timeout \"30s\"",
+					"gdl config set timeouts.read_timeout \"120s\"",
 				},
 				Priority: 4,
 			},
 		},
 		Examples: []Example{
 			{
-				Command:     "godl download \"https://example.com/file.zip\" --retry 5 --timeout 300s",
+				Command:     "gdl download \"https://example.com/file.zip\" --retry 5 --timeout 300s",
 				Description: "Download with increased retry and timeout for unreliable networks",
 			},
 			{
-				Command:     "godl download \"https://example.com/file.zip\" --dns \"8.8.8.8\" --verbose",
+				Command:     "gdl download \"https://example.com/file.zip\" --dns \"8.8.8.8\" --verbose",
 				Description: "Download using alternative DNS with verbose output for debugging",
 			},
 		},
@@ -464,9 +464,9 @@ func (hp *HelpProvider) initializeErrorGuides() {
 				Title:       "Increase Timeout Values",
 				Description: "Configure longer timeouts for slow connections or large files.",
 				Commands: []string{
-					"godl download \"https://example.com/file.zip\" --timeout 1800s",
-					"godl config set timeouts.download_timeout \"30m\"",
-					"godl config set timeouts.read_timeout \"300s\"",
+					"gdl download \"https://example.com/file.zip\" --timeout 1800s",
+					"gdl config set timeouts.download_timeout \"30m\"",
+					"gdl config set timeouts.read_timeout \"300s\"",
 				},
 				Priority: 1,
 			},
@@ -474,8 +474,8 @@ func (hp *HelpProvider) initializeErrorGuides() {
 				Title:       "Use Resume Support",
 				Description: "Enable resume to continue interrupted downloads.",
 				Commands: []string{
-					"godl download \"https://example.com/file.zip\" --resume",
-					"godl config set storage.resume_support true",
+					"gdl download \"https://example.com/file.zip\" --resume",
+					"gdl config set storage.resume_support true",
 				},
 				Priority: 2,
 			},
@@ -483,15 +483,15 @@ func (hp *HelpProvider) initializeErrorGuides() {
 				Title:       "Optimize Download Settings",
 				Description: "Use smaller chunk sizes for slow connections.",
 				Commands: []string{
-					"godl download \"https://example.com/file.zip\" --chunk-size 8192",
-					"godl config set network.chunk_size 8192",
+					"gdl download \"https://example.com/file.zip\" --chunk-size 8192",
+					"gdl config set network.chunk_size 8192",
 				},
 				Priority: 3,
 			},
 		},
 		Examples: []Example{
 			{
-				Command:     "godl download \"https://example.com/largefile.zip\" --timeout 3600s --resume",
+				Command:     "gdl download \"https://example.com/largefile.zip\" --timeout 3600s --resume",
 				Description: "Download large file with 1-hour timeout and resume support",
 			},
 		},
@@ -516,8 +516,8 @@ func (hp *HelpProvider) initializeErrorGuides() {
 				Title:       "Enable Overwrite",
 				Description: "Allow overwriting existing files.",
 				Commands: []string{
-					"godl download \"https://example.com/file.zip\" --overwrite",
-					"godl config set storage.overwrite_existing true",
+					"gdl download \"https://example.com/file.zip\" --overwrite",
+					"gdl config set storage.overwrite_existing true",
 				},
 				Priority: 1,
 			},
@@ -525,8 +525,8 @@ func (hp *HelpProvider) initializeErrorGuides() {
 				Title:       "Use Different Filename",
 				Description: "Download to a different location or filename.",
 				Commands: []string{
-					"godl download \"https://example.com/file.zip\" -o \"file_new.zip\"",
-					"godl download \"https://example.com/file.zip\" -o \"/tmp/file.zip\"",
+					"gdl download \"https://example.com/file.zip\" -o \"file_new.zip\"",
+					"gdl download \"https://example.com/file.zip\" -o \"/tmp/file.zip\"",
 				},
 				Priority: 2,
 			},
@@ -534,14 +534,14 @@ func (hp *HelpProvider) initializeErrorGuides() {
 				Title:       "Resume Existing Download",
 				Description: "If the file is incomplete, resume the download.",
 				Commands: []string{
-					"godl download \"https://example.com/file.zip\" --resume",
+					"gdl download \"https://example.com/file.zip\" --resume",
 				},
 				Priority: 3,
 			},
 		},
 		Examples: []Example{
 			{
-				Command:     "godl download \"https://example.com/file.zip\" --overwrite --backup",
+				Command:     "gdl download \"https://example.com/file.zip\" --overwrite --backup",
 				Description: "Overwrite existing file while creating a backup",
 			},
 		},
@@ -568,8 +568,8 @@ func (hp *HelpProvider) initializeErrorGuides() {
 				Commands: []string{
 					"df -h",
 					"du -sh /downloads/*",
-					"rm -rf /tmp/godl_*",
-					"godl --cleanup-temp",
+					"rm -rf /tmp/gdl_*",
+					"gdl --cleanup-temp",
 				},
 				Priority: 1,
 			},
@@ -577,8 +577,8 @@ func (hp *HelpProvider) initializeErrorGuides() {
 				Title:       "Change Download Location",
 				Description: "Download to a different disk or directory with more space.",
 				Commands: []string{
-					"godl download \"https://example.com/file.zip\" -o \"/mnt/storage/file.zip\"",
-					"godl config set storage.default_download_dir \"/mnt/storage\"",
+					"gdl download \"https://example.com/file.zip\" -o \"/mnt/storage/file.zip\"",
+					"gdl config set storage.default_download_dir \"/mnt/storage\"",
 				},
 				Priority: 2,
 			},
@@ -586,14 +586,14 @@ func (hp *HelpProvider) initializeErrorGuides() {
 				Title:       "Adjust Space Requirements",
 				Description: "Configure minimum free space requirements.",
 				Commands: []string{
-					"godl config set storage.min_free_space 52428800", // 50MB
+					"gdl config set storage.min_free_space 52428800", // 50MB
 				},
 				Priority: 3,
 			},
 		},
 		Examples: []Example{
 			{
-				Command:     "df -h && godl download \"https://example.com/file.zip\" -o \"/tmp/file.zip\"",
+				Command:     "df -h && gdl download \"https://example.com/file.zip\" -o \"/tmp/file.zip\"",
 				Description: "Check disk space and download to temporary directory",
 			},
 		},
@@ -619,8 +619,8 @@ func (hp *HelpProvider) initializeErrorGuides() {
 				Title:       "Add Authentication Headers",
 				Description: "Include proper authentication in the request.",
 				Commands: []string{
-					"godl download \"https://example.com/file.zip\" --header \"Authorization: Bearer your_token\"",
-					"godl download \"https://example.com/file.zip\" --header \"X-API-Key: your_key\"",
+					"gdl download \"https://example.com/file.zip\" --header \"Authorization: Bearer your_token\"",
+					"gdl download \"https://example.com/file.zip\" --header \"X-API-Key: your_key\"",
 				},
 				Priority: 1,
 			},
@@ -628,7 +628,7 @@ func (hp *HelpProvider) initializeErrorGuides() {
 				Title:       "Use Basic Authentication",
 				Description: "Include username and password in the URL.",
 				Commands: []string{
-					"godl download \"https://username:password@example.com/file.zip\"",
+					"gdl download \"https://username:password@example.com/file.zip\"",
 				},
 				Priority: 2,
 			},
@@ -643,7 +643,7 @@ func (hp *HelpProvider) initializeErrorGuides() {
 		},
 		Examples: []Example{
 			{
-				Command:     "godl download \"https://api.example.com/file.zip\" --header \"Authorization: Bearer $(cat token.txt)\"",
+				Command:     "gdl download \"https://api.example.com/file.zip\" --header \"Authorization: Bearer $(cat token.txt)\"",
 				Description: "Download using bearer token from file",
 			},
 		},
@@ -667,7 +667,7 @@ func (hp *HelpProvider) initializeTroubleshootingGuides() {
 				Description: "Test your internet connection speed to establish a baseline.",
 				Commands: []string{
 					"curl -o /dev/null -s -w \"%{speed_download}\\n\" https://httpbin.org/bytes/10485760",
-					"godl --speed-test",
+					"gdl --speed-test",
 				},
 				Expected: "Speed should be reasonable for your connection type",
 			},
@@ -677,11 +677,11 @@ func (hp *HelpProvider) initializeTroubleshootingGuides() {
 				Description: "Adjust chunk and buffer sizes based on your connection speed.",
 				Commands: []string{
 					"# For fast connections (>50 Mbps)",
-					"godl config set network.chunk_size 131072",
-					"godl config set network.buffer_size 32768",
+					"gdl config set network.chunk_size 131072",
+					"gdl config set network.buffer_size 32768",
 					"# For slow connections (<10 Mbps)",
-					"godl config set network.chunk_size 16384",
-					"godl config set network.buffer_size 8192",
+					"gdl config set network.chunk_size 16384",
+					"gdl config set network.buffer_size 8192",
 				},
 				Expected: "Improved download speeds after configuration change",
 			},
@@ -690,8 +690,8 @@ func (hp *HelpProvider) initializeTroubleshootingGuides() {
 				Title:       "Enable Concurrent Connections",
 				Description: "Use multiple connections for faster downloads (if server supports it).",
 				Commands: []string{
-					"godl download \"https://example.com/file.zip\" --concurrent 4",
-					"godl config set network.max_concurrent_downloads 6",
+					"gdl download \"https://example.com/file.zip\" --concurrent 4",
+					"gdl config set network.max_concurrent_downloads 6",
 				},
 				Expected: "Faster downloads with multiple connections",
 			},
@@ -701,14 +701,14 @@ func (hp *HelpProvider) initializeTroubleshootingGuides() {
 				Description: "Verify if the server is responding slowly.",
 				Commands: []string{
 					"curl -w \"@curl-format.txt\" -o /dev/null -s \"https://example.com/file.zip\"",
-					"godl head \"https://example.com/file.zip\" --verbose",
+					"gdl head \"https://example.com/file.zip\" --verbose",
 				},
 				Expected: "Identify if delay is server-side or client-side",
 			},
 		},
 		Examples: []Example{
 			{
-				Command:     "godl download \"https://example.com/file.zip\" --concurrent 8 --chunk-size 65536",
+				Command:     "gdl download \"https://example.com/file.zip\" --concurrent 8 --chunk-size 65536",
 				Description: "High-performance download configuration for fast connections",
 			},
 		},
@@ -726,7 +726,7 @@ func (hp *HelpProvider) initializeTroubleshootingGuides() {
 				Commands: []string{
 					"ping -c 4 google.com",
 					"nslookup example.com",
-					"godl --check-network",
+					"gdl --check-network",
 				},
 				Expected: "Successful pings and DNS resolution",
 			},
@@ -737,7 +737,7 @@ func (hp *HelpProvider) initializeTroubleshootingGuides() {
 				Commands: []string{
 					"curl -I \"https://example.com/file.zip\"",
 					"telnet example.com 443",
-					"godl head \"https://example.com/file.zip\"",
+					"gdl head \"https://example.com/file.zip\"",
 				},
 				Expected: "Server responds with valid HTTP headers",
 			},
@@ -747,8 +747,8 @@ func (hp *HelpProvider) initializeTroubleshootingGuides() {
 				Description: "Configure proxy settings if behind corporate firewall.",
 				Commands: []string{
 					"env | grep -i proxy",
-					"godl config set network.proxy \"http://proxy.company.com:8080\"",
-					"godl download \"https://example.com/file.zip\" --proxy \"http://proxy:8080\"",
+					"gdl config set network.proxy \"http://proxy.company.com:8080\"",
+					"gdl download \"https://example.com/file.zip\" --proxy \"http://proxy:8080\"",
 				},
 				Expected: "Connection successful through proxy",
 			},
@@ -758,18 +758,18 @@ func (hp *HelpProvider) initializeTroubleshootingGuides() {
 				Description: "Use different approaches if standard methods fail.",
 				Commands: []string{
 					"# Try IPv4 only",
-					"godl download \"https://example.com/file.zip\" --ipv4-only",
+					"gdl download \"https://example.com/file.zip\" --ipv4-only",
 					"# Disable TLS verification for testing",
-					"godl download \"https://example.com/file.zip\" --insecure",
+					"gdl download \"https://example.com/file.zip\" --insecure",
 					"# Use different User-Agent",
-					"godl download \"https://example.com/file.zip\" --user-agent \"Mozilla/5.0\"",
+					"gdl download \"https://example.com/file.zip\" --user-agent \"Mozilla/5.0\"",
 				},
 				Expected: "Identify working configuration",
 			},
 		},
 		Examples: []Example{
 			{
-				Command:     "godl download \"https://example.com/file.zip\" --proxy \"http://proxy:8080\" --retry 5",
+				Command:     "gdl download \"https://example.com/file.zip\" --proxy \"http://proxy:8080\" --retry 5",
 				Description: "Download through proxy with retries",
 			},
 		},
@@ -785,9 +785,9 @@ func (hp *HelpProvider) initializeTroubleshootingGuides() {
 				Title:       "Configure Appropriate Timeouts",
 				Description: "Set longer timeouts for large file downloads.",
 				Commands: []string{
-					"godl config set timeouts.download_timeout \"2h\"",
-					"godl config set timeouts.read_timeout \"300s\"",
-					"godl download \"https://example.com/largefile.zip\" --timeout 7200s",
+					"gdl config set timeouts.download_timeout \"2h\"",
+					"gdl config set timeouts.read_timeout \"300s\"",
+					"gdl download \"https://example.com/largefile.zip\" --timeout 7200s",
 				},
 				Expected: "No timeout errors during download",
 			},
@@ -796,8 +796,8 @@ func (hp *HelpProvider) initializeTroubleshootingGuides() {
 				Title:       "Enable Resume Support",
 				Description: "Configure resume support to handle interruptions.",
 				Commands: []string{
-					"godl config set storage.resume_support true",
-					"godl download \"https://example.com/largefile.zip\" --resume",
+					"gdl config set storage.resume_support true",
+					"gdl download \"https://example.com/largefile.zip\" --resume",
 				},
 				Expected: "Ability to resume interrupted downloads",
 			},
@@ -806,8 +806,8 @@ func (hp *HelpProvider) initializeTroubleshootingGuides() {
 				Title:       "Optimize Memory Usage",
 				Description: "Configure buffer sizes to avoid memory issues.",
 				Commands: []string{
-					"godl config set network.chunk_size 32768",
-					"godl config set network.buffer_size 16384",
+					"gdl config set network.chunk_size 32768",
+					"gdl config set network.buffer_size 16384",
 				},
 				Expected: "Stable memory usage during download",
 			},
@@ -816,14 +816,14 @@ func (hp *HelpProvider) initializeTroubleshootingGuides() {
 				Title:       "Monitor Progress",
 				Description: "Enable progress tracking and logging.",
 				Commands: []string{
-					"godl download \"https://example.com/largefile.zip\" --progress --verbose --log-file large-download.log",
+					"gdl download \"https://example.com/largefile.zip\" --progress --verbose --log-file large-download.log",
 				},
 				Expected: "Detailed progress information and logging",
 			},
 		},
 		Examples: []Example{
 			{
-				Command:     "godl download \"https://example.com/10gb-file.zip\" --resume --timeout 14400s --chunk-size 65536",
+				Command:     "gdl download \"https://example.com/10gb-file.zip\" --resume --timeout 14400s --chunk-size 65536",
 				Description: "Download 10GB file with optimal settings",
 			},
 		},

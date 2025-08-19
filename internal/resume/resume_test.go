@@ -35,7 +35,7 @@ func TestResumeFilePath(t *testing.T) {
 
 	// Test normal file path
 	filePath := filepath.Join("path", "to", "file.txt")
-	expected := filepath.Join(tmpDir, ".file.txt.godl.json")
+	expected := filepath.Join(tmpDir, ".file.txt.gdl.json")
 	result := manager.getResumeFilePath(filePath)
 
 	if result != expected {
@@ -44,7 +44,7 @@ func TestResumeFilePath(t *testing.T) {
 
 	// Test file with special characters
 	filePath = filepath.Join("path", "to", "my-file_v2.tar.gz")
-	expected = filepath.Join(tmpDir, ".my-file_v2.tar.gz.godl.json")
+	expected = filepath.Join(tmpDir, ".my-file_v2.tar.gz.gdl.json")
 	result = manager.getResumeFilePath(filePath)
 
 	if result != expected {
@@ -54,7 +54,7 @@ func TestResumeFilePath(t *testing.T) {
 
 func TestSaveAndLoad(t *testing.T) {
 	// Create temporary directory for testing
-	tmpDir, err := os.MkdirTemp("", "godl-resume-test")
+	tmpDir, err := os.MkdirTemp("", "gdl-resume-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp directory: %v", err)
 	}
@@ -78,7 +78,7 @@ func TestSaveAndLoad(t *testing.T) {
 		TotalBytes:      2048,
 		ETag:            "abc123",
 		ContentLength:   2048,
-		UserAgent:       "godl/1.0",
+		UserAgent:       "gdl/1.0",
 		AcceptRanges:    true,
 	}
 
@@ -134,7 +134,7 @@ func TestSaveAndLoad(t *testing.T) {
 }
 
 func TestLoadNonexistent(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "godl-resume-test")
+	tmpDir, err := os.MkdirTemp("", "gdl-resume-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp directory: %v", err)
 	}
@@ -162,7 +162,7 @@ func TestLoadNonexistent(t *testing.T) {
 }
 
 func TestExists(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "godl-resume-test")
+	tmpDir, err := os.MkdirTemp("", "gdl-resume-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp directory: %v", err)
 	}
@@ -202,7 +202,7 @@ func TestExists(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "godl-resume-test")
+	tmpDir, err := os.MkdirTemp("", "gdl-resume-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp directory: %v", err)
 	}
@@ -259,7 +259,7 @@ func TestDelete(t *testing.T) {
 }
 
 func TestValidatePartialFile(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "godl-resume-test")
+	tmpDir, err := os.MkdirTemp("", "gdl-resume-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp directory: %v", err)
 	}
@@ -322,7 +322,7 @@ func TestValidatePartialFile(t *testing.T) {
 }
 
 func TestCalculateAndSetChecksum(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "godl-resume-test")
+	tmpDir, err := os.MkdirTemp("", "gdl-resume-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp directory: %v", err)
 	}
@@ -366,7 +366,7 @@ func TestCalculateAndSetChecksum(t *testing.T) {
 }
 
 func TestCanResume(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "godl-resume-test")
+	tmpDir, err := os.MkdirTemp("", "gdl-resume-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp directory: %v", err)
 	}
@@ -434,7 +434,7 @@ func TestCanResume(t *testing.T) {
 }
 
 func TestCleanupOldResumeFiles(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "godl-resume-test")
+	tmpDir, err := os.MkdirTemp("", "gdl-resume-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp directory: %v", err)
 	}
@@ -490,7 +490,7 @@ func TestCleanupOldResumeFiles(t *testing.T) {
 }
 
 func TestListResumeFiles(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "godl-resume-test")
+	tmpDir, err := os.MkdirTemp("", "gdl-resume-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp directory: %v", err)
 	}
@@ -554,7 +554,7 @@ func TestListResumeFiles(t *testing.T) {
 }
 
 func TestGetResumeStats(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "godl-resume-test")
+	tmpDir, err := os.MkdirTemp("", "gdl-resume-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp directory: %v", err)
 	}
@@ -629,7 +629,7 @@ func TestGetResumeStats(t *testing.T) {
 }
 
 func TestLoadErrorPaths(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "godl-resume-error-test")
+	tmpDir, err := os.MkdirTemp("", "gdl-resume-error-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp directory: %v", err)
 	}
@@ -686,7 +686,7 @@ func TestLoadErrorPaths(t *testing.T) {
 }
 
 func TestCalculateAndSetChecksumErrorPaths(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "godl-checksum-error-test")
+	tmpDir, err := os.MkdirTemp("", "gdl-checksum-error-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp directory: %v", err)
 	}
@@ -743,7 +743,7 @@ func TestCalculateAndSetChecksumErrorPaths(t *testing.T) {
 }
 
 func TestSaveErrorPaths(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "godl-save-error-test")
+	tmpDir, err := os.MkdirTemp("", "gdl-save-error-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp directory: %v", err)
 	}
@@ -785,7 +785,7 @@ func TestSaveErrorPaths(t *testing.T) {
 }
 
 func TestCleanupOldResumeFilesErrorPaths(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "godl-cleanup-error-test")
+	tmpDir, err := os.MkdirTemp("", "gdl-cleanup-error-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp directory: %v", err)
 	}
@@ -841,7 +841,7 @@ func TestCleanupOldResumeFilesErrorPaths(t *testing.T) {
 }
 
 func TestListResumeFilesErrorPaths(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "godl-list-error-test")
+	tmpDir, err := os.MkdirTemp("", "gdl-list-error-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp directory: %v", err)
 	}
@@ -885,7 +885,7 @@ func TestListResumeFilesErrorPaths(t *testing.T) {
 }
 
 func TestGetResumeStatsErrorPaths(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "godl-stats-error-test")
+	tmpDir, err := os.MkdirTemp("", "gdl-stats-error-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp directory: %v", err)
 	}
@@ -895,7 +895,7 @@ func TestGetResumeStatsErrorPaths(t *testing.T) {
 
 	t.Run("GetResumeStats with invalid resume files", func(t *testing.T) {
 		// Create some invalid resume files that should be skipped
-		invalidFile := filepath.Join(tmpDir, ".invalid.godl.json")
+		invalidFile := filepath.Join(tmpDir, ".invalid.gdl.json")
 
 		err := os.WriteFile(invalidFile, []byte("invalid json"), 0o644)
 		if err != nil {
@@ -927,7 +927,7 @@ func TestGetResumeStatsErrorPaths(t *testing.T) {
 }
 
 func TestDeleteErrorPaths(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "godl-delete-error-test")
+	tmpDir, err := os.MkdirTemp("", "gdl-delete-error-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp directory: %v", err)
 	}
@@ -968,7 +968,7 @@ func TestDeleteErrorPaths(t *testing.T) {
 }
 
 func TestValidatePartialFileEdgeCases(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "godl-validate-edge-test")
+	tmpDir, err := os.MkdirTemp("", "gdl-validate-edge-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp directory: %v", err)
 	}
@@ -1023,7 +1023,7 @@ func TestValidatePartialFileEdgeCases(t *testing.T) {
 }
 
 func TestSaveTimestampHandling(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "godl-timestamp-test")
+	tmpDir, err := os.MkdirTemp("", "gdl-timestamp-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp directory: %v", err)
 	}
@@ -1083,7 +1083,7 @@ func TestSaveTimestampHandling(t *testing.T) {
 }
 
 func TestCoverageBoosterPaths(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "godl-coverage-boost-test")
+	tmpDir, err := os.MkdirTemp("", "gdl-coverage-boost-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp directory: %v", err)
 	}

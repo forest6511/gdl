@@ -1,4 +1,4 @@
-// Package main demonstrates basic download functionality using the godl library.
+// Package main demonstrates basic download functionality using the gdl library.
 //
 // This example shows:
 // - Simple download using the basic Download function
@@ -17,12 +17,12 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/forest6511/godl"
+	"github.com/forest6511/gdl"
 )
 
 func main() {
 	fmt.Println("=== Basic Download Examples ===")
-	fmt.Println("Demonstrating simple file downloads using the godl library")
+	fmt.Println("Demonstrating simple file downloads using the gdl library")
 	fmt.Println()
 
 	// Create a context with timeout for all downloads
@@ -44,7 +44,7 @@ func main() {
 	// Use a temporary file for this example
 	tempFile := filepath.Join(examplesDir, "httpbin_response.json")
 
-	stats, err := godl.Download(ctx, "https://httpbin.org/json", tempFile)
+	stats, err := gdl.Download(ctx, "https://httpbin.org/json", tempFile)
 	if err != nil {
 		log.Printf("❌ Example 1 failed: %v", err)
 	} else {
@@ -76,7 +76,7 @@ func main() {
 
 	customFile := filepath.Join(examplesDir, "sample_1kb.bin")
 
-	stats, err = godl.Download(ctx, "https://httpbin.org/bytes/1024", customFile)
+	stats, err = gdl.Download(ctx, "https://httpbin.org/bytes/1024", customFile)
 	if err != nil {
 		log.Printf("❌ Example 2 failed: %v", err)
 	} else {
@@ -95,7 +95,7 @@ func main() {
 	fmt.Println("URL: https://httpbin.org/uuid")
 	fmt.Println("Method: Download to memory, then save to file")
 
-	data, stats, err := godl.DownloadToMemory(ctx, "https://httpbin.org/uuid")
+	data, stats, err := gdl.DownloadToMemory(ctx, "https://httpbin.org/uuid")
 	if err != nil {
 		log.Printf("❌ Example 3 failed: %v", err)
 	} else {
@@ -118,7 +118,7 @@ func main() {
 	fmt.Println("URL: https://httpbin.org/bytes/2048")
 	fmt.Println("Method: Get file info without downloading")
 
-	info, err := godl.GetFileInfo(ctx, "https://httpbin.org/bytes/2048")
+	info, err := gdl.GetFileInfo(ctx, "https://httpbin.org/bytes/2048")
 	if err != nil {
 		log.Printf("❌ Example 4 failed: %v", err)
 	} else {
@@ -139,7 +139,7 @@ func main() {
 	fmt.Println("URL: http://nonexistent-domain-12345.invalid/file.txt")
 	fmt.Println("Purpose: Demonstrate error handling")
 
-	_, err = godl.Download(ctx, "http://nonexistent-domain-12345.invalid/file.txt",
+	_, err = gdl.Download(ctx, "http://nonexistent-domain-12345.invalid/file.txt",
 		filepath.Join(examplesDir, "should_fail.txt"))
 	if err != nil {
 		fmt.Printf("✅ Error handled correctly: %v\n", err)

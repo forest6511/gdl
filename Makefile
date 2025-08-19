@@ -1,4 +1,4 @@
-# Makefile for godl project
+# Makefile for gdl project
 # Fast, concurrent file downloader written in Go
 
 .PHONY: help build test lint clean install dev docs examples all
@@ -13,17 +13,17 @@ help: ## Show this help message
 
 # Build targets
 build: ## Build the CLI binary
-	@echo "Building godl CLI..."
-	go build -ldflags="-s -w" -o bin/godl ./cmd/godl/
+	@echo "Building gdl CLI..."
+	go build -ldflags="-s -w" -o bin/gdl ./cmd/gdl/
 
 build-all: ## Build binaries for all platforms
 	@echo "Building for all platforms..."
 	@mkdir -p bin
-	GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/godl-linux-amd64 ./cmd/godl/
-	GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o bin/godl-linux-arm64 ./cmd/godl/
-	GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o bin/godl-darwin-amd64 ./cmd/godl/
-	GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o bin/godl-darwin-arm64 ./cmd/godl/
-	GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o bin/godl-windows-amd64.exe ./cmd/godl/
+	GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/gdl-linux-amd64 ./cmd/gdl/
+	GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o bin/gdl-linux-arm64 ./cmd/gdl/
+	GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o bin/gdl-darwin-amd64 ./cmd/gdl/
+	GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o bin/gdl-darwin-arm64 ./cmd/gdl/
+	GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o bin/gdl-windows-amd64.exe ./cmd/gdl/
 
 # Testing targets
 test: ## Run all tests
@@ -62,8 +62,8 @@ tidy: ## Tidy Go modules
 dev: fmt tidy lint test ## Run development checks (format, tidy, lint, test)
 
 install: ## Install CLI tool globally
-	@echo "Installing godl CLI..."
-	go install ./cmd/godl/
+	@echo "Installing gdl CLI..."
+	go install ./cmd/gdl/
 
 clean: ## Clean build artifacts
 	@echo "Cleaning..."
@@ -93,7 +93,7 @@ ci-lint: ## CI lint target
 	golangci-lint run --out-format=github-actions
 
 ci-build: ## CI build target
-	go build -ldflags="-s -w" ./cmd/godl/
+	go build -ldflags="-s -w" ./cmd/gdl/
 
 # CI equivalent checks (run exactly what CI runs)
 ci-check: ## Run full CI equivalent checks locally

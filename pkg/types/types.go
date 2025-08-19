@@ -1,4 +1,4 @@
-// Package types defines the core types and interfaces for the godl download library.
+// Package types defines the core types and interfaces for the gdl download library.
 package types
 
 import (

@@ -1,4 +1,4 @@
-# Basic godl configuration example
+# Basic gdl configuration example
 version: "1.0"
 
 # Basic output format settings
@@ -22,7 +22,7 @@ error_handling:
 # Network settings
 network:
   max_concurrent_connections: 5
-  user_agent: "godl/1.0"
+  user_agent: "gdl/1.0"
 
 # Storage settings
 storage:

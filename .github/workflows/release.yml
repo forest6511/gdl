@@ -75,14 +75,14 @@ jobs:
           for platform in "${platforms[@]}"; do
             GOOS=${platform%/*}
             GOARCH=${platform#*/}
-            output_name="godl-${GOOS}-${GOARCH}"
+            output_name="gdl-${GOOS}-${GOARCH}"
             
             if [ "$GOOS" = "windows" ]; then
               output_name="${output_name}.exe"
             fi
             
             echo "Building for $GOOS/$GOARCH..."
-            GOOS=$GOOS GOARCH=$GOARCH go build -v -ldflags="-s -w -X 'main.version=${{ steps.version.outputs.version }}'" -o "dist/${output_name}" ./cmd/godl/
+            GOOS=$GOOS GOARCH=$GOARCH go build -v -ldflags="-s -w -X 'main.version=${{ steps.version.outputs.version }}'" -o "dist/${output_name}" ./cmd/gdl/
           done
           
           # Create checksums

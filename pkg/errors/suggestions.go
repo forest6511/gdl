@@ -191,7 +191,7 @@ func (sp *SuggestionProvider) getHTTPSuggestion(code HTTPErrorCode) *Suggestion 
 				"Contact the resource owner for access permissions",
 			},
 			Examples: []string{
-				"godl --user-agent 'MyApp/1.0' https://example.com/file",
+				"gdl --user-agent 'MyApp/1.0' https://example.com/file",
 				"Use browser session cookies if authentication is session-based",
 			},
 		}
@@ -277,8 +277,8 @@ func (sp *SuggestionProvider) getFileSystemSuggestion(code FileSystemErrorCode) 
 				"Use --create-dirs to create parent directories automatically",
 			},
 			Examples: []string{
-				"godl -o ~/Downloads/file.zip https://example.com/file.zip",
-				"sudo godl -o /opt/files/file.zip https://example.com/file.zip",
+				"gdl -o ~/Downloads/file.zip https://example.com/file.zip",
+				"sudo gdl -o /opt/files/file.zip https://example.com/file.zip",
 				"chmod 755 /path/to/directory",
 			},
 		}
@@ -295,7 +295,7 @@ func (sp *SuggestionProvider) getFileSystemSuggestion(code FileSystemErrorCode) 
 			Examples: []string{
 				"df -h                    # Check disk usage (Unix)",
 				"du -sh * | sort -hr     # Find large directories (Unix)",
-				"godl -o /mnt/external/file.zip https://example.com/file.zip",
+				"gdl -o /mnt/external/file.zip https://example.com/file.zip",
 			},
 		}
 
@@ -309,8 +309,8 @@ func (sp *SuggestionProvider) getFileSystemSuggestion(code FileSystemErrorCode) 
 				"Use --resume flag if you want to continue a partial download",
 			},
 			Examples: []string{
-				"godl --force https://example.com/file.zip",
-				"godl -o file_v2.zip https://example.com/file.zip",
+				"gdl --force https://example.com/file.zip",
+				"gdl -o file_v2.zip https://example.com/file.zip",
 				"mv file.zip file_backup.zip",
 			},
 		}
@@ -325,7 +325,7 @@ func (sp *SuggestionProvider) getFileSystemSuggestion(code FileSystemErrorCode) 
 			},
 			Examples: []string{
 				"mkdir -p /path/to/directory",
-				"godl --create-dirs -o /new/path/file.zip https://example.com/file.zip",
+				"gdl --create-dirs -o /new/path/file.zip https://example.com/file.zip",
 			},
 		}
 
@@ -408,8 +408,8 @@ func (sp *SuggestionProvider) getValidationSuggestion(code ValidationErrorCode) 
 				"Check your command syntax",
 			},
 			Examples: []string{
-				"godl https://example.com/file.zip",
-				"godl -o myfile.zip https://example.com/download",
+				"gdl https://example.com/file.zip",
+				"gdl -o myfile.zip https://example.com/download",
 			},
 		}
 
@@ -450,7 +450,7 @@ func (sp *SuggestionProvider) getGenericSuggestion() *Suggestion {
 			"Use --help to see all available options",
 		},
 		DocLinks: []string{
-			"https://github.com/forest6511/godl/wiki/Troubleshooting",
+			"https://github.com/forest6511/gdl/wiki/Troubleshooting",
 		},
 	}
 }

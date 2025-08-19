@@ -1,6 +1,6 @@
 # Configuration Examples
 
-This directory contains example configuration files for godl (Go Downloader) showing different usage patterns and environments.
+This directory contains example configuration files for gdl (Go Downloader) showing different usage patterns and environments.
 
 ## Configuration Files
 
@@ -150,12 +150,12 @@ See the `examples/plugins/` directory for plugin implementation examples:
 
 ### Basic Usage
 ```bash
-godl --config examples/config/basic-config.yaml <url>
+gdl --config examples/config/basic-config.yaml <url>
 ```
 
 ### Development Mode
 ```bash
-godl --config examples/config/development.yaml --debug <url>
+gdl --config examples/config/development.yaml --debug <url>
 ```
 
 ### Production Deployment
@@ -163,16 +163,16 @@ godl --config examples/config/development.yaml --debug <url>
 export OAUTH_CLIENT_ID="your-client-id"
 export OAUTH_CLIENT_SECRET="your-client-secret"
 export S3_BUCKET="your-bucket"
-godl --config /etc/godl/production.yaml <url>
+gdl --config /etc/gdl/production.yaml <url>
 ```
 
 ### Environment-Specific Overrides
 ```bash
 # Override log level for debugging
-LOG_LEVEL=debug godl --config production.yaml <url>
+LOG_LEVEL=debug gdl --config production.yaml <url>
 
 # Use different storage location
-DOWNLOAD_DIR=/tmp/downloads godl --config basic-config.yaml <url>
+DOWNLOAD_DIR=/tmp/downloads gdl --config basic-config.yaml <url>
 ```
 
 ## Configuration Validation

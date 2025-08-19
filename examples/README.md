@@ -1,13 +1,13 @@
-# Godl Examples
+# Gdl Examples
 
-This directory contains comprehensive examples demonstrating all features of the godl download library and CLI tool.
+This directory contains comprehensive examples demonstrating all features of the gdl download library and CLI tool.
 
 ## Overview
 
 The examples are organized into categories:
 
 - **Core Examples** (`01-05_*`) - Step-by-step examples of core features
-- **Library Examples** (`library/`) - Go programs showing how to use the godl library API
+- **Library Examples** (`library/`) - Go programs showing how to use the gdl library API
 - **CLI Examples** (`cli/`) - Shell scripts demonstrating command-line usage
 - **Integration Examples** (`integration/`) - Comprehensive feature demonstrations and tests
 
@@ -42,11 +42,11 @@ go run basic_usage.go
 ```
 
 **Features demonstrated:**
-- Simple download with `godl.Download()`
-- Download to memory with `godl.DownloadToMemory()`
-- Progress callbacks with `godl.DownloadWithOptions()`
-- Resume downloads with `godl.DownloadWithResume()`
-- File information with `godl.GetFileInfo()`
+- Simple download with `gdl.Download()`
+- Download to memory with `gdl.DownloadToMemory()`
+- Progress callbacks with `gdl.DownloadWithOptions()`
+- Resume downloads with `gdl.DownloadWithResume()`
+- File information with `gdl.GetFileInfo()`
 
 ### Advanced Usage (`library/advanced_usage.go`)
 
@@ -246,14 +246,14 @@ The examples will create various test files demonstrating different download sce
 - Examples use `httpbin.org` for testing HTTP features
 - The integration demo creates a local test server
 - All examples include proper cleanup of generated files
-- CLI examples require building the `godl` binary first (done automatically)
+- CLI examples require building the `gdl` binary first (done automatically)
 
 ## Advanced Usage Patterns
 
 ### Progress Tracking
 ```go
-opts := &godl.Options{
-    ProgressCallback: func(p godl.Progress) {
+opts := &gdl.Options{
+    ProgressCallback: func(p gdl.Progress) {
         fmt.Printf("Progress: %.1f%% (%d/%d bytes) @ %.1f KB/s\n",
             p.Percentage, p.BytesDownloaded, p.TotalSize, float64(p.Speed)/1024)
     },
@@ -262,7 +262,7 @@ opts := &godl.Options{
 
 ### Custom Headers
 ```go
-opts := &godl.Options{
+opts := &gdl.Options{
     Headers: map[string]string{
         "Authorization": "Bearer your-token",
         "User-Agent":    "MyApp/1.0",
@@ -273,7 +273,7 @@ opts := &godl.Options{
 
 ### High-Performance Downloads
 ```go
-opts := &godl.Options{
+opts := &gdl.Options{
     MaxConcurrency: 8,
     ChunkSize:      1024 * 1024, // 1MB chunks
     EnableResume:   true,
@@ -281,4 +281,4 @@ opts := &godl.Options{
 }
 ```
 
-These examples provide complete coverage of all godl features and serve as both documentation and test cases for the library.
+These examples provide complete coverage of all gdl features and serve as both documentation and test cases for the library.

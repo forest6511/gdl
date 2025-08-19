@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	downloadErrors "github.com/forest6511/godl/pkg/errors"
+	downloadErrors "github.com/forest6511/gdl/pkg/errors"
 )
 
 func TestNewFormatter(t *testing.T) {

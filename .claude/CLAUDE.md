@@ -1,7 +1,7 @@
-# Claude Code Instructions for godl Project
+# Claude Code Instructions for gdl Project
 
 ## Project Overview
-godl is a fast, resumable file downloader library and CLI tool written in Go. The project emphasizes clean Go code, comprehensive error handling, and user-friendly APIs.
+gdl is a fast, resumable file downloader library and CLI tool written in Go. The project emphasizes clean Go code, comprehensive error handling, and user-friendly APIs.
 
 ## Code Requirements
 
@@ -403,8 +403,8 @@ func ExampleDownload() {}
 Remember: **Every new feature must include corresponding CI tests before merging to main branch.**
 
 ### Package Structure
-- `cmd/godl/` - CLI application
-- `godl.go` - Main public API
+- `cmd/gdl/` - CLI application
+- `gdl.go` - Main public API
 - `pkg/` - Public packages
   - `config/` - Configuration management  
   - `errors/` - Error handling and types
@@ -486,17 +486,17 @@ var (
 ## Important Project Information
 
 ### Module Name
-- The Go module name is: `github.com/forest6511/godl`
+- The Go module name is: `github.com/forest6511/gdl`
 - Always use this exact module path in imports and go.mod
 - GitHub username: forest6511
-- Project name: godl
+- Project name: gdl
 
 ### Import Path Examples
 ```go
 import (
-    "github.com/forest6511/godl"
-    "github.com/forest6511/godl/pkg/errors"
-    "github.com/forest6511/godl/pkg/types"
+    "github.com/forest6511/gdl"
+    "github.com/forest6511/gdl/pkg/errors"
+    "github.com/forest6511/gdl/pkg/types"
 )
 ```
 
@@ -535,15 +535,15 @@ The project includes automated workflows to ensure documentation consistency:
 
 ## 📋 Comprehensive Extension Rules
 
-When adding new features to godl, follow these mandatory update rules to ensure consistency and maintainability.
+When adding new features to gdl, follow these mandatory update rules to ensure consistency and maintainability.
 
 ### 🎯 Core Rule: Feature Completeness Matrix
 
 Every new feature must be implemented and documented across ALL applicable layers:
 
 1. **Core Implementation** (`internal/`, `pkg/`)
-2. **Public API** (`godl.go`, `pkg/types/`)
-3. **CLI Interface** (`cmd/godl/`)
+2. **Public API** (`gdl.go`, `pkg/types/`)
+3. **CLI Interface** (`cmd/gdl/`)
 4. **Documentation** (README.md, `docs/`)
 5. **Examples** (`examples/`)
 6. **Tests** (unit, integration, examples)
@@ -556,12 +556,12 @@ Every new feature must be implemented and documented across ALL applicable layer
 **MUST UPDATE:**
 - [ ] **Code Implementation**
   - Core logic in `internal/core/` or relevant package
-  - Public API functions in `godl.go`
+  - Public API functions in `gdl.go`
   - Types and interfaces in `pkg/types/`
   - Error handling in `pkg/errors/`
 
 - [ ] **CLI Integration**
-  - Command-line flags in `cmd/godl/main.go`
+  - Command-line flags in `cmd/gdl/main.go`
   - Help text and usage examples
   - Flag validation and mapping to library options
 
@@ -591,7 +591,7 @@ Every new feature must be implemented and documented across ALL applicable layer
 #### 2. **New CLI-Only Feature** (e.g., interactive prompts, output formatting)
 
 **MUST UPDATE:**
-- [ ] CLI implementation in `cmd/godl/`
+- [ ] CLI implementation in `cmd/gdl/`
 - [ ] README.md CLI Reference section
 - [ ] README.md Feature Parity Matrix (mark Library as ❌ "Not applicable")
 - [ ] CLI examples in `examples/cli/`
@@ -632,7 +632,7 @@ Every new feature must be implemented and documented across ALL applicable layer
 
 **MUST UPDATE:**
 - [ ] Types in `pkg/types/types.go`
-- [ ] CLI flags in `cmd/godl/main.go`
+- [ ] CLI flags in `cmd/gdl/main.go`
 - [ ] README.md CLI Reference
 - [ ] README.md API Documentation
 - [ ] Configuration examples
@@ -662,8 +662,8 @@ Every new feature must be implemented and documented across ALL applicable layer
 
 5. **CLI Integration Test**
    ```bash
-   go build -o godl ./cmd/godl/
-   ./godl --help  # Verify help shows new options
+   go build -o gdl ./cmd/gdl/
+   ./gdl --help  # Verify help shows new options
    ```
 
 6. **Coverage Maintained**
@@ -1069,7 +1069,7 @@ When adding new features or making significant changes, these files must be kept
   - Add examples for complex type usage
   - Maintain backward compatibility documentation
 
-- **`cmd/godl/main.go`** - CLI implementation
+- **`cmd/gdl/main.go`** - CLI implementation
   - Update help text for new flags
   - Maintain flag consistency and validation
   - Add usage examples in comments

@@ -1,4 +1,4 @@
-// Package errors defines custom error types and sentinel errors for the godl download library.
+// Package errors defines custom error types and sentinel errors for the gdl download library.
 package errors
 
 import (

@@ -7,7 +7,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/forest6511/godl/pkg/errors"
+	"github.com/forest6511/gdl/pkg/errors"
 )
 
 // RetryManager manages retry attempts with configurable backoff strategies.

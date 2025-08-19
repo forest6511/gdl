@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/forest6511/godl/pkg/errors"
+	"github.com/forest6511/gdl/pkg/errors"
 )
 
 func TestExponentialStrategy(t *testing.T) {

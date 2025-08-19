@@ -11,7 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 
-	"github.com/forest6511/godl/pkg/storage"
+	"github.com/forest6511/gdl/pkg/storage"
 )
 
 // S3Backend implements storage using AWS S3 or S3-compatible services

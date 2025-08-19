@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/forest6511/godl/pkg/errors"
+	"github.com/forest6511/gdl/pkg/errors"
 )
 
 // SpaceInfo represents disk space information.
@@ -155,10 +155,10 @@ const (
 	OldFileAge = 30 * 24 * time.Hour
 
 	// PartialFileExtension is the extension used for partial downloads.
-	PartialFileExtension = ".godl.partial"
+	PartialFileExtension = ".gdl.partial"
 
 	// TempFilePrefix is the prefix used for temporary files.
-	TempFilePrefix = "godl_temp_"
+	TempFilePrefix = "gdl_temp_"
 )
 
 // NewSpaceChecker creates a new disk space checker.
@@ -562,7 +562,7 @@ func (sc *SpaceChecker) CreateTempFile(dir, pattern string) (*os.File, error) {
 	return tempFile, nil
 }
 
-// CleanupTempFiles removes temporary files created by godl.
+// CleanupTempFiles removes temporary files created by gdl.
 func (sc *SpaceChecker) CleanupTempFiles() (uint64, error) {
 	var totalFreed uint64
 

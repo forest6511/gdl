@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/forest6511/godl"
+	"github.com/forest6511/gdl"
 )
 
 func main() {
@@ -91,7 +91,7 @@ func main() {
 		}
 
 		start := time.Now()
-		_, err := godl.Download(testCtx, testCase.url, destPath)
+		_, err := gdl.Download(testCtx, testCase.url, destPath)
 		elapsed := time.Since(start)
 
 		if testCase.expectError {
@@ -163,7 +163,7 @@ func main() {
 		destPath := filepath.Join(examplesDir, testCase.name+".dat")
 
 		start := time.Now()
-		_, err := godl.Download(ctx, testCase.url, destPath)
+		_, err := gdl.Download(ctx, testCase.url, destPath)
 		elapsed := time.Since(start)
 
 		if err != nil {
@@ -221,10 +221,10 @@ func main() {
 
 		var attempts int
 
-		opts := &godl.Options{
+		opts := &gdl.Options{
 			RetryAttempts: testCase.retryCount,
 			Timeout:       30 * time.Second,
-			ProgressCallback: func(p godl.Progress) {
+			ProgressCallback: func(p gdl.Progress) {
 				// Track retry attempts (simplified)
 				if p.BytesDownloaded == 0 && p.TotalSize > 0 {
 					attempts++
@@ -236,7 +236,7 @@ func main() {
 		}
 
 		start := time.Now()
-		_, err := godl.DownloadWithOptions(ctx, testCase.url, destPath, opts)
+		_, err := gdl.DownloadWithOptions(ctx, testCase.url, destPath, opts)
 		elapsed := time.Since(start)
 
 		if err != nil {
@@ -304,7 +304,7 @@ func main() {
 		}
 
 		start := time.Now()
-		_, err := godl.Download(ctx, "https://httpbin.org/json", testCase.destPath)
+		_, err := gdl.Download(ctx, "https://httpbin.org/json", testCase.destPath)
 		elapsed := time.Since(start)
 
 		if testCase.expectError {
@@ -351,7 +351,7 @@ func main() {
 		start := time.Now()
 
 		destPath := filepath.Join(examplesDir, fmt.Sprintf("timeout_test_attempt_%d.json", attempt))
-		_, err := godl.Download(timeoutCtx, testURL, destPath)
+		_, err := gdl.Download(timeoutCtx, testURL, destPath)
 		elapsed := time.Since(start)
 
 		timeoutCancel()
@@ -390,7 +390,7 @@ func main() {
 
 		destPath := filepath.Join(examplesDir, testCase.name+".dat")
 
-		_, err := godl.Download(ctx, testCase.url, destPath)
+		_, err := gdl.Download(ctx, testCase.url, destPath)
 		if err != nil {
 			fmt.Printf("   Error: %v\n", err)
 			category := categorizeError(err)

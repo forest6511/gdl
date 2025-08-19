@@ -5,7 +5,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/forest6511/godl/pkg/types"
+	"github.com/forest6511/gdl/pkg/types"
 )
 
 // DownloadRequest represents a download request for plugins

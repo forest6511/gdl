@@ -9,7 +9,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/forest6511/godl/pkg/storage"
+	"github.com/forest6511/gdl/pkg/storage"
 )
 
 // isPathUnder checks if childPath is under parentPath in a cross-platform way

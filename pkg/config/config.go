@@ -1,4 +1,4 @@
-// Package config provides configuration management for the godl download tool.
+// Package config provides configuration management for the gdl download tool.
 // It handles retry policies, error handling preferences, output formats, and timeout values.
 package config
 
@@ -175,7 +175,7 @@ type MiddlewareConfig struct {
 	Settings map[string]interface{} `json:"settings,omitempty" yaml:"settings,omitempty"`
 }
 
-// Config represents the complete configuration for the godl application.
+// Config represents the complete configuration for the gdl application.
 type Config struct {
 	// Version is the configuration schema version
 	Version string `json:"version" yaml:"version"`
@@ -262,7 +262,7 @@ func DefaultConfig() *Config {
 			IdleTimeout:     90 * time.Second,
 		},
 		Network: NetworkConfig{
-			UserAgent:              "godl/1.0",
+			UserAgent:              "gdl/1.0",
 			MaxConcurrentDownloads: 4,
 			ChunkSize:              32 * 1024, // 32KB
 			BufferSize:             8 * 1024,  // 8KB
@@ -300,7 +300,7 @@ func DefaultConfigPath() (string, error) {
 		return "", fmt.Errorf("failed to get user home directory: %w", err)
 	}
 
-	configDir := filepath.Join(homeDir, ".config", "godl")
+	configDir := filepath.Join(homeDir, ".config", "gdl")
 	configPath := filepath.Join(configDir, "config.json")
 
 	return configPath, nil

@@ -108,13 +108,13 @@ mv CHANGELOG.tmp CHANGELOG.md
 PREV_VERSION=$(grep -oE '\[[0-9]+\.[0-9]+\.[0-9]+\]' CHANGELOG.md | head -2 | tail -1 | tr -d '[]')
 
 # Update Unreleased link
-sed -i.bak "s|\[Unreleased\]:.*|[Unreleased]: https://github.com/forest6511/godl/compare/${VERSION}...HEAD|" CHANGELOG.md
+sed -i.bak "s|\[Unreleased\]:.*|[Unreleased]: https://github.com/forest6511/gdl/compare/${VERSION}...HEAD|" CHANGELOG.md
 
 # Add new comparison link before the last line
 if [ -n "$PREV_VERSION" ]; then
-    echo "[${VERSION_NUM}]: https://github.com/forest6511/godl/compare/v${PREV_VERSION}...${VERSION}" >> CHANGELOG.md
+    echo "[${VERSION_NUM}]: https://github.com/forest6511/gdl/compare/v${PREV_VERSION}...${VERSION}" >> CHANGELOG.md
 else
-    echo "[${VERSION_NUM}]: https://github.com/forest6511/godl/releases/tag/${VERSION}" >> CHANGELOG.md
+    echo "[${VERSION_NUM}]: https://github.com/forest6511/gdl/releases/tag/${VERSION}" >> CHANGELOG.md
 fi
 
 # Clean up backup file

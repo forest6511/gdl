@@ -6,7 +6,7 @@
       "type": "go",
       "request": "launch",
       "mode": "auto",
-      "program": "${workspaceFolder}/cmd/godl",
+      "program": "${workspaceFolder}/cmd/gdl",
       "args": ["--help"],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}"
@@ -16,7 +16,7 @@
       "type": "go",
       "request": "launch",
       "mode": "auto",
-      "program": "${workspaceFolder}/cmd/godl",
+      "program": "${workspaceFolder}/cmd/gdl",
       "args": ["${input:cliArgs}"],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}"

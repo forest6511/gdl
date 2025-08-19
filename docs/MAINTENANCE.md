@@ -1,10 +1,10 @@
 # Maintenance Guide
 
-This guide provides comprehensive instructions for maintaining and extending the godl project.
+This guide provides comprehensive instructions for maintaining and extending the gdl project.
 
 ## 🎯 Maintenance Overview
 
-godl follows a structured maintenance approach with automated validation, comprehensive testing, and clear extension guidelines.
+gdl follows a structured maintenance approach with automated validation, comprehensive testing, and clear extension guidelines.
 
 ## 🔧 Regular Maintenance Tasks
 
@@ -118,8 +118,8 @@ cat docs/PROJECT_STRUCTURE.md
 
 # Plan implementation across all layers
 # - Core Implementation (internal/)
-# - Public API (pkg/, godl.go)  
-# - CLI Integration (cmd/godl/)
+# - Public API (pkg/, gdl.go)  
+# - CLI Integration (cmd/gdl/)
 # - Documentation (README.md, docs/)
 # - Examples (examples/)
 # - Tests (unit, integration, examples)
@@ -137,8 +137,8 @@ cat docs/PROJECT_STRUCTURE.md
 
 #### **Implementation Order**
 1. **Core Implementation** (`internal/` packages)
-2. **Public API** (`pkg/` and `godl.go`)
-3. **CLI Integration** (`cmd/godl/main.go`)
+2. **Public API** (`pkg/` and `gdl.go`)
+3. **CLI Integration** (`cmd/gdl/main.go`)
 4. **Unit Tests** (all packages)
 5. **Integration Tests** (end-to-end scenarios)
 6. **Documentation** (README.md, `docs/`)
@@ -155,8 +155,8 @@ go test ./path/to/package -race
 go test ./...
 
 # After CLI changes
-go build ./cmd/godl
-./godl --help  # Verify new options appear
+go build ./cmd/gdl
+./gdl --help  # Verify new options appear
 ```
 
 ### **After Feature Implementation**
@@ -239,9 +239,9 @@ golangci-lint run
   
 
 # Cross-platform builds
-GOOS=linux go build ./cmd/godl
-GOOS=windows go build ./cmd/godl  
-GOOS=darwin go build ./cmd/godl
+GOOS=linux go build ./cmd/gdl
+GOOS=windows go build ./cmd/gdl  
+GOOS=darwin go build ./cmd/gdl
 ```
 
 #### **Documentation Updates**
@@ -265,14 +265,14 @@ git push origin v1.x.x
 #### **Post-Release Testing**
 ```bash
 # Test installation from source
-go install github.com/forest6511/godl/cmd/godl@latest
+go install github.com/forest6511/gdl/cmd/gdl@latest
 
 # Verify basic functionality
-godl --version
-godl --help
+gdl --version
+gdl --help
 
 # Test core features
-godl https://httpbin.org/json -o test.json
+gdl https://httpbin.org/json -o test.json
 ```
 
 ## 🔍 Monitoring and Health Checks
@@ -413,4 +413,4 @@ go tool pprof mem.prof
 - **Discussions**: GitHub Discussions for questions and ideas
 - **Contributing**: `CONTRIBUTING.md` for contribution guidelines
 
-This maintenance guide ensures the godl project remains healthy, performant, and well-documented while providing clear processes for ongoing development and support.
+This maintenance guide ensures the gdl project remains healthy, performant, and well-documented while providing clear processes for ongoing development and support.

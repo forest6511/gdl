@@ -1405,7 +1405,7 @@ func TestFileSystemBackendHomeDirectoryExpansion(t *testing.T) {
 	// On Unix systems, test tilde expansion
 	// On Windows, this path should be treated literally
 	config := map[string]interface{}{
-		"basePath": "~/test-godl",
+		"basePath": "~/test-gdl",
 	}
 
 	err := backend.Init(config)

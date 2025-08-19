@@ -25,7 +25,7 @@ error_handling:
   verbose_errors: false
   show_stack_trace: false
   log_errors: true
-  log_file: "/var/log/godl/errors.log"
+  log_file: "/var/log/gdl/errors.log"
   fail_fast: false
   error_format: "json"
   recovery_enabled: false
@@ -42,7 +42,7 @@ timeouts:
 # Production network settings
 network:
   max_concurrent_connections: 20
-  user_agent: "godl/1.0 (production)"
+  user_agent: "gdl/1.0 (production)"
   follow_redirects: true
   max_redirects: 5
   enable_compression: true
@@ -58,7 +58,7 @@ storage:
   overwrite_existing: false
   resume_support: true
   min_free_space: 10737418240  # 10GB
-  temp_dir: "/tmp/godl"
+  temp_dir: "/tmp/gdl"
 
 # Production plugins (security-focused)
 plugins:

@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/forest6511/godl/pkg/plugin"
+	"github.com/forest6511/gdl/pkg/plugin"
 )
 
 // TestPluginRegistry tests the CLI plugin registry functionality
@@ -531,8 +531,8 @@ func TestDefaultPaths(t *testing.T) {
 		}
 
 		// Should contain either home directory path or fallback
-		if !strings.Contains(dir, ".godl") && dir != "./plugins" {
-			t.Errorf("Expected default plugin dir to contain .godl or be ./plugins, got: %s", dir)
+		if !strings.Contains(dir, ".gdl") && dir != "./plugins" {
+			t.Errorf("Expected default plugin dir to contain .gdl or be ./plugins, got: %s", dir)
 		}
 	})
 
@@ -543,8 +543,8 @@ func TestDefaultPaths(t *testing.T) {
 		}
 
 		// Should contain either home directory path or fallback
-		if !strings.Contains(file, ".godl") && file != "./plugins.json" {
-			t.Errorf("Expected default config file to contain .godl or be ./plugins.json, got: %s", file)
+		if !strings.Contains(file, ".gdl") && file != "./plugins.json" {
+			t.Errorf("Expected default config file to contain .gdl or be ./plugins.json, got: %s", file)
 		}
 	})
 }

@@ -72,12 +72,12 @@ func NewManager(resumeDir string) *Manager {
 func (m *Manager) getResumeFilePath(filePath string) string {
 	// Create a unique resume file name based on the download file
 	basename := filepath.Base(filePath)
-	resumeFileName := fmt.Sprintf(".%s.godl.json", basename)
+	resumeFileName := fmt.Sprintf(".%s.gdl.json", basename)
 
 	return filepath.Join(m.resumeDir, resumeFileName)
 }
 
-// Save saves resume information to a .godl.json file.
+// Save saves resume information to a .gdl.json file.
 func (m *Manager) Save(info *ResumeInfo) error {
 	info.UpdatedAt = time.Now()
 	if info.CreatedAt.IsZero() {
@@ -105,7 +105,7 @@ func (m *Manager) Save(info *ResumeInfo) error {
 	return nil
 }
 
-// Load loads resume information from a .godl.json file.
+// Load loads resume information from a .gdl.json file.
 func (m *Manager) Load(filePath string) (*ResumeInfo, error) {
 	resumeFilePath := m.getResumeFilePath(filePath)
 
@@ -234,7 +234,7 @@ func (m *Manager) CanResume(info *ResumeInfo) bool {
 
 // CleanupOldResumeFiles removes resume files that are older than the specified duration.
 func (m *Manager) CleanupOldResumeFiles(maxAge time.Duration) error {
-	pattern := filepath.Join(m.resumeDir, ".*.godl.json")
+	pattern := filepath.Join(m.resumeDir, ".*.gdl.json")
 
 	matches, err := filepath.Glob(pattern)
 	if err != nil {
@@ -262,7 +262,7 @@ func (m *Manager) CleanupOldResumeFiles(maxAge time.Duration) error {
 
 // ListResumeFiles returns a list of all resume files in the resume directory.
 func (m *Manager) ListResumeFiles() ([]string, error) {
-	pattern := filepath.Join(m.resumeDir, ".*.godl.json")
+	pattern := filepath.Join(m.resumeDir, ".*.gdl.json")
 
 	matches, err := filepath.Glob(pattern)
 	if err != nil {

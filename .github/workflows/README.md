@@ -1,6 +1,6 @@
 # GitHub Actions Workflows
 
-This directory contains GitHub Actions workflow configurations for the godl project.
+This directory contains GitHub Actions workflow configurations for the gdl project.
 
 ## Workflow Structure
 
