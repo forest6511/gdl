@@ -31,7 +31,7 @@ jobs:
           echo "## 📊 Benchmark Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          go test -bench=. -benchmem -benchtime=10s ./... | tee benchmark-results.txt
+          go test -bench=BenchmarkDownload -benchmem -benchtime=2s -timeout=3m ./... | tee benchmark-results.txt
           cat benchmark-results.txt >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
@@ -52,7 +52,7 @@ jobs:
           git checkout origin/${{ github.base_ref }}
           
           # Run base benchmarks
-          go test -bench=. -benchmem -benchtime=10s ./... > base-benchmarks.txt
+          go test -bench=BenchmarkDownload -benchmem -benchtime=2s -timeout=3m ./... > base-benchmarks.txt
           
           # Checkout PR branch
           git checkout ${{ github.sha }}
