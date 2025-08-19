@@ -55,3 +55,4 @@ testdata/downloads/
 # Keep these AI config files in git:
 # .claude/CLAUDE.md           - Development guidelines
 # .claude/settings.json       - Shared Claude Code settings
+examples/library_api/library_api

@@ -10,6 +10,8 @@ import (
 	"runtime"
 	"testing"
 	"time"
+
+	"github.com/forest6511/godl/pkg/types"
 )
 
 func TestNewConcurrentDownloadManager(t *testing.T) {
@@ -838,4 +840,200 @@ func TestCalculateOptimalChunksEdgeCases(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNewConcurrentDownloadManagerWithOptions(t *testing.T) {
+	t.Run("with nil options", func(t *testing.T) {
+		manager := NewConcurrentDownloadManagerWithOptions(nil)
+
+		if manager == nil {
+			t.Fatal("Expected manager to be created, got nil")
+		}
+
+		if manager.progressMgr == nil {
+			t.Error("Expected progressMgr to be initialized")
+		}
+
+		// Rate limiter should not be set for nil options
+		if manager.rateLimiter != nil {
+			t.Error("Expected rateLimiter to be nil for nil options")
+		}
+	})
+
+	t.Run("with options but no MaxRate", func(t *testing.T) {
+		options := &types.DownloadOptions{
+			ChunkSize: 1024,
+			Timeout:   30 * time.Second,
+		}
+
+		manager := NewConcurrentDownloadManagerWithOptions(options)
+
+		if manager == nil {
+			t.Fatal("Expected manager to be created, got nil")
+		}
+
+		if manager.progressMgr == nil {
+			t.Error("Expected progressMgr to be initialized")
+		}
+
+		// Rate limiter should not be set when MaxRate is 0
+		if manager.rateLimiter != nil {
+			t.Error("Expected rateLimiter to be nil when MaxRate is 0")
+		}
+	})
+
+	t.Run("with MaxRate specified", func(t *testing.T) {
+		options := &types.DownloadOptions{
+			ChunkSize: 1024,
+			Timeout:   30 * time.Second,
+			MaxRate:   1024 * 1024, // 1MB/s
+		}
+
+		manager := NewConcurrentDownloadManagerWithOptions(options)
+
+		if manager == nil {
+			t.Fatal("Expected manager to be created, got nil")
+		}
+
+		if manager.progressMgr == nil {
+			t.Error("Expected progressMgr to be initialized")
+		}
+
+		// Rate limiter should be set when MaxRate > 0
+		if manager.rateLimiter == nil {
+			t.Error("Expected rateLimiter to be set when MaxRate > 0")
+		}
+
+		// Verify rate limiter configuration
+		if manager.rateLimiter.Rate() != 1024*1024 {
+			t.Errorf("Expected rate limiter rate to be %d, got %d", 1024*1024, manager.rateLimiter.Rate())
+		}
+	})
+}
+
+func TestDownloadWithRateLimit(t *testing.T) {
+	// Create test server with controlled response
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Support range requests
+		w.Header().Set("Accept-Ranges", "bytes")
+		w.Header().Set("Content-Length", "100")
+
+		// Write 100 bytes of data (smaller to avoid burst issues)
+		data := make([]byte, 100)
+		for i := range data {
+			data[i] = byte(i % 256)
+		}
+
+		// Handle range requests
+		if rangeHeader := r.Header.Get("Range"); rangeHeader != "" {
+			w.Header().Set("Content-Range", "bytes 0-99/100")
+			w.WriteHeader(http.StatusPartialContent)
+		}
+
+		_, _ = w.Write(data)
+	}))
+	defer server.Close()
+
+	// Test with rate limiting
+	t.Run("download with rate limit", func(t *testing.T) {
+		options := &types.DownloadOptions{
+			MaxRate:   2048, // 2KB/s - should handle 100 bytes easily
+			ChunkSize: 50,   // Small chunks
+		}
+
+		manager := NewConcurrentDownloadManagerWithOptions(options)
+
+		tempDir := t.TempDir()
+		destFile := filepath.Join(tempDir, "rate_limit_test.bin")
+
+		start := time.Now()
+		err := manager.Download(context.Background(), server.URL, destFile)
+		duration := time.Since(start)
+
+		if err != nil {
+			t.Fatalf("Download failed: %v", err)
+		}
+
+		// Verify file was downloaded
+		fileInfo, err := os.Stat(destFile)
+		if err != nil {
+			t.Fatalf("Failed to stat downloaded file: %v", err)
+		}
+
+		if fileInfo.Size() != 100 {
+			t.Errorf("Expected file size 100, got %d", fileInfo.Size())
+		}
+
+		t.Logf("Download with rate limiting completed in %v", duration)
+	})
+
+	t.Run("download without rate limit", func(t *testing.T) {
+		options := &types.DownloadOptions{
+			MaxRate:   0, // Unlimited
+			ChunkSize: 50,
+		}
+
+		manager := NewConcurrentDownloadManagerWithOptions(options)
+
+		tempDir := t.TempDir()
+		destFile := filepath.Join(tempDir, "no_rate_limit_test.bin")
+
+		err := manager.Download(context.Background(), server.URL, destFile)
+
+		if err != nil {
+			t.Fatalf("Download failed: %v", err)
+		}
+
+		// Verify file was downloaded
+		fileInfo, err := os.Stat(destFile)
+		if err != nil {
+			t.Fatalf("Failed to stat downloaded file: %v", err)
+		}
+
+		if fileInfo.Size() != 100 {
+			t.Errorf("Expected file size 100, got %d", fileInfo.Size())
+		}
+	})
+
+	t.Run("single download with rate limit", func(t *testing.T) {
+		// Create server that doesn't support range requests
+		singleServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Don't set Accept-Ranges header
+			w.Header().Set("Content-Length", "50")
+
+			data := make([]byte, 50)
+			for i := range data {
+				data[i] = byte(i % 256)
+			}
+
+			_, _ = w.Write(data)
+		}))
+		defer singleServer.Close()
+
+		options := &types.DownloadOptions{
+			MaxRate:   1024, // 1KB/s
+			ChunkSize: 25,
+		}
+
+		manager := NewConcurrentDownloadManagerWithOptions(options)
+
+		tempDir := t.TempDir()
+		destFile := filepath.Join(tempDir, "single_rate_limit_test.bin")
+
+		err := manager.Download(context.Background(), singleServer.URL, destFile)
+
+		if err != nil {
+			t.Fatalf("Single download failed: %v", err)
+		}
+
+		// Verify file was downloaded
+		fileInfo, err := os.Stat(destFile)
+		if err != nil {
+			t.Fatalf("Failed to stat downloaded file: %v", err)
+		}
+
+		if fileInfo.Size() != 50 {
+			t.Errorf("Expected file size 50, got %d", fileInfo.Size())
+		}
+	})
 }

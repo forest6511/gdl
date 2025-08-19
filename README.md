@@ -11,6 +11,7 @@ A fast, concurrent, and feature-rich file downloader library and CLI tool writte
 ## ✨ Features
 
 - **🚀 High Performance**: Concurrent downloads with configurable connections
+- **⚡ Bandwidth Control**: Rate limiting with human-readable formats (1MB/s, 500k, etc.)
 - **📊 Progress Tracking**: Real-time progress with multiple display formats  
 - **🔄 Resume Support**: Automatic resume of interrupted downloads
 - **🌐 Protocol Support**: HTTP/HTTPS with custom headers and proxy support
@@ -65,6 +66,10 @@ godl https://example.com/file.zip
 # Concurrent download with custom settings
 godl --concurrent 8 --chunk-size 2MB -o myfile.zip https://example.com/file.zip
 
+# With bandwidth limiting
+godl --max-rate 1MB/s https://example.com/large-file.zip
+godl --max-rate 500k --concurrent 2 https://example.com/file.zip
+
 # With custom headers and resume
 godl -H "Authorization: Bearer token" --resume https://example.com/file.zip
 
@@ -94,9 +99,10 @@ func main() {
     }
     fmt.Printf("Downloaded %d bytes in %v\n", stats.BytesDownloaded, stats.Duration)
     
-    // Download with progress callback using DownloadWithOptions
+    // Download with progress callback and bandwidth limiting using DownloadWithOptions
     options := &godl.Options{
         MaxConcurrency: 4,
+        MaxRate: 1024 * 1024, // 1MB/s rate limit
         ProgressCallback: func(p godl.Progress) {
             fmt.Printf("Progress: %.1f%% Speed: %.2f MB/s\n", 
                 p.Percentage, float64(p.Speed)/1024/1024)
@@ -226,6 +232,7 @@ go build -buildmode=plugin -o s3.so
 | Create directories | ✅ | ✅ | Auto-create parent directories |
 | Concurrent downloads | ✅ | ✅ | Multiple simultaneous connections |
 | Custom chunk size | ✅ | ✅ | Configurable download chunks |
+| Bandwidth throttling | ✅ | ✅ | Rate limiting with human-readable formats |
 | Single-threaded mode | ✅ | ✅ | Disable concurrent downloads |
 | Resume downloads | ✅ | ✅ | Continue interrupted downloads |
 | Retry on failure | ✅ | ✅ | Automatic retry with backoff |
@@ -291,6 +298,7 @@ For the complete project structure, see [Directory Structure](docs/DIRECTORY_STR
 
 - **Core Engine** (`internal/core`): Main download orchestration
 - **Concurrency Manager** (`internal/concurrent`): Parallel download coordination  
+- **Rate Limiter** (`pkg/ratelimit`): Bandwidth throttling and rate control
 - **Resume Engine** (`internal/resume`): Download resumption and partial file handling
 - **Progress System** (`pkg/progress`): Real-time progress tracking
 - **Error Framework** (`pkg/errors`): Comprehensive error handling

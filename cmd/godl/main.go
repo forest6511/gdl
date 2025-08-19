@@ -20,6 +20,7 @@ import (
 	"github.com/forest6511/godl/internal/storage"
 	"github.com/forest6511/godl/pkg/cli"
 	"github.com/forest6511/godl/pkg/plugin"
+	"github.com/forest6511/godl/pkg/ratelimit"
 	"github.com/forest6511/godl/pkg/types"
 	"github.com/forest6511/godl/pkg/ui"
 )
@@ -60,6 +61,7 @@ type config struct {
 	proxy             string
 	output_format     string
 	continuePartial   bool
+	maxRate           string // Maximum download rate (e.g., "1MB/s", "500k")
 	// Plugin-related configurations
 	plugins      []string
 	storageURL   string
@@ -704,6 +706,16 @@ func createDownloadOptions(cfg *config) *types.DownloadOptions {
 		}
 	}
 
+	// Configure max rate if specified
+	if cfg.maxRate != "" {
+		if maxRateBytes, err := ratelimit.ParseRate(cfg.maxRate); err == nil {
+			options.MaxRate = maxRateBytes
+		} else {
+			// Note: Error handling should be done in parseArgs validation
+			fmt.Fprintf(os.Stderr, "Warning: Invalid max-rate format: %v\n", err)
+		}
+	}
+
 	return options
 }
 
@@ -869,6 +881,12 @@ func parseArgs() (*config, string, error) {
 		"Add custom header (can be used multiple times): -header 'Key: Value'",
 	)
 	flag.Var(&headerFlags, "H", "Add custom header (shorthand)")
+	flag.StringVar(
+		&cfg.maxRate,
+		"max-rate",
+		"",
+		"Maximum download rate (e.g., 1MB/s, 500k, 2048)",
+	)
 
 	// Initialize headers map and plugins slice
 	cfg.headers = make(map[string]string)
@@ -889,6 +907,13 @@ func parseArgs() (*config, string, error) {
 	// Process plugin flags
 	for _, pluginName := range pluginFlags {
 		cfg.plugins = append(cfg.plugins, strings.TrimSpace(pluginName))
+	}
+
+	// Validate max-rate if specified
+	if cfg.maxRate != "" {
+		if err := ratelimit.ValidateRate(cfg.maxRate); err != nil {
+			return nil, "", fmt.Errorf("invalid --max-rate: %w", err)
+		}
 	}
 
 	// Handle -c as an alias for --concurrent
@@ -1413,6 +1438,8 @@ Download Options:
       --concurrent N      Number of concurrent connections (default: 4, max: 32)
       --chunk-size SIZE   Chunk size for concurrent downloads (default: auto)
                           Examples: 1MB, 512KB, 2GB
+      --max-rate RATE     Maximum download rate (0 = unlimited)
+                          Examples: 1MB/s, 500k, 2048
       --no-concurrent     Force single-threaded download
       --no-color          Disable colored output
       --interactive       Enable interactive prompts (default: auto-detect)
@@ -1440,6 +1467,7 @@ Download Examples:
   %s https://example.com/file.zip                              # Basic download
   %s --concurrent 8 https://example.com/largefile.iso         # Use 8 concurrent connections
   %s --chunk-size 2MB https://example.com/file.zip            # Use 2MB chunks
+  %s --max-rate 1MB/s https://example.com/large-file.zip      # Limit to 1MB/s
   %s --plugin oauth2 https://api.example.com/secure/file.zip  # Use OAuth2 plugin
   %s --storage s3://mybucket/downloads/ https://example.com/file.zip  # Save to S3
 
@@ -1449,5 +1477,5 @@ Plugin Management Examples:
   %s plugin enable oauth2                                     # Enable OAuth2 plugin
   %s plugin config oauth2 --set client_id=xxx                # Configure plugin
 
-`, appName, appName, appName, version, appName, appName, appName, appName, appName, appName, appName, appName, appName)
+`, appName, appName, appName, appName, version, appName, appName, appName, appName, appName, appName, appName, appName, appName)
 }

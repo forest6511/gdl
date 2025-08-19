@@ -387,3 +387,88 @@ func TestValidateDestination_ExistingDirectory(t *testing.T) {
 		t.Error("ValidateDestination() should reject existing directory as destination")
 	}
 }
+
+func TestSetConfig(t *testing.T) {
+	// Store original config to restore later
+	originalConfig := GetConfig()
+	defer SetConfig(originalConfig)
+
+	// Test setting a custom config
+	customConfig := &Config{
+		AllowLocalhost: true,
+	}
+
+	SetConfig(customConfig)
+
+	// Verify the config was set
+	retrievedConfig := GetConfig()
+	if retrievedConfig != customConfig {
+		t.Error("SetConfig() did not set the config correctly")
+	}
+
+	if !retrievedConfig.AllowLocalhost {
+		t.Error("Expected AllowLocalhost to be true")
+	}
+}
+
+func TestGetConfig(t *testing.T) {
+	// Store original config to restore later
+	originalConfig := GetConfig()
+	defer SetConfig(originalConfig)
+
+	// Test getting the default config
+	defaultConfig := GetConfig()
+	if defaultConfig == nil {
+		t.Error("GetConfig() should not return nil")
+	}
+
+	// Test getting after setting a custom config
+	customConfig := &Config{
+		AllowLocalhost: false,
+	}
+
+	SetConfig(customConfig)
+	retrievedConfig := GetConfig()
+
+	if retrievedConfig == nil {
+		t.Error("GetConfig() should not return nil after SetConfig()")
+		return // Early return to avoid nil pointer dereference
+	}
+
+	if retrievedConfig != customConfig {
+		t.Error("GetConfig() did not return the same config that was set")
+	}
+
+	// Verify the field
+	if retrievedConfig.AllowLocalhost {
+		t.Error("Expected AllowLocalhost to be false")
+	}
+}
+
+func TestConfigIntegration(t *testing.T) {
+	// Store original config to restore later
+	originalConfig := GetConfig()
+	defer SetConfig(originalConfig)
+
+	// Test that changing config affects validation behavior
+
+	// Test with test config (should allow localhost)
+	testConfig := TestConfig()
+	SetConfig(testConfig)
+
+	// Localhost should be allowed with test config
+	err := ValidateURL("http://localhost:8080/test")
+	if err != nil {
+		t.Errorf("Expected localhost to be allowed with test config, got error: %v", err)
+	}
+
+	// Test with default config (should block localhost)
+	defaultConfig := DefaultConfig()
+	SetConfig(defaultConfig)
+
+	// Localhost should be blocked with default config
+	err = ValidateURL("http://localhost:8080/test")
+	if err == nil {
+		t.Error("Expected localhost to be blocked with default config")
+	}
+}

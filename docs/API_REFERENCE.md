@@ -35,6 +35,7 @@ if err != nil {
 options := &godl.Options{
     MaxConcurrency:    8,
     ChunkSize:         1024 * 1024, // 1MB chunks
+    MaxRate:           2 * 1024 * 1024, // 2MB/s rate limit
     EnableResume:      true,
     OverwriteExisting: false,
     ProgressCallback: func(p godl.Progress) {
@@ -102,6 +103,9 @@ type DownloadOptions struct {
     Concurrent    int
     NoConcurrent  bool
     ChunkSize     int64
+    
+    // Bandwidth control
+    MaxRate       int64  // Maximum download rate in bytes per second (0 = unlimited)
     
     // Resume and overwrite
     Resume            bool

@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/forest6511/godl/pkg/progress"
+	"github.com/forest6511/godl/pkg/ratelimit"
+	"github.com/forest6511/godl/pkg/types"
 )
 
 type ConcurrentDownloadManager struct {
@@ -18,6 +20,7 @@ type ConcurrentDownloadManager struct {
 	chunker     *Chunker
 	progressMgr *progress.Manager
 	wg          sync.WaitGroup
+	rateLimiter ratelimit.Limiter
 }
 
 // NewConcurrentDownloadManager creates a new concurrent download manager.
@@ -25,6 +28,20 @@ func NewConcurrentDownloadManager() *ConcurrentDownloadManager {
 	return &ConcurrentDownloadManager{
 		progressMgr: progress.NewManager(),
 	}
+}
+
+// NewConcurrentDownloadManagerWithOptions creates a new concurrent download manager with options.
+func NewConcurrentDownloadManagerWithOptions(options *types.DownloadOptions) *ConcurrentDownloadManager {
+	manager := &ConcurrentDownloadManager{
+		progressMgr: progress.NewManager(),
+	}
+
+	// Create rate limiter if MaxRate is specified
+	if options != nil && options.MaxRate > 0 {
+		manager.rateLimiter = ratelimit.NewBandwidthLimiter(options.MaxRate)
+	}
+
+	return manager
 }
 
 // Download performs concurrent download of the file.
@@ -72,6 +89,7 @@ func (m *ConcurrentDownloadManager) Download(ctx context.Context, url, dest stri
 		m.workers[i].ChunkInfo = chunk
 		m.workers[i].Progress = progressChan
 		m.workers[i].Error = errorChan
+		m.workers[i].RateLimiter = m.rateLimiter // Share the same rate limiter across all workers
 	}
 
 	// Start workers
@@ -165,6 +183,13 @@ func (w *Worker) downloadChunkToFile(ctx context.Context, file *os.File) error {
 	for {
 		n, err := resp.Body.Read(buffer)
 		if n > 0 {
+			// Apply rate limiting if a limiter is set
+			if w.RateLimiter != nil {
+				if rateLimiterErr := w.RateLimiter.Wait(ctx, n); rateLimiterErr != nil {
+					return fmt.Errorf("rate limiting error: %w", rateLimiterErr)
+				}
+			}
+
 			if _, writeErr := file.Write(buffer[:n]); writeErr != nil {
 				return fmt.Errorf("writing to file: %w", writeErr)
 			}
@@ -344,7 +369,32 @@ func (m *ConcurrentDownloadManager) singleDownload(ctx context.Context, url, des
 	}
 	defer func() { _ = file.Close() }()
 
-	_, err = io.Copy(file, resp.Body)
+	// Copy with rate limiting if enabled
+	if m.rateLimiter != nil {
+		buffer := make([]byte, 32*1024)
+		for {
+			n, readErr := resp.Body.Read(buffer)
+			if n > 0 {
+				// Apply rate limiting
+				if rateLimiterErr := m.rateLimiter.Wait(ctx, n); rateLimiterErr != nil {
+					return fmt.Errorf("rate limiting error: %w", rateLimiterErr)
+				}
 
+				if _, writeErr := file.Write(buffer[:n]); writeErr != nil {
+					return fmt.Errorf("writing to file: %w", writeErr)
+				}
+			}
+
+			if readErr == io.EOF {
+				break
+			}
+			if readErr != nil {
+				return fmt.Errorf("reading response: %w", readErr)
+			}
+		}
+		return nil
+	}
+
+	_, err = io.Copy(file, resp.Body)
 	return err
 }

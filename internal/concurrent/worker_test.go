@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/forest6511/godl/pkg/ratelimit"
 )
 
 func TestNewWorker(t *testing.T) {
@@ -227,7 +229,7 @@ func TestDownloadChunk(t *testing.T) {
 			worker.ChunkInfo = tt.chunk
 			worker.Progress = progressChan
 
-			err := worker.downloadChunk()
+			err := worker.downloadChunk(context.Background())
 			if err != nil {
 				t.Fatalf("downloadChunk() error = %v", err)
 			}
@@ -318,7 +320,7 @@ func TestDownloadChunkWithRetry(t *testing.T) {
 			errorChan := make(chan error, 10)
 			worker.Error = errorChan
 
-			err := worker.downloadChunk()
+			err := worker.downloadChunk(context.Background())
 
 			if tt.expectSuccess {
 				if err != nil {
@@ -404,4 +406,246 @@ func containsSubstring(s, substr string) bool {
 	}
 
 	return false
+}
+
+func TestWorkerWithRateLimit(t *testing.T) {
+	testData := make([]byte, 100)
+	for i := range testData {
+		testData[i] = byte(i % 256)
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Range", "bytes 0-99/100")
+		w.WriteHeader(http.StatusPartialContent)
+		_, _ = w.Write(testData)
+	}))
+	defer server.Close()
+
+	t.Run("download with rate limit", func(t *testing.T) {
+		// Create a rate limiter that allows 1024 bytes/second
+		rateLimiter := ratelimit.NewBandwidthLimiter(1024)
+
+		worker := NewWorker(1, server.URL)
+		worker.ChunkInfo = &ChunkInfo{
+			Index:      0,
+			Start:      0,
+			End:        99,
+			Downloaded: 0,
+			Complete:   false,
+		}
+		worker.RateLimiter = rateLimiter
+
+		progressChan := make(chan Progress, 10)
+		worker.Progress = progressChan
+
+		start := time.Now()
+		err := worker.Download(context.Background())
+		duration := time.Since(start)
+
+		if err != nil {
+			t.Fatalf("Download with rate limit failed: %v", err)
+		}
+
+		if !worker.ChunkInfo.Complete {
+			t.Error("chunk should be marked as complete")
+		}
+
+		if worker.ChunkInfo.Downloaded != 100 {
+			t.Errorf("Expected 100 bytes downloaded, got %d", worker.ChunkInfo.Downloaded)
+		}
+
+		t.Logf("Download with rate limiting completed in %v", duration)
+		close(progressChan)
+	})
+
+	t.Run("download without rate limit", func(t *testing.T) {
+		worker := NewWorker(2, server.URL)
+		worker.ChunkInfo = &ChunkInfo{
+			Index:      1,
+			Start:      0,
+			End:        99,
+			Downloaded: 0,
+			Complete:   false,
+		}
+		// No rate limiter set
+
+		err := worker.Download(context.Background())
+
+		if err != nil {
+			t.Fatalf("Download without rate limit failed: %v", err)
+		}
+
+		if !worker.ChunkInfo.Complete {
+			t.Error("chunk should be marked as complete")
+		}
+
+		if worker.ChunkInfo.Downloaded != 100 {
+			t.Errorf("Expected 100 bytes downloaded, got %d", worker.ChunkInfo.Downloaded)
+		}
+	})
+
+	t.Run("rate limit context cancellation", func(t *testing.T) {
+		// Create a very restrictive rate limiter
+		rateLimiter := ratelimit.NewBandwidthLimiter(1) // 1 byte/second
+
+		worker := NewWorker(3, server.URL)
+		worker.ChunkInfo = &ChunkInfo{
+			Index:      2,
+			Start:      0,
+			End:        99,
+			Downloaded: 0,
+			Complete:   false,
+		}
+		worker.RateLimiter = rateLimiter
+
+		// Create context that cancels quickly
+		ctx, cancel := context.WithCancel(context.Background())
+
+		// Start download in goroutine
+		errChan := make(chan error, 1)
+		go func() {
+			errChan <- worker.Download(ctx)
+		}()
+
+		// Cancel after short delay
+		go func() {
+			time.Sleep(50 * time.Millisecond)
+			cancel()
+		}()
+
+		// Wait for download to finish
+		select {
+		case err := <-errChan:
+			if err == nil {
+				t.Error("expected error due to cancellation, got nil")
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatal("download did not respond to cancellation")
+		}
+	})
+}
+
+func TestWorkerPerformDownloadErrorPaths(t *testing.T) {
+	t.Run("invalid URL", func(t *testing.T) {
+		worker := NewWorker(1, "://invalid-url")
+		worker.ChunkInfo = &ChunkInfo{
+			Index:      0,
+			Start:      0,
+			End:        99,
+			Downloaded: 0,
+			Complete:   false,
+		}
+
+		err := worker.performDownload(context.Background())
+		if err == nil {
+			t.Error("expected error for invalid URL")
+		}
+	})
+
+	t.Run("HTTP error response", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		worker := NewWorker(1, server.URL)
+		worker.ChunkInfo = &ChunkInfo{
+			Index:      0,
+			Start:      0,
+			End:        99,
+			Downloaded: 0,
+			Complete:   false,
+		}
+
+		err := worker.performDownload(context.Background())
+		if err == nil {
+			t.Error("expected error for HTTP error response")
+		}
+	})
+
+	t.Run("partial download size mismatch", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Range", "bytes 0-99/100")
+			w.WriteHeader(http.StatusPartialContent)
+			// Write only 50 bytes instead of expected 100
+			_, _ = w.Write(make([]byte, 50))
+		}))
+		defer server.Close()
+
+		worker := NewWorker(1, server.URL)
+		worker.ChunkInfo = &ChunkInfo{
+			Index:      0,
+			Start:      0,
+			End:        99,
+			Downloaded: 0,
+			Complete:   false,
+		}
+
+		err := worker.performDownload(context.Background())
+		if err == nil {
+			t.Error("expected error for size mismatch")
+		}
+		if err != nil && !containsString(err.Error(), "size mismatch") {
+			t.Errorf("expected size mismatch error, got: %v", err)
+		}
+	})
+}
+
+func TestWorkerResumeDownload(t *testing.T) {
+	t.Run("resume partial download with rate limit", func(t *testing.T) {
+		testData := make([]byte, 200)
+		for i := range testData {
+			testData[i] = byte(i % 256)
+		}
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			rangeHeader := r.Header.Get("Range")
+
+			// Parse range header
+			var start, end int64
+			_, _ = fmt.Sscanf(rangeHeader, "bytes=%d-%d", &start, &end)
+
+			// Validate range
+			if start < 0 || end >= int64(len(testData)) || start > end {
+				w.WriteHeader(http.StatusRequestedRangeNotSatisfiable)
+				return
+			}
+
+			w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, len(testData)))
+			w.WriteHeader(http.StatusPartialContent)
+			_, _ = w.Write(testData[start : end+1])
+		}))
+		defer server.Close()
+
+		// Create rate limiter
+		rateLimiter := ratelimit.NewBandwidthLimiter(1024) // 1KB/s
+
+		worker := NewWorker(1, server.URL)
+		worker.ChunkInfo = &ChunkInfo{
+			Index:      0,
+			Start:      0,
+			End:        199,
+			Downloaded: 100, // Already downloaded 100 bytes
+			Complete:   false,
+		}
+		worker.RateLimiter = rateLimiter
+
+		progressChan := make(chan Progress, 10)
+		worker.Progress = progressChan
+
+		err := worker.Download(context.Background())
+		if err != nil {
+			t.Fatalf("Resume download with rate limit failed: %v", err)
+		}
+
+		if !worker.ChunkInfo.Complete {
+			t.Error("chunk should be marked as complete")
+		}
+
+		if worker.ChunkInfo.Downloaded != 200 {
+			t.Errorf("Expected 200 bytes downloaded total, got %d", worker.ChunkInfo.Downloaded)
+		}
+
+		close(progressChan)
+	})
 }

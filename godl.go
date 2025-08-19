@@ -44,6 +44,7 @@ type Options struct {
 	OverwriteExisting bool
 	Quiet             bool
 	Verbose           bool
+	MaxRate           int64 // Maximum download rate in bytes per second (0 = unlimited)
 }
 
 // DownloadStats contains statistics about a download operation.
@@ -178,30 +179,34 @@ func DownloadWithOptions(ctx context.Context, url, dest string, opts *Options) (
 	dl := core.NewDownloader()
 
 	// Convert our Options to internal DownloadOptions
-	downloadOptions := &types.DownloadOptions{
-		MaxConcurrency:    opts.MaxConcurrency,
-		ChunkSize:         opts.ChunkSize,
-		Resume:            opts.EnableResume,
-		Timeout:           opts.Timeout,
-		UserAgent:         opts.UserAgent,
-		Headers:           opts.Headers,
-		CreateDirs:        opts.CreateDirs,
-		OverwriteExisting: opts.OverwriteExisting,
-	}
+	var downloadOptions *types.DownloadOptions
+	if opts != nil {
+		downloadOptions = &types.DownloadOptions{
+			MaxConcurrency:    opts.MaxConcurrency,
+			ChunkSize:         opts.ChunkSize,
+			Resume:            opts.EnableResume,
+			Timeout:           opts.Timeout,
+			UserAgent:         opts.UserAgent,
+			Headers:           opts.Headers,
+			CreateDirs:        opts.CreateDirs,
+			OverwriteExisting: opts.OverwriteExisting,
+			MaxRate:           opts.MaxRate,
+		}
 
-	// Handle progress callback if provided
-	if opts.ProgressCallback != nil {
-		downloadOptions.ProgressCallback = func(downloaded, total int64, speed int64) {
-			progress := Progress{
-				TotalSize:       total,
-				BytesDownloaded: downloaded,
-				Speed:           speed,
-			}
-			if total > 0 {
-				progress.Percentage = float64(downloaded) / float64(total) * 100
-			}
+		// Handle progress callback if provided
+		if opts.ProgressCallback != nil {
+			downloadOptions.ProgressCallback = func(downloaded, total int64, speed int64) {
+				progress := Progress{
+					TotalSize:       total,
+					BytesDownloaded: downloaded,
+					Speed:           speed,
+				}
+				if total > 0 {
+					progress.Percentage = float64(downloaded) / float64(total) * 100
+				}
 
-			opts.ProgressCallback(progress)
+				opts.ProgressCallback(progress)
+			}
 		}
 	}
 
@@ -407,6 +412,7 @@ func (d *Downloader) Download(ctx context.Context, url, dest string, opts *Optio
 			Headers:           opts.Headers,
 			CreateDirs:        opts.CreateDirs,
 			OverwriteExisting: opts.OverwriteExisting,
+			MaxRate:           opts.MaxRate,
 		}
 
 		// Handle progress callback
@@ -495,6 +501,7 @@ func (d *Downloader) DownloadToWriter(ctx context.Context, url string, w io.Writ
 			Timeout:        opts.Timeout,
 			UserAgent:      opts.UserAgent,
 			Headers:        opts.Headers,
+			MaxRate:        opts.MaxRate,
 		}
 	}
 
