@@ -124,7 +124,7 @@ func ValidateFileSize(size int64) error {
 	}
 
 	// Check against reasonable maximum file size (100GB)
-	const maxFileSize = 100 * 1024 * 1024 * 1024 // 100GB
+	const maxFileSize int64 = 100 * 1024 * 1024 * 1024 // 100GB
 	if size > maxFileSize {
 		return fmt.Errorf("file size %d bytes exceeds maximum allowed size of %d bytes", size, maxFileSize)
 	}
