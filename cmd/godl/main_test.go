@@ -195,6 +195,31 @@ func TestParseArgs(t *testing.T) {
 			args:        []string{"--chunk-size", "invalid", "https://example.com/file.txt"},
 			expectError: true,
 		},
+		{
+			name:        "with max-rate flag",
+			args:        []string{"--max-rate", "1MB/s", "https://example.com/file.txt"},
+			expectedURL: "https://example.com/file.txt",
+			expectedConf: &config{
+				maxRate:   "1MB/s",
+				userAgent: "godl/" + version,
+				timeout:   30 * time.Minute,
+			},
+		},
+		{
+			name:        "with max-rate numeric",
+			args:        []string{"--max-rate", "1024", "https://example.com/file.txt"},
+			expectedURL: "https://example.com/file.txt",
+			expectedConf: &config{
+				maxRate:   "1024",
+				userAgent: "godl/" + version,
+				timeout:   30 * time.Minute,
+			},
+		},
+		{
+			name:        "max-rate validation - invalid format",
+			args:        []string{"--max-rate", "invalid", "https://example.com/file.txt"},
+			expectError: true,
+		},
 	}
 
 	for _, tt := range tests {

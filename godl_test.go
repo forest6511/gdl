@@ -468,3 +468,128 @@ func TestProgressCallback(t *testing.T) {
 		}
 	}
 }
+
+func TestDownloadWithMaxRate(t *testing.T) {
+	// Create a server that serves data in small chunks over time
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", "4096") // 4KB
+		w.WriteHeader(http.StatusOK)
+
+		// Write data in chunks with small delays to simulate network latency
+		chunkSize := 1024 // 1KB chunks
+		data := make([]byte, chunkSize)
+		for i := range data {
+			data[i] = byte(i % 256)
+		}
+
+		// Write 4 chunks of 1KB each
+		for i := 0; i < 4; i++ {
+			_, _ = w.Write(data)
+			if flusher, ok := w.(http.Flusher); ok {
+				flusher.Flush()
+			}
+			time.Sleep(10 * time.Millisecond) // Small delay between chunks
+		}
+	}))
+	defer server.Close()
+
+	// Test with conservative rate limiting
+	opts := &Options{
+		MaxRate: 2048, // 2KB/s - should allow download but with some throttling
+	}
+
+	tmpDir, _ := os.MkdirTemp("", "godl_test")
+	defer os.RemoveAll(tmpDir)
+	dest := filepath.Join(tmpDir, "maxrate_test.txt")
+
+	start := time.Now()
+	stats, err := DownloadWithOptions(context.Background(), server.URL, dest, opts)
+	duration := time.Since(start)
+
+	if err != nil {
+		t.Errorf("DownloadWithOptions() with MaxRate error = %v", err)
+	}
+
+	if stats == nil {
+		t.Error("Expected stats to be returned, got nil")
+	}
+
+	// Verify file was downloaded correctly
+	fileInfo, err := os.Stat(dest)
+	if err != nil {
+		t.Errorf("Failed to stat downloaded file: %v", err)
+	}
+
+	if fileInfo.Size() != 4096 {
+		t.Errorf("Expected file size 4096, got %d", fileInfo.Size())
+	}
+
+	t.Logf("Download completed in %v with rate limiting applied (file size: %d bytes)", duration, fileInfo.Size())
+}
+
+func TestDownloadWithUnlimitedRate(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("unlimited rate test"))
+	}))
+	defer server.Close()
+
+	// Test with unlimited rate (0)
+	opts := &Options{
+		MaxRate: 0, // Unlimited
+	}
+
+	tmpDir, _ := os.MkdirTemp("", "godl_test")
+	defer os.RemoveAll(tmpDir)
+	dest := filepath.Join(tmpDir, "unlimited_test.txt")
+
+	stats, err := DownloadWithOptions(context.Background(), server.URL, dest, opts)
+	if err != nil {
+		t.Errorf("DownloadWithOptions() with unlimited rate error = %v", err)
+	}
+
+	if stats == nil {
+		t.Error("Expected stats to be returned, got nil")
+	}
+
+	content, err := os.ReadFile(dest)
+	if err != nil {
+		t.Fatalf("Failed to read downloaded file: %v", err)
+	}
+
+	if string(content) != "unlimited rate test" {
+		t.Errorf("Expected content \"unlimited rate test\", got %q", string(content))
+	}
+}
+
+func TestDownloadToWriterWithMaxRate(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("writer rate test"))
+	}))
+	defer server.Close()
+
+	opts := &Options{
+		MaxRate: 1024, // 1KB/s
+	}
+
+	var buf bytes.Buffer
+	stats, err := DownloadToWriterWithOptions(context.Background(), server.URL, &buf, opts)
+	if err != nil {
+		t.Errorf("DownloadToWriterWithOptions() with MaxRate error = %v", err)
+	}
+
+	if stats == nil {
+		t.Error("Expected stats to be returned, got nil")
+	}
+
+	if buf.String() != "writer rate test" {
+		t.Errorf("Expected content \"writer rate test\", got %q", buf.String())
+	}
+}
+
+// Helper function for DownloadToWriterWithOptions
+func DownloadToWriterWithOptions(ctx context.Context, url string, w io.Writer, opts *Options) (*DownloadStats, error) {
+	downloader := NewDownloader()
+	return downloader.DownloadToWriter(ctx, url, w, opts)
+}

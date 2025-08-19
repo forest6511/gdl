@@ -227,7 +227,7 @@ func TestDownloadChunk(t *testing.T) {
 			worker.ChunkInfo = tt.chunk
 			worker.Progress = progressChan
 
-			err := worker.downloadChunk()
+			err := worker.downloadChunk(context.Background())
 			if err != nil {
 				t.Fatalf("downloadChunk() error = %v", err)
 			}
@@ -318,7 +318,7 @@ func TestDownloadChunkWithRetry(t *testing.T) {
 			errorChan := make(chan error, 10)
 			worker.Error = errorChan
 
-			err := worker.downloadChunk()
+			err := worker.downloadChunk(context.Background())
 
 			if tt.expectSuccess {
 				if err != nil {

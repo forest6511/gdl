@@ -28,25 +28,37 @@ echo "Command: ./godl --concurrent 4 --chunk-size 2KB -o chunks_test.bin https:/
 echo "✓ Custom chunk size download completed"
 echo ""
 
-echo "4. Force Single-threaded Download:"
+echo "4. Download with Bandwidth Throttling:"
+echo "Command: ./godl --max-rate 50KB/s -o throttled_test.bin https://httpbin.org/bytes/8192"
+./godl --max-rate 50KB/s -o throttled_test.bin https://httpbin.org/bytes/8192
+echo "✓ Bandwidth throttled download completed"
+echo ""
+
+echo "5. Download with Bandwidth + Concurrency:"
+echo "Command: ./godl --concurrent 4 --max-rate 100KB/s -o throttled_concurrent.bin https://httpbin.org/bytes/16384"
+./godl --concurrent 4 --max-rate 100KB/s -o throttled_concurrent.bin https://httpbin.org/bytes/16384
+echo "✓ Throttled concurrent download completed"
+echo ""
+
+echo "6. Force Single-threaded Download:"
 echo "Command: ./godl --no-concurrent -o single_thread.bin https://httpbin.org/bytes/4096"
 ./godl --no-concurrent -o single_thread.bin https://httpbin.org/bytes/4096
 echo "✓ Single-threaded download completed"
 echo ""
 
-echo "5. Download with Retry Configuration:"
+echo "7. Download with Retry Configuration:"
 echo "Command: ./godl --retry 5 --retry-delay 2s -o retry_test.json https://httpbin.org/json"
 ./godl --retry 5 --retry-delay 2s -o retry_test.json https://httpbin.org/json
 echo "✓ Retry configuration download completed"
 echo ""
 
-echo "6. Download with Maximum Redirects:"
+echo "8. Download with Maximum Redirects:"
 echo "Command: ./godl --max-redirects 5 -o redirect_test.json https://httpbin.org/redirect/2"
 ./godl --max-redirects 5 -o redirect_test.json https://httpbin.org/redirect/2
 echo "✓ Maximum redirects download completed"
 echo ""
 
-echo "7. Download with Different Progress Bar Types:"
+echo "9. Download with Different Progress Bar Types:"
 echo "Command: ./godl --progress-bar simple -o progress_simple.bin https://httpbin.org/bytes/8192"
 ./godl --progress-bar simple -o progress_simple.bin https://httpbin.org/bytes/8192
 echo ""

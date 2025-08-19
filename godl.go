@@ -44,6 +44,7 @@ type Options struct {
 	OverwriteExisting bool
 	Quiet             bool
 	Verbose           bool
+	MaxRate           int64 // Maximum download rate in bytes per second (0 = unlimited)
 }
 
 // DownloadStats contains statistics about a download operation.
@@ -187,6 +188,7 @@ func DownloadWithOptions(ctx context.Context, url, dest string, opts *Options) (
 		Headers:           opts.Headers,
 		CreateDirs:        opts.CreateDirs,
 		OverwriteExisting: opts.OverwriteExisting,
+		MaxRate:           opts.MaxRate,
 	}
 
 	// Handle progress callback if provided
@@ -407,6 +409,7 @@ func (d *Downloader) Download(ctx context.Context, url, dest string, opts *Optio
 			Headers:           opts.Headers,
 			CreateDirs:        opts.CreateDirs,
 			OverwriteExisting: opts.OverwriteExisting,
+			MaxRate:           opts.MaxRate,
 		}
 
 		// Handle progress callback
@@ -495,6 +498,7 @@ func (d *Downloader) DownloadToWriter(ctx context.Context, url string, w io.Writ
 			Timeout:        opts.Timeout,
 			UserAgent:      opts.UserAgent,
 			Headers:        opts.Headers,
+			MaxRate:        opts.MaxRate,
 		}
 	}
 

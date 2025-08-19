@@ -68,6 +68,7 @@ godl --help
 |------|-----------|-------------|---------|
 | `-c` | `--concurrent` | Number of concurrent connections | 4 |
 | | `--chunk-size` | Chunk size for concurrent downloads | auto |
+| | `--max-rate` | Maximum download rate (e.g., 1MB/s, 500k) | unlimited |
 | | `--no-concurrent` | Force single-threaded download | false |
 | | `--resume` | Resume partial downloads if supported | false |
 | | `--no-resume` | Disable resume functionality | false |
@@ -143,6 +144,10 @@ godl -c 8 https://example.com/large-file.iso
 
 # Specify chunk size
 godl --concurrent 4 --chunk-size 2MB https://example.com/file.zip
+
+# Limit download rate
+godl --max-rate 1MB/s https://example.com/large-file.zip
+godl --max-rate 500k --concurrent 2 https://example.com/file.zip
 
 # Disable concurrent download
 godl --no-concurrent https://example.com/file.zip
@@ -234,6 +239,7 @@ godl --interactive -o existing.zip https://example.com/file.zip
 godl \
   --concurrent 8 \
   --chunk-size 4MB \
+  --max-rate 2MB/s \
   --resume \
   --retry 5 \
   --retry-delay 3s \
@@ -298,7 +304,7 @@ headers:
 ```bash
 # Add to ~/.bashrc
 complete -W "--help --version --output --force --concurrent --chunk-size \
-  --resume --retry --timeout --quiet --verbose" godl
+  --max-rate --resume --retry --timeout --quiet --verbose" godl
 ```
 
 ### Aliases
@@ -322,6 +328,7 @@ download() {
     godl \
         --resume \
         --concurrent 8 \
+        --max-rate 5MB/s \
         --retry 3 \
         --create-dirs \
         -o "$filename" \

@@ -117,6 +117,10 @@ type DownloadOptions struct {
 
 	// ProxyURL specifies the HTTP proxy URL to use for requests.
 	ProxyURL string
+
+	// MaxRate specifies the maximum download rate in bytes per second.
+	// A value of 0 means unlimited bandwidth.
+	MaxRate int64
 }
 
 // DownloadStats contains statistics about a completed or failed download.

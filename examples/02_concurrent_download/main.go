@@ -106,32 +106,48 @@ func main() {
 		name        string
 		maxConns    int
 		chunkSize   int64
+		maxRate     int64
 		description string
 	}{
 		{
 			name:        "balanced",
 			maxConns:    4,
 			chunkSize:   128 * 1024, // 128KB
+			maxRate:     0,          // Unlimited
 			description: "Balanced configuration (4 connections, 128KB chunks)",
+		},
+		{
+			name:        "rate_limited",
+			maxConns:    4,
+			chunkSize:   128 * 1024, // 128KB
+			maxRate:     512 * 1024, // 512KB/s
+			description: "Rate limited configuration (4 connections, 512KB/s limit)",
 		},
 		{
 			name:        "aggressive",
 			maxConns:    8,
 			chunkSize:   256 * 1024, // 256KB
+			maxRate:     0,          // Unlimited
 			description: "Aggressive configuration (8 connections, 256KB chunks)",
 		},
 		{
 			name:        "max_performance",
 			maxConns:    16,
 			chunkSize:   512 * 1024, // 512KB
+			maxRate:     0,          // Unlimited
 			description: "Maximum performance (16 connections, 512KB chunks)",
 		},
 	}
 
 	for _, config := range concurrentConfigs {
 		fmt.Printf("🔧 Configuration: %s\n", config.description)
-		fmt.Printf("   MaxConcurrency: %d, ChunkSize: %s\n",
-			config.maxConns, formatBytes(config.chunkSize))
+		if config.maxRate > 0 {
+			fmt.Printf("   MaxConcurrency: %d, ChunkSize: %s, MaxRate: %s/s\n",
+				config.maxConns, formatBytes(config.chunkSize), formatBytes(config.maxRate))
+		} else {
+			fmt.Printf("   MaxConcurrency: %d, ChunkSize: %s, MaxRate: unlimited\n",
+				config.maxConns, formatBytes(config.chunkSize))
+		}
 		fmt.Println()
 
 		for _, testFile := range testFiles {
@@ -142,6 +158,7 @@ func main() {
 			opts := &godl.Options{
 				MaxConcurrency:    config.maxConns,
 				ChunkSize:         config.chunkSize,
+				MaxRate:           config.maxRate,
 				OverwriteExisting: true,
 				UserAgent:         "godl-concurrent-example/1.0",
 				Headers: map[string]string{

@@ -21,6 +21,7 @@ import (
 	"github.com/forest6511/godl/internal/storage"
 	"github.com/forest6511/godl/pkg/errors"
 	"github.com/forest6511/godl/pkg/progress"
+	"github.com/forest6511/godl/pkg/ratelimit"
 	"github.com/forest6511/godl/pkg/types"
 )
 
@@ -1253,6 +1254,14 @@ func (d *Downloader) downloadContent(
 ) (int64, error) {
 	buffer := make([]byte, options.ChunkSize)
 
+	// Create rate limiter if max rate is specified
+	var rateLimiter ratelimit.Limiter
+	if options.MaxRate > 0 {
+		rateLimiter = ratelimit.NewBandwidthLimiter(options.MaxRate)
+	} else {
+		rateLimiter = ratelimit.NewNullLimiter()
+	}
+
 	var totalBytes int64
 
 	lastProgressUpdate := time.Now()
@@ -1272,6 +1281,15 @@ func (d *Downloader) downloadContent(
 		// Read chunk
 		n, err := src.Read(buffer)
 		if n > 0 {
+			// Apply rate limiting before writing
+			if rateLimiterErr := rateLimiter.Wait(ctx, n); rateLimiterErr != nil {
+				return totalBytes, errors.WrapError(
+					rateLimiterErr,
+					errors.CodeCancelled,
+					"Download cancelled during rate limiting",
+				)
+			}
+
 			// Write chunk
 			written, writeErr := dst.Write(buffer[:n])
 			if writeErr != nil {

@@ -6,6 +6,8 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/forest6511/godl/pkg/ratelimit"
 )
 
 type Progress struct {
@@ -17,12 +19,13 @@ type Progress struct {
 }
 
 type Worker struct {
-	ID        int
-	Client    *http.Client
-	ChunkInfo *ChunkInfo
-	URL       string
-	Progress  chan<- Progress
-	Error     chan<- error
+	ID          int
+	Client      *http.Client
+	ChunkInfo   *ChunkInfo
+	URL         string
+	Progress    chan<- Progress
+	Error       chan<- error
+	RateLimiter ratelimit.Limiter // Shared rate limiter across all workers
 }
 
 // NewWorker creates a new download worker.
@@ -49,7 +52,7 @@ func (w *Worker) Download(ctx context.Context) error {
 	}
 
 	// Try download with retry logic
-	err := w.downloadChunk()
+	err := w.downloadChunk(ctx)
 	if err != nil {
 		if w.Error != nil {
 			w.Error <- fmt.Errorf("worker %d failed chunk %d: %w", w.ID, w.ChunkInfo.Index, err)
@@ -76,7 +79,7 @@ func (w *Worker) Download(ctx context.Context) error {
 }
 
 // downloadChunk performs the actual chunk download with retry logic.
-func (w *Worker) downloadChunk() error {
+func (w *Worker) downloadChunk(ctx context.Context) error {
 	maxRetries := 3
 	baseDelay := 100 * time.Millisecond
 
@@ -93,7 +96,7 @@ func (w *Worker) downloadChunk() error {
 		}
 
 		// Attempt download
-		err := w.performDownload()
+		err := w.performDownload(ctx)
 		if err == nil {
 			return nil
 		}
@@ -114,7 +117,7 @@ func (w *Worker) downloadChunk() error {
 }
 
 // performDownload performs a single download attempt.
-func (w *Worker) performDownload() error {
+func (w *Worker) performDownload(ctx context.Context) error {
 	// Create range request
 	req, err := http.NewRequest("GET", w.URL, nil)
 	if err != nil {
@@ -145,6 +148,13 @@ func (w *Worker) performDownload() error {
 		// Read from response body
 		n, err := resp.Body.Read(buffer)
 		if n > 0 {
+			// Apply rate limiting if a limiter is set
+			if w.RateLimiter != nil {
+				if rateLimiterErr := w.RateLimiter.Wait(ctx, n); rateLimiterErr != nil {
+					return fmt.Errorf("rate limiting error: %w", rateLimiterErr)
+				}
+			}
+
 			// Update downloaded bytes
 			w.ChunkInfo.Downloaded += int64(n)
 

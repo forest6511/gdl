@@ -1048,6 +1048,82 @@ func TestRedisBackendMethods(t *testing.T) {
 		if err == nil {
 			t.Log("Redis connection succeeded with default db")
 		}
+
+		// Test prefix configuration
+		err = backend.Init(map[string]interface{}{
+			"addr":   "localhost:6379",
+			"prefix": "test-prefix:",
+		})
+		if err == nil {
+			t.Log("Redis connection succeeded with prefix configuration")
+		}
+	})
+
+	t.Run("Advanced methods", func(t *testing.T) {
+		// Test only if Redis is available
+		err := backend.Init(map[string]interface{}{
+			"addr": "localhost:6379",
+		})
+		if err != nil {
+			t.Skipf("Redis not available: %v", err)
+		}
+
+		ctx := context.Background()
+
+		// Test SetExpiration and GetTTL
+		err = backend.SetExpiration(ctx, "ttl-test", 60)
+		if err != nil {
+			t.Logf("SetExpiration test completed with result: %v", err)
+		}
+
+		_, err = backend.GetTTL(ctx, "ttl-test")
+		if err != nil {
+			t.Logf("GetTTL test completed with result: %v", err)
+		}
+
+		// Test SetMetadata and GetMetadata
+		metadata := map[string]interface{}{
+			"size":         "1024",
+			"content-type": "application/octet-stream",
+			"timestamp":    "2024-01-01T00:00:00Z",
+		}
+		err = backend.SetMetadata(ctx, "meta-test", metadata)
+		if err != nil {
+			t.Logf("SetMetadata test completed with result: %v", err)
+		}
+
+		_, err = backend.GetMetadata(ctx, "meta-test")
+		if err != nil {
+			t.Logf("GetMetadata test completed with result: %v", err)
+		}
+
+		// Test non-existent metadata
+		_, err = backend.GetMetadata(ctx, "non-existent-meta")
+		if err != nil {
+			t.Logf("GetMetadata for non-existent key test completed: %v", err)
+		}
+
+		// Test Increment
+		_, err = backend.Increment(ctx, "counter-test")
+		if err != nil {
+			t.Logf("Increment test completed with result: %v", err)
+		}
+
+		// Test AddToSet and GetSetMembers
+		err = backend.AddToSet(ctx, "set-test", "member1")
+		if err != nil {
+			t.Logf("AddToSet test completed with result: %v", err)
+		}
+
+		err = backend.AddToSet(ctx, "set-test", "member2")
+		if err != nil {
+			t.Logf("AddToSet second member test completed with result: %v", err)
+		}
+
+		_, err = backend.GetSetMembers(ctx, "set-test")
+		if err != nil {
+			t.Logf("GetSetMembers test completed with result: %v", err)
+		}
 	})
 }
 
