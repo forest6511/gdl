@@ -152,6 +152,10 @@ dockers:
       - 'ghcr.io/forest6511/{{ .ProjectName }}:v{{ .Major }}.{{ .Minor }}'
       - 'ghcr.io/forest6511/{{ .ProjectName }}:latest'
     dockerfile: docker/Dockerfile
+    use: buildx
+    extra_files:
+      - go.mod
+      - go.sum
     build_flag_templates:
       - "--pull"
       - "--label=org.opencontainers.image.created={{.Date}}"
