@@ -169,28 +169,30 @@ dockers:
       - "--label=org.opencontainers.image.source=https://github.com/forest6511/gdl"
       - "--label=org.opencontainers.image.licenses=MIT"
 
-brews:
-  - repository:
-      owner: forest6511
-      name: homebrew-tap
-      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    directory: Formula
-    homepage: https://github.com/forest6511/gdl
-    description: Fast, concurrent file downloader for Go
-    license: MIT
-    test: |
-      system "#{bin}/gdl", "--version"
-    install: |
-      bin.install "gdl"
+# Homebrew tap is manually managed in separate repository
+# brews:
+#   - repository:
+#       owner: forest6511
+#       name: homebrew-tap
+#       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+#     directory: Formula
+#     homepage: https://github.com/forest6511/gdl
+#     description: Fast, concurrent file downloader for Go
+#     license: MIT
+#     test: |
+#       system "#{bin}/gdl", "--version"
+#     install: |
+#       bin.install "gdl"
 
-scoops:
-  - repository:
-      owner: forest6511
-      name: scoop-bucket
-      token: "{{ .Env.SCOOP_GITHUB_TOKEN }}"
-    homepage: https://github.com/forest6511/gdl
-    description: Fast, concurrent file downloader for Go
-    license: MIT
+# Scoop bucket not currently maintained
+# scoops:
+#   - repository:
+#       owner: forest6511
+#       name: scoop-bucket
+#       token: "{{ .Env.SCOOP_GITHUB_TOKEN }}"
+#     homepage: https://github.com/forest6511/gdl
+#     description: Fast, concurrent file downloader for Go
+#     license: MIT
 
 # Disabled SBOM generation - requires syft to be installed
 # sboms:
