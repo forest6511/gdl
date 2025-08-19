@@ -42,6 +42,7 @@ build/
 *.download
 *.tmp
 testdata/downloads/
+release_notes.md
 
 # Environment variables
 .env
