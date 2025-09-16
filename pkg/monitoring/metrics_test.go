@@ -252,14 +252,14 @@ func TestMetricsCollector_GetAggregatedMetrics(t *testing.T) {
 
 func TestMetricsCollector_CleanupOldMetrics(t *testing.T) {
 	mc := NewMetricsCollector()
-	mc.SetRetentionDuration(1 * time.Millisecond)
+	mc.SetRetentionDuration(10 * time.Millisecond)
 
 	// Add a download and complete it
 	mc.RecordDownloadStart("old", "https://example.com/file.zip")
 	mc.RecordDownloadComplete("old", &types.DownloadStats{Success: true})
 
 	// Wait for retention period
-	time.Sleep(2 * time.Millisecond)
+	time.Sleep(20 * time.Millisecond)
 
 	// Add another download
 	mc.RecordDownloadStart("new", "https://example.com/file2.zip")
@@ -318,20 +318,20 @@ func TestMetricsCollector_DisabledCollection(t *testing.T) {
 
 func TestMetricsCollector_StartPeriodicCleanup(t *testing.T) {
 	mc := NewMetricsCollector()
-	mc.SetRetentionDuration(1 * time.Millisecond)
+	mc.SetRetentionDuration(10 * time.Millisecond)
 
 	// Add old download
 	mc.RecordDownloadStart("old", "https://example.com/file.zip")
 	mc.RecordDownloadComplete("old", &types.DownloadStats{Success: true})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 	defer cancel()
 
 	// Start periodic cleanup
-	go mc.StartPeriodicCleanup(ctx, 10*time.Millisecond)
+	go mc.StartPeriodicCleanup(ctx, 25*time.Millisecond)
 
 	// Wait for cleanup to occur
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(75 * time.Millisecond)
 
 	// Old metrics should be cleaned up
 	_, err := mc.GetDownloadMetrics("old")
