@@ -460,7 +460,11 @@ func HealthCheckExample() {
 
 	// Test basic download functionality
 	tempFile := filepath.Join(os.TempDir(), "health_check.dat")
-	defer os.Remove(tempFile)
+	defer func() {
+		if err := os.Remove(tempFile); err != nil {
+			log.Printf("Warning: failed to remove temp file %s: %v", tempFile, err)
+		}
+	}()
 
 	start := time.Now()
 	stats, err := gdl.Download(ctx, "https://httpbin.org/bytes/1024", tempFile)
@@ -501,7 +505,11 @@ func ErrorHandlingExample() {
 		log.Printf("\nTesting: %s (%s)", test.name, test.desc)
 
 		tempFile := filepath.Join(os.TempDir(), fmt.Sprintf("error_test_%s.dat", test.name))
-		defer os.Remove(tempFile)
+		defer func(file string) {
+			if err := os.Remove(file); err != nil {
+				log.Printf("Warning: failed to remove temp file %s: %v", file, err)
+			}
+		}(tempFile)
 
 		// Use short timeout for timeout test
 		testCtx := ctx
