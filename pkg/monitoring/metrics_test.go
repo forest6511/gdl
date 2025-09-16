@@ -132,6 +132,9 @@ func TestMetricsCollector_RecordDownloadComplete(t *testing.T) {
 	id := "test-download"
 	mc.RecordDownloadStart(id, "https://example.com/file.zip")
 
+	// Wait a bit to ensure duration calculation works on Windows
+	time.Sleep(1 * time.Millisecond)
+
 	// Simulate completion
 	stats := &types.DownloadStats{
 		Success:         true,
@@ -176,6 +179,9 @@ func TestMetricsCollector_RecordDownloadCompleteWithError(t *testing.T) {
 
 	id := "test-download"
 	mc.RecordDownloadStart(id, "https://example.com/file.zip")
+
+	// Wait a bit to ensure duration calculation works on Windows
+	time.Sleep(1 * time.Millisecond)
 
 	// Simulate failure
 	testError := errors.New("connection timeout")
