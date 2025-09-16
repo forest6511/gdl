@@ -57,6 +57,8 @@ gdl/
 │   │   └── main.go
 │   ├── 05_error_handling/      # Error handling examples
 │   │   └── main.go
+│   ├── 06_production_usage/    # Production-ready patterns with monitoring
+│   │   └── main.go
 │   ├── cli/                    # CLI usage examples
 │   │   ├── basic_cli_examples.sh
 │   │   └── advanced_cli_examples.sh
@@ -160,6 +162,9 @@ gdl/
 │   │   ├── registry.go         # Protocol registry
 │   │   ├── handlers.go         # Protocol handlers
 │   │   └── protocols_test.go   # Protocol tests
+│   ├── monitoring/             # Performance monitoring
+│   │   ├── metrics.go          # Metrics collection
+│   │   └── metrics_test.go     # Metrics tests
 │   ├── storage/                # Storage management
 │   │   ├── manager.go          # Storage manager
 │   │   ├── backends.go         # Storage backends

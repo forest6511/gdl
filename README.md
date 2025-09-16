@@ -21,6 +21,7 @@ A fast, concurrent, and feature-rich file downloader library and CLI tool writte
 - **📱 User-Friendly**: Interactive prompts and helpful error messages
 - **🔌 Plugin System**: Extensible plugin architecture for custom functionality
 - **🎯 Event-Driven**: Hook into download lifecycle events
+- **📊 Performance Monitoring**: Metrics collection and aggregation for production use
 - **🔐 Security**: Built-in security constraints and validation
 
 ## 📦 Installation
@@ -193,6 +194,7 @@ Complete working examples are available in the [`examples/`](examples/) director
 - **[Progress Tracking](examples/03_progress_tracking/)** - Real-time progress monitoring
 - **[Resume Support](examples/04_resume_functionality/)** - Interrupt and resume downloads
 - **[Error Handling](examples/05_error_handling/)** - Robust error recovery
+- **[Production Usage](examples/06_production_usage/)** - Production-ready patterns with monitoring
 - **[CLI Examples](examples/cli/)** - Command-line usage patterns
 - **[Integration Tests](examples/integration/)** - Feature verification
 - **[Plugin Examples](examples/plugins/)** - Custom plugin development
@@ -206,6 +208,7 @@ cd examples/02_concurrent_download && go run main.go
 cd examples/03_progress_tracking && go run main.go
 cd examples/04_resume_functionality && go run main.go
 cd examples/05_error_handling && go run main.go
+cd examples/06_production_usage && go run main.go
 
 # Interface examples
 cd examples/cli
@@ -266,6 +269,7 @@ go build -buildmode=plugin -o s3.so
 | Middleware support | ❌ | ✅ | Request/response processing |
 | Event system | ❌ | ✅ | Download lifecycle events |
 | Custom storage | ❌ | ✅ | Pluggable storage backends |
+| Performance monitoring | ❌ | ✅ | Metrics collection and aggregation |
 
 ### Legend
 - ✅ **Fully supported** - Feature is available and fully functional
@@ -310,6 +314,7 @@ For the complete project structure, see [Directory Structure](docs/DIRECTORY_STR
 - **Event System** (`pkg/events`): Download lifecycle events
 - **Middleware Layer** (`pkg/middleware`): Request/response processing
 - **Protocol Registry** (`pkg/protocols`): Custom protocol handlers
+- **Monitoring System** (`pkg/monitoring`): Performance metrics and analytics
 - **CLI Interface** (`cmd/gdl`): Command-line tool implementation
 
 ### Plugin Architecture
