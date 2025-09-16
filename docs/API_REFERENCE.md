@@ -362,6 +362,136 @@ if stats.Resumed {
 }
 ```
 
+## Monitoring System
+
+The monitoring package provides comprehensive metrics collection and aggregation for production deployments.
+
+### MetricsCollector
+
+```go
+import "github.com/forest6511/gdl/pkg/monitoring"
+
+// Create a new metrics collector
+mc := monitoring.NewMetricsCollector()
+
+// Enable/disable metrics collection
+mc.Enable()
+mc.Disable()
+
+// Set metrics retention duration
+mc.SetRetentionDuration(24 * time.Hour)
+
+// Record download lifecycle
+mc.RecordDownloadStart("download-123", "https://example.com/file.zip")
+mc.RecordDownloadProgress("download-123", 5120, 10240, 1024) // bytes downloaded, total, speed
+mc.RecordDownloadComplete("download-123", &types.DownloadStats{
+    Success:      true,
+    TotalSize:    10240,
+    AverageSpeed: 1024,
+    Retries:      1,
+})
+
+// Get individual download metrics
+metrics, err := mc.GetDownloadMetrics("download-123")
+if err == nil {
+    fmt.Printf("Downloaded %d bytes in %v\n", metrics.BytesDownloaded, metrics.Duration)
+}
+
+// Get aggregated metrics
+aggregated := mc.GetAggregatedMetrics()
+fmt.Printf("Success rate: %.2f%%\n", aggregated.SuccessRate * 100)
+fmt.Printf("Average speed: %.2f MB/s\n", aggregated.AverageSpeed / (1024*1024))
+
+// Export metrics for external systems
+exported := mc.ExportMetrics()
+// exported contains structured data ready for JSON marshaling
+
+// Get real-time performance snapshot
+snapshot := mc.GetPerformanceSnapshot()
+fmt.Printf("Active downloads: %d\n", snapshot.ActiveDownloads)
+```
+
+### Production Usage with Monitoring
+
+```go
+// Production downloader with monitoring
+import (
+    "github.com/forest6511/gdl"
+    "github.com/forest6511/gdl/pkg/monitoring"
+)
+
+type ProductionDownloader struct {
+    downloader *gdl.Downloader
+    metrics    *monitoring.MetricsCollector
+}
+
+func NewProductionDownloader() *ProductionDownloader {
+    return &ProductionDownloader{
+        downloader: gdl.NewDownloader(),
+        metrics:    monitoring.NewMetricsCollector(),
+    }
+}
+
+func (pd *ProductionDownloader) DownloadWithMonitoring(ctx context.Context, id, url, dest string) error {
+    // Record download start
+    pd.metrics.RecordDownloadStart(id, url)
+
+    // Configure options with progress tracking
+    options := &gdl.Options{
+        ProgressCallback: func(progress gdl.Progress) {
+            pd.metrics.RecordDownloadProgress(id,
+                progress.BytesDownloaded,
+                progress.TotalSize,
+                progress.Speed)
+        },
+    }
+
+    // Perform download
+    stats, err := pd.downloader.DownloadWithOptions(ctx, url, dest, options)
+
+    // Record completion (success or failure)
+    pd.metrics.RecordDownloadComplete(id, stats)
+
+    return err
+}
+```
+
+### Metrics Data Types
+
+```go
+type DownloadMetrics struct {
+    ID              string
+    URL             string
+    StartTime       time.Time
+    EndTime         time.Time
+    Duration        time.Duration
+    TotalBytes      int64
+    BytesDownloaded int64
+    AverageSpeed    int64
+    MaxSpeed        int64
+    MinSpeed        int64
+    RetryCount      int
+    ChunksUsed      int
+    Success         bool
+    ErrorType       string
+    ErrorMessage    string
+    Protocol        string
+}
+
+type AggregatedMetrics struct {
+    TotalDownloads      int64
+    SuccessfulDownloads int64
+    FailedDownloads     int64
+    TotalBytes          int64
+    AverageSpeed        float64
+    ThroughputMBps      float64
+    SuccessRate         float64
+    ProtocolBreakdown   map[string]int64
+    ErrorBreakdown      map[string]int64
+    LastUpdated         time.Time
+}
+```
+
 ## Plugin System
 
 ### Extensible Downloader
