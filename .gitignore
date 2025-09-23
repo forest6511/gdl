@@ -19,6 +19,7 @@ coverage.txt
 coverage.html
 coverage*
 *.txt
+*.prof
 
 # Dependency directories
 vendor/
@@ -52,6 +53,9 @@ release_notes.md
 .claude/settings.local.json    # Local overrides only
 .serena
 .mcp.json
+claudedocs/                    # Claude Code documentation and analysis
+benchmark_test/                # Benchmark analysis results
+benchmark_analysis.md          # Benchmark analysis summary
 
 # Keep these AI config files in git:
 # .claude/CLAUDE.md           - Development guidelines

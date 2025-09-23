@@ -49,10 +49,26 @@ type Downloader struct {
 	recoveryAdvisor *recovery.RecoveryAdvisor
 	logger          *log.Logger
 	enableLogging   bool
+	lightweight     *LightweightDownloader
+	zeroCopy        *ZeroCopyDownloader
+	bufferPool      *BufferPool
+	connectionPool  *network.ConnectionPool
+	platformInfo    *PlatformInfo
 }
 
 // NewDownloader creates a new Downloader instance with default settings.
 func NewDownloader() *Downloader {
+	// Detect platform and apply optimizations
+	platformInfo := DetectPlatform()
+
+	// Create optimized HTTP client for platform
+	client := network.CreateOptimizedClient(DefaultTimeout)
+
+	// Apply platform optimizations to the HTTP transport
+	if transport, ok := client.Transport.(*http.Transport); ok {
+		ApplyPlatformOptimizations(transport)
+	}
+
 	retryManager := retry.NewRetryManager().
 		WithMaxRetries(3).
 		WithBaseDelay(100 * time.Millisecond).
@@ -61,15 +77,21 @@ func NewDownloader() *Downloader {
 		WithJitter(true)
 
 	return &Downloader{
-		client: &http.Client{
-			Timeout: DefaultTimeout,
-		},
+		client:          client,
 		retryManager:    retryManager,
 		spaceChecker:    storage.NewSpaceChecker(),
 		networkDiag:     network.NewDiagnostics(),
 		recoveryAdvisor: recovery.NewRecoveryAdvisor(),
 		logger:          log.New(os.Stderr, "[GODL] ", log.LstdFlags),
 		enableLogging:   false, // Disabled by default, can be enabled via WithLogging
+		lightweight:     NewLightweightDownloader(),
+		zeroCopy:        NewZeroCopyDownloader(),
+		bufferPool:      GlobalBufferPool,
+		connectionPool: network.NewConnectionPool(
+			platformInfo.Optimizations.MaxConnections,
+			platformInfo.Optimizations.MaxConnections,
+		),
+		platformInfo: platformInfo,
 	}
 }
 
@@ -613,6 +635,24 @@ func (d *Downloader) performDownloadAttempt(
 		return d.performSimpleDownload(ctx, url, destination, options)
 	}
 
+	// Check if we should use lightweight mode for small files
+	// Only use lightweight mode when resume is not enabled
+	if !options.Resume && shouldUseLightweight(fileInfo.Size) {
+		d.logInfo("using_lightweight_mode", "Using lightweight mode for small file", map[string]interface{}{
+			"size": fileInfo.Size,
+		})
+		return d.performLightweightDownload(ctx, url, destination, options)
+	}
+
+	// Check if we should use zero-copy mode for large files (platform-aware)
+	if !options.Resume && d.platformInfo.Optimizations.UseZeroCopy && ShouldUseZeroCopyPlatform(fileInfo.Size) {
+		d.logInfo("using_zerocopy_mode", "Using zero-copy mode for large file", map[string]interface{}{
+			"size":     fileInfo.Size,
+			"platform": GetPlatformString(),
+		})
+		return d.performZeroCopyDownload(ctx, url, destination, options)
+	}
+
 	// Check disk space with actual file size
 	if fileInfo.Size > 0 {
 		if err := d.checkDiskSpace(destination, uint64(fileInfo.Size)); err != nil {
@@ -992,8 +1032,17 @@ func (d *Downloader) DownloadToWriter(
 	// Set request headers
 	d.setRequestHeaders(req, options)
 
+	// Get client from connection pool for better performance
+	parsedURL, parseErr := parseURL(url)
+	var client *http.Client
+	if parseErr == nil && parsedURL != nil && d.connectionPool != nil {
+		client = d.connectionPool.GetClient(parsedURL.Host, DefaultTimeout)
+	} else {
+		client = d.client
+	}
+
 	// Perform the HTTP request
-	resp, err := d.client.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		downloadErr := d.handleHTTPError(err, url)
 		stats.Error = downloadErr
@@ -1018,6 +1067,9 @@ func (d *Downloader) DownloadToWriter(
 	contentLength := resp.ContentLength
 	if contentLength > 0 {
 		stats.TotalSize = contentLength
+
+		// Optimize download options based on actual content length
+		optimizeOptionsForContentLength(options, contentLength)
 	}
 
 	// Create progress reader if callback is available
@@ -1156,7 +1208,11 @@ func (d *Downloader) validateURL(rawURL string) error {
 // setDefaultOptions sets default values for download options.
 func (d *Downloader) setDefaultOptions(options *types.DownloadOptions) {
 	if options.ChunkSize <= 0 {
-		options.ChunkSize = DefaultChunkSize
+		// Use platform-optimized buffer size
+		options.ChunkSize = int64(d.platformInfo.Optimizations.BufferSize)
+		if options.ChunkSize <= 0 {
+			options.ChunkSize = DefaultChunkSize
+		}
 	}
 
 	if options.UserAgent == "" {
@@ -1169,6 +1225,15 @@ func (d *Downloader) setDefaultOptions(options *types.DownloadOptions) {
 
 	if options.Headers == nil {
 		options.Headers = make(map[string]string)
+	}
+
+	// Set default MaxConcurrency based on platform
+	// This will be further optimized when Content-Length is known
+	if options.MaxConcurrency == 0 {
+		options.MaxConcurrency = d.platformInfo.Optimizations.Concurrency
+		if options.MaxConcurrency <= 0 {
+			options.MaxConcurrency = 4 // Conservative fallback
+		}
 	}
 }
 
@@ -1394,4 +1459,85 @@ func (d *Downloader) downloadWithResume(
 	// For now, just use simple download without actual resume
 	// TODO: Implement proper resume functionality
 	return d.DownloadToWriter(ctx, url, file, options)
+}
+
+// performLightweightDownload performs a download using the lightweight mode
+// optimized for small files with minimal overhead.
+func (d *Downloader) performLightweightDownload(
+	ctx context.Context,
+	url, destination string,
+	options *types.DownloadOptions,
+) (*types.DownloadStats, error) {
+	// Create or open destination file
+	// #nosec G304 -- destination validated by ValidateDestination() in public API functions
+	file, err := os.Create(destination)
+	if err != nil {
+		return nil, errors.WrapErrorWithURL(err, errors.CodePermissionDenied,
+			"Failed to create destination file", url)
+	}
+	defer func() { _ = file.Close() }()
+
+	startTime := time.Now()
+	stats := &types.DownloadStats{
+		URL:       url,
+		Filename:  destination,
+		StartTime: startTime,
+	}
+
+	// Use lightweight downloader with progress if callback is provided
+	var downloaded int64
+	userAgent := ""
+	if options.UserAgent != "" {
+		userAgent = options.UserAgent
+	}
+
+	if options.ProgressCallback != nil {
+		downloaded, err = d.lightweight.DownloadWithProgressAndOptions(
+			ctx, url, file,
+			func(down, total int64) {
+				// Calculate speed
+				elapsed := time.Since(startTime).Seconds()
+				speed := int64(0)
+				if elapsed > 0 {
+					speed = int64(float64(down) / elapsed)
+				}
+				options.ProgressCallback(down, total, speed)
+			},
+			userAgent,
+		)
+	} else {
+		downloaded, err = d.lightweight.DownloadWithOptions(ctx, url, file, userAgent)
+	}
+
+	stats.EndTime = time.Now()
+	stats.Duration = stats.EndTime.Sub(stats.StartTime)
+	stats.BytesDownloaded = downloaded
+	stats.TotalSize = downloaded
+
+	if err != nil {
+		stats.Error = err
+		stats.Success = false
+		return stats, err
+	}
+
+	stats.Success = true
+
+	// Calculate average speed
+	if stats.Duration > 0 {
+		stats.AverageSpeed = int64(float64(downloaded) / stats.Duration.Seconds())
+	}
+
+	d.logInfo("lightweight_download_complete", "Lightweight download completed successfully", map[string]interface{}{
+		"url":             url,
+		"destination":     destination,
+		"bytesDownloaded": downloaded,
+		"duration":        stats.Duration,
+	})
+
+	return stats, nil
+}
+
+// parseURL is a helper function to parse URL string
+func parseURL(urlStr string) (*url.URL, error) {
+	return url.Parse(urlStr)
 }

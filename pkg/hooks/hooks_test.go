@@ -2,8 +2,9 @@ package hooks
 
 import (
 	"context"
-	"github.com/forest6511/gdl/pkg/types"
 	"testing"
+
+	"github.com/forest6511/gdl/pkg/types"
 )
 
 func TestHookTypes(t *testing.T) {

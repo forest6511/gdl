@@ -1,0 +1,175 @@
+name: Performance Regression Tests
+
+on:
+  workflow_call:
+  pull_request:
+    paths:
+      - 'internal/core/**'
+      - 'internal/network/**'
+      - 'pkg/**'
+      - 'cmd/**'
+      - 'go.mod'
+
+env:
+  GO_VERSION: '1.23'
+  REGRESSION_THRESHOLD: '10' # Fail if performance drops by more than 10%
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  performance-regression:
+    name: Performance Regression Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Install dependencies
+        run: |
+          go install golang.org/x/perf/cmd/benchstat@latest
+          sudo apt-get update && sudo apt-get install -y curl time bc
+
+      - name: Run benchmarks on base branch
+        run: |
+          # Checkout base branch
+          git fetch origin ${{ github.base_ref }}:base-branch
+          git checkout base-branch
+
+          # Run core package benchmarks only (more focused and faster)
+          echo "Running base branch benchmarks..."
+          go test -bench=. -benchmem -benchtime=1s -count=3 -timeout=3m ./internal/core/... > base-bench.txt 2>&1 || true
+
+      - name: Run benchmarks on PR branch
+        run: |
+          # Checkout PR branch
+          git checkout ${{ github.sha }}
+
+          # Run core package benchmarks only (more focused and faster)
+          echo "Running PR branch benchmarks..."
+          go test -bench=. -benchmem -benchtime=1s -count=3 -timeout=3m ./internal/core/... > pr-bench.txt 2>&1 || true
+
+      - name: Compare benchmarks
+        id: compare
+        run: |
+          echo "## 📊 Performance Regression Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Compare benchmarks
+          echo "### Benchmark Comparison (internal/core)" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          benchstat base-bench.txt pr-bench.txt | tee comparison.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          # Check for significant regressions (>10%)
+          REGRESSION_FOUND=false
+          if grep -E "\+[0-9]+\.[0-9]+%" comparison.txt | grep -E "\+([1-9][0-9]|[0-9]{3,})\.[0-9]+%"; then
+            # Check if regression is more than threshold
+            REGRESSION_PCT=$(grep -E "\+[0-9]+\.[0-9]+%" comparison.txt | sed -E 's/.*\+([0-9]+)\.[0-9]+%.*/\1/' | head -1)
+            if [ "$REGRESSION_PCT" -gt "$REGRESSION_THRESHOLD" ]; then
+              REGRESSION_FOUND=true
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "### ⚠️ Performance Regression Detected!" >> $GITHUB_STEP_SUMMARY
+              echo "Performance has decreased by more than ${REGRESSION_THRESHOLD}%" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+
+          echo "regression_found=$REGRESSION_FOUND" >> $GITHUB_OUTPUT
+
+      - name: Quick performance validation
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Quick Performance Validation" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          # Build gdl
+          go build -ldflags="-s -w" -o gdl ./cmd/gdl/
+
+          # Test with a small file for quick validation
+          echo "Testing small file download performance..." >> $GITHUB_STEP_SUMMARY
+          URL="https://httpbin.org/bytes/102400"  # 100KB
+
+          # Run gdl download
+          START=$(date +%s%N)
+          ./gdl -o /tmp/test_gdl.bin "$URL" 2>/dev/null
+          END=$(date +%s%N)
+          TIME_GDL=$((($END - $START) / 1000000))
+
+          # Run curl download for comparison
+          START=$(date +%s%N)
+          curl -sL -o /tmp/test_curl.bin "$URL" 2>/dev/null
+          END=$(date +%s%N)
+          TIME_CURL=$((($END - $START) / 1000000))
+
+          echo "gdl:  ${TIME_GDL}ms" >> $GITHUB_STEP_SUMMARY
+          echo "curl: ${TIME_CURL}ms" >> $GITHUB_STEP_SUMMARY
+
+          # Basic validation - gdl shouldn't be significantly slower
+          if [ "$TIME_GDL" -gt $((TIME_CURL * 5)) ] 2>/dev/null; then
+            echo "⚠️ gdl is significantly slower than curl" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ Performance is acceptable" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Memory usage check
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Memory Usage Check" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          # Run a quick memory benchmark
+          go test -bench=BenchmarkDownloadWithOptimization/1KB -benchmem -run=^$ ./internal/core/... 2>&1 | grep -E "B/op|allocs/op" | head -5 >> $GITHUB_STEP_SUMMARY || echo "Memory benchmark completed" >> $GITHUB_STEP_SUMMARY
+
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const regressionFound = '${{ steps.compare.outputs.regression_found }}' === 'true';
+            const summaryUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            const status = regressionFound ? '⚠️ Performance Regression Detected' : '✅ No Performance Regression';
+            const body = `## Performance Test Results
+
+            ${status}
+
+            [View detailed results](${summaryUrl})
+
+            ${regressionFound ? 'Please review the performance changes. Regressions over 10% need justification.' : 'All performance metrics are within acceptable ranges.'}`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body
+            });
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: |
+            base-bench.txt
+            pr-bench.txt
+            comparison.txt
+
+      - name: Fail if regression detected
+        if: steps.compare.outputs.regression_found == 'true'
+        run: |
+          echo "❌ Performance regression detected. Please investigate and fix."
+          exit 1

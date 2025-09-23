@@ -46,6 +46,55 @@ go test ./...
 go test -race ./...
 ```
 
+### 🚨 CRITICAL: Pre-Push CI Verification (MANDATORY)
+
+**ALWAYS run these commands before pushing to prevent CI failures:**
+
+```bash
+# Method 1: Use the comprehensive local CI check script (RECOMMENDED)
+./scripts/local-ci-check.sh
+
+# Method 2: Use make commands that mirror CI exactly
+make ci-check           # Run all CI-equivalent checks
+make ci-format         # Format code exactly like CI
+make ci-vet           # Run go vet like CI (excludes examples)
+make ci-test-core     # Run core tests like CI
+
+# Method 3: Manual verification (if scripts unavailable)
+# Format check
+gofmt -l . | grep -v vendor | grep -v .pb.go
+if [ $? -eq 0 ]; then echo "❌ Format issues found"; fi
+
+# Vet check (excluding examples like CI does)
+go vet $(go list ./... | grep -v '/examples/')
+
+# Lint check
+golangci-lint run
+
+# Test check
+go test -race ./...
+
+# Security check
+gosec -exclude-dir=examples -exclude-dir=test ./...
+```
+
+#### Why Pre-Push Verification is Critical:
+- **CI runs on Ubuntu Linux** - Your local environment may differ
+- **CI uses latest tool versions** - Your local tools may be outdated
+- **CI excludes `/examples/` from some checks** - Manual commands must match
+- **CI runs checks in specific order** - Dependencies between checks matter
+- **CI has strict timeouts** - Local verification catches hanging tests
+
+#### Common CI Failure Causes to Check:
+1. **Formatting issues** - Run `gofmt -s -w .` before push
+2. **Import ordering** - Run `goimports -w .` to fix
+3. **Vet failures in non-example code** - Check with proper exclusions
+4. **Test compilation errors** - Run all tests locally first
+5. **Coverage drops below threshold** - Check with `-cover` flag
+6. **Benchmark timeouts** - Reduce iteration counts or data sizes
+
+**Remember:** It's much faster to fix issues locally than to wait for CI to fail and then fix!
+
 ### Security Scanning Guidelines
 
 The project includes comprehensive security scanning with gosec. Follow these guidelines:

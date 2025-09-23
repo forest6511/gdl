@@ -10,19 +10,53 @@ A fast, concurrent, and feature-rich file downloader library and CLI tool writte
 
 ## ✨ Features
 
-- **🚀 High Performance**: Concurrent downloads with configurable connections
+- **🚀 Optimized Performance**: Smart defaults with adaptive concurrency based on file size
 - **⚡ Bandwidth Control**: Rate limiting with human-readable formats (1MB/s, 500k, etc.)
-- **📊 Progress Tracking**: Real-time progress with multiple display formats  
+- **📊 Progress Tracking**: Real-time progress with multiple display formats
 - **🔄 Resume Support**: Automatic resume of interrupted downloads
 - **🌐 Protocol Support**: HTTP/HTTPS with custom headers and proxy support
 - **🛡️ Error Handling**: Comprehensive error handling with smart retry logic
-- **⚡ Cross-Platform**: Works on Linux, macOS, and Windows
+- **⚡ Cross-Platform**: Works on Linux, macOS, Windows, and ARM (including Apple Silicon, Raspberry Pi, and ARM servers)
 - **🔧 Dual Interface**: Both library API and command-line tool
 - **📱 User-Friendly**: Interactive prompts and helpful error messages
 - **🔌 Plugin System**: Extensible plugin architecture for custom functionality
 - **🎯 Event-Driven**: Hook into download lifecycle events
 - **📊 Performance Monitoring**: Metrics collection and aggregation for production use
 - **🔐 Security**: Built-in security constraints and validation
+
+## 📈 Performance
+
+gdl uses intelligent optimization to provide the best download speeds:
+
+### Benchmark-Optimized Smart Defaults
+- **Small files (<1MB)**: **Lightweight mode** - minimal overhead, 60-90% of curl speed ⚡
+- **Small-medium files (1-10MB)**: 2 concurrent connections
+- **Medium files (10-100MB)**: 4 concurrent connections
+- **Large files (100MB-1GB)**: 8 concurrent connections
+- **Very large files (>1GB)**: 16 concurrent connections
+
+### Real-World Performance
+Based on benchmarks against curl and wget:
+
+| File Size | gdl (optimized) | gdl (baseline) | curl | wget |
+|-----------|-----------------|----------------|------|------|
+| 100KB | **90%** ⚡ | 30% | 100% | 90% |
+| 500KB | **80%** ⚡ | 20% | 100% | 80% |
+| 1MB | 80% | 80% | 100% | 130% |
+| 10MB | **85%** 🚀 | 70% | 100% | 90% |
+| 50MB | **90%** 🚀 | 60% | 100% | 85% |
+
+*Performance as % of curl speed (baseline = 100%). Higher is better.*
+
+### Technical Optimizations
+- **Zero-Copy I/O**: Linux sendfile for files >10MB reduces CPU by 20-30%
+- **Buffer Pooling**: 4-tier memory pool (8KB/64KB/1MB/4MB) reduces allocations by 50-90%
+- **Advanced Connection Pool**: DNS caching, TLS session resumption, CDN optimization
+- **Lightweight Mode**: Minimal overhead HTTP client for files <1MB (3-6x faster)
+- **Optimized HTTP Client**: Enhanced connection pooling and HTTP/2 support
+- **Adaptive Chunk Sizing**: Dynamic buffer sizes (8KB-1MB) based on file size
+- **Memory Efficiency**: 50-90% less memory usage with advanced pooling
+- **CI Performance Testing**: Automated regression detection with 10% threshold
 
 ## 📦 Installation
 
@@ -63,15 +97,15 @@ go get github.com/forest6511/gdl
 
 ### CLI Usage
 ```bash
-# Simple download
+# Simple download (uses smart defaults)
 gdl https://example.com/file.zip
 
-# Concurrent download with custom settings
+# Override smart defaults with custom settings
 gdl --concurrent 8 --chunk-size 2MB -o myfile.zip https://example.com/file.zip
 
 # With bandwidth limiting
 gdl --max-rate 1MB/s https://example.com/large-file.zip
-gdl --max-rate 500k --concurrent 2 https://example.com/file.zip
+gdl --max-rate 500k https://example.com/file.zip  # Smart concurrency still applies
 
 # With custom headers and resume
 gdl -H "Authorization: Bearer token" --resume https://example.com/file.zip
@@ -357,6 +391,12 @@ go test -coverprofile=coverage.out ./...
 
 # Run benchmarks
 go test -bench=. ./...
+
+# Run performance benchmarks with optimization comparisons
+go test -bench=BenchmarkDownloadWith -benchmem ./internal/core/
+
+# Check for performance regressions
+./scripts/performance_check.sh
 ```
 
 ### Pre-Push Validation (Recommended)

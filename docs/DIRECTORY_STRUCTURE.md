@@ -21,6 +21,8 @@ gdl/
 │       ├── lint.yml            # Code quality checks
 │       ├── security.yml        # Security scanning
 │       ├── cross-platform.yml  # Multi-platform testing
+│       ├── arm-platform.yml    # ARM architecture testing
+│       ├── performance-regression.yml # Performance regression testing
 │       ├── benchmark.yml       # Performance benchmarks
 │       ├── release.yml         # Standard release automation
 │       ├── release-goreleaser.yml # Advanced release automation
@@ -34,6 +36,7 @@ gdl/
 ├── docs/                       # Documentation
 │   ├── API_REFERENCE.md        # Library API documentation
 │   ├── CLI_REFERENCE.md        # CLI usage documentation
+│   ├── CROSS_PLATFORM_OPTIMIZATION.md # Platform-specific optimizations
 │   ├── DIRECTORY_STRUCTURE.md  # This file
 │   ├── EXTENDING.md            # Extension points and customization
 │   ├── MAINTENANCE.md          # Development procedures
@@ -107,14 +110,37 @@ gdl/
 ├── internal/                   # Private packages (not exported)
 │   ├── core/                   # Core download engine
 │   │   ├── downloader.go       # Main downloader implementation
-│   │   └── downloader_test.go  # Downloader tests
+│   │   ├── downloader_test.go  # Downloader tests
+│   │   ├── lightweight.go      # Lightweight mode for small files
+│   │   ├── lightweight_test.go # Lightweight mode tests
+│   │   ├── zerocopy.go         # Zero-copy I/O implementation
+│   │   ├── zerocopy_test.go    # Zero-copy tests
+│   │   ├── zerocopy_integration.go # Zero-copy integration
+│   │   ├── bufferpool.go       # Buffer pool management
+│   │   ├── bufferpool_test.go  # Buffer pool tests
+│   │   ├── optimization.go     # Smart optimization logic
+│   │   ├── optimization_test.go # Optimization tests
+│   │   ├── benchmark_test.go   # Performance benchmarks
+│   │   ├── platform_detector.go # Platform detection and optimization
+│   │   ├── platform_detector_test.go # Platform detection tests
+│   │   ├── platform_linux.go   # Linux-specific optimizations
+│   │   ├── platform_darwin.go  # macOS-specific optimizations
+│   │   ├── platform_windows.go # Windows-specific optimizations
+│   │   ├── platform_arm.go     # ARM-specific optimizations
+│   │   └── platform_other.go   # Generic platform fallback
 │   ├── concurrent/             # Concurrent download management
 │   │   ├── manager.go          # Concurrency manager
 │   │   └── manager_test.go     # Manager tests
 │   ├── network/                # Network utilities
 │   │   ├── client.go           # HTTP client wrapper
 │   │   ├── diagnostics.go      # Network diagnostics
-│   │   └── network_test.go     # Network tests
+│   │   ├── network_test.go     # Network tests
+│   │   ├── connection_pool.go  # Connection pooling with DNS cache
+│   │   ├── connection_pool_test.go # Connection pool tests
+│   │   ├── advanced_pool.go    # Advanced connection pooling
+│   │   ├── advanced_pool_test.go # Advanced pool tests
+│   │   ├── optimized_transport.go # Optimized HTTP transport
+│   │   └── optimized_transport_test.go # Transport tests
 │   ├── storage/                # Storage management
 │   │   ├── disk.go             # Disk operations
 │   │   ├── space.go            # Space checking
@@ -193,7 +219,12 @@ gdl/
 │   ├── prepare-release.sh      # Release preparation script
 │   ├── update-changelog.sh     # Symlink to prepare-release.sh
 │   ├── update-homebrew.sh      # Homebrew formula updater
-│   └── sync-labels.sh          # GitHub labels synchronizer
+│   ├── sync-labels.sh          # GitHub labels synchronizer
+│   ├── performance_check.sh    # Performance verification script
+│   ├── performance_comparison.sh # Compare performance with curl/wget
+│   ├── performance_monitor.sh  # Monitor download performance
+│   ├── real_world_test.sh     # Real-world download testing
+│   └── large_file_benchmark.sh # Large file performance testing
 ├── .claude/                    # Claude Code configuration
 │   └── CLAUDE.md               # Claude Code instructions
 ├── .actrc                      # Act (local GitHub Actions) configuration
@@ -325,9 +356,12 @@ Located in `.github/workflows/`:
 - **`integration-tests.yml`**: Runs integration tests
 - **`lint.yml`**: Code quality and linting
 - **`security.yml`**: Security scanning
-- **`cross-platform.yml`**: Multi-platform testing
+- **`cross-platform.yml`**: Multi-platform testing (Linux, macOS, Windows)
+- **`arm-platform.yml`**: ARM architecture testing (ARM32, ARM64, QEMU)
+- **`performance-regression.yml`**: Performance regression detection
 - **`benchmark.yml`**: Performance benchmarking
 - **`release.yml`**: Automated releases
+- **`release-goreleaser.yml`**: Advanced release automation with GoReleaser
 
 ## Module Structure
 
