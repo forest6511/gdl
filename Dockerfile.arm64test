@@ -1,0 +1,12 @@
+FROM --platform=linux/arm64 golang:1.24-alpine
+RUN apk add --no-cache git gcc musl-dev binutils-gold
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+# Run platform-specific tests
+RUN go test -v ./internal/core -run "TestDetectPlatform|TestPlatform|TestARM"
+# Build the binary
+RUN go build -v ./cmd/gdl/
+# Verify the binary
+RUN ./gdl --version
