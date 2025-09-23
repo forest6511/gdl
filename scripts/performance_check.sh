@@ -14,15 +14,32 @@ echo "🔍 Running performance regression check..."
 REGRESSION_THRESHOLD=10  # Fail if performance degrades by more than 10%
 WARNING_THRESHOLD=5      # Warn if performance degrades by more than 5%
 
+# Benchmark configuration - CI uses faster settings
+if [ "${CI}" = "true" ]; then
+    BENCH_TIME="100ms"
+    BENCH_COUNT="1"
+    BENCH_TIMEOUT="30s"
+    BENCH_PACKAGES="./internal/core/..."
+else
+    # Local development can use more thorough testing
+    BENCH_TIME="${BENCH_TIME:-500ms}"
+    BENCH_COUNT="${BENCH_COUNT:-1}"
+    BENCH_TIMEOUT="${BENCH_TIMEOUT:-1m}"
+    BENCH_PACKAGES="${BENCH_PACKAGES:-./internal/core/...}"
+fi
+
 # Run benchmarks and save results
 echo "Running benchmarks..."
-go test -bench=BenchmarkDownload -benchmem -benchtime=2s -count=3 ./... > current-bench.txt 2>&1
+echo "Settings: benchtime=$BENCH_TIME count=$BENCH_COUNT timeout=$BENCH_TIMEOUT packages=$BENCH_PACKAGES"
+go test -bench=BenchmarkDownload -benchmem -benchtime=$BENCH_TIME -count=$BENCH_COUNT -timeout=$BENCH_TIMEOUT $BENCH_PACKAGES > current-bench.txt 2>&1
 
-# Check if benchstat is available
+# Install benchstat if not available
 if ! command -v benchstat &> /dev/null; then
-    echo "⚠️ benchstat not installed, skipping comparison"
-    echo "To install: go install golang.org/x/perf/cmd/benchstat@latest"
-    exit 0
+    echo "📦 Installing benchstat..."
+    go install golang.org/x/perf/cmd/benchstat@latest
+    # Add GOPATH/bin to PATH if needed
+    GOPATH_BIN=$(go env GOPATH)/bin
+    export PATH=$PATH:$GOPATH_BIN
 fi
 
 # If we have a base benchmark file, compare
