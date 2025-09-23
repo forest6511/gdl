@@ -82,8 +82,8 @@ func TestSetPlatformSocketOptions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create socket pair: %v", err)
 	}
-	defer syscall.Close(fds[0])
-	defer syscall.Close(fds[1])
+	defer func() { _ = syscall.Close(fds[0]) }()
+	defer func() { _ = syscall.Close(fds[1]) }()
 
 	// Test setting socket options
 	err = SetPlatformSocketOptions(uintptr(fds[0]))
