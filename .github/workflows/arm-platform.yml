@@ -107,7 +107,7 @@ jobs:
       - name: Build and test in ARM64 container
         run: |
           cat > Dockerfile.arm64test << 'EOF'
-          FROM --platform=linux/arm64 golang:1.23-alpine
+          FROM --platform=linux/arm64 golang:1.24-alpine
           RUN apk add --no-cache git gcc musl-dev
           WORKDIR /app
           COPY go.mod go.sum ./

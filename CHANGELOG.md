@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2025-09-23
+
+### Added
+- **Cross-Platform Optimizations**: Comprehensive platform-specific performance enhancements
+  - Zero-copy download support using sendfile on Linux/macOS for large files
+  - Platform-specific buffer sizes and concurrency settings
+  - ARM architecture optimizations for both server and embedded devices
+  - Adaptive performance tuning based on system capabilities (CPU, memory)
+- **Advanced Buffer Pool Management**: Smart memory management with size-based allocation
+  - Tiered buffer pool system (8KB, 64KB, 512KB)
+  - Automatic buffer sizing based on download requirements
+  - Reduced memory allocations and improved GC performance
+- **Network Optimizations**: Enhanced connection handling and transport settings
+  - HTTP/2 support with optimized settings
+  - Connection pooling with platform-specific limits
+  - Optimized TCP socket options for each platform
+- **Lightweight Download Mode**: Efficient single-threaded download for small files
+  - Automatic mode selection based on file size
+  - Reduced overhead for files under 100KB
+  - Lower memory footprint for embedded systems
+- **ARM Platform Support**: Full support for ARM and ARM64 architectures
+  - Dedicated CI/CD pipeline for ARM testing
+  - QEMU-based testing for cross-compilation validation
+  - Optimized settings for ARM server and mobile/embedded devices
+- **Performance Regression Testing**: Automated performance monitoring
+  - Benchmark comparisons between base and PR branches
+  - Real-world performance tests against curl
+  - Memory profiling and leak detection
+
+### Changed
+- **Go Version**: Updated to Go 1.24 for latest performance improvements
+- **Test Coverage**: Improved internal/core package coverage from 81.2% to 87.8%
+- **CI/CD Workflows**: Restructured for better performance and reliability
+  - Added ARM platform testing workflow
+  - Optimized performance regression workflow (3x faster)
+  - Enhanced cross-platform compatibility testing
+
+### Fixed
+- **Windows Compatibility**: Resolved path handling issues in tests
+- **Linux Zero-copy**: Fixed syscall.EAGAIN handling in sendfile operations
+- **Error Handling**: Added proper error checking for all Close() operations
+- **Branch Protection**: Aligned CI job names with GitHub protection rules
+
+### Security
+- **Enhanced Error Checking**: All file operations now properly handle errors
+- **Resource Cleanup**: Improved cleanup of file descriptors and network connections
+- **Test Isolation**: Better test isolation to prevent resource leaks
+
+
 ## [0.9.2] - 2025-08-19
 
 ### Added
@@ -68,6 +117,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CI job naming conflicts
 - Docker environment test issues
 
-[Unreleased]: https://github.com/forest6511/gdl/compare/v0.9.2...HEAD
+[Unreleased]: https://github.com/forest6511/gdl/compare/v1.3.0...HEAD
 [0.9.2]: https://github.com/forest6511/gdl/compare/v0.9.0...v0.9.2
 [0.9.0]: https://github.com/forest6511/gdl/releases/tag/v0.9.0
+[1.3.0]: https://github.com/forest6511/gdl/compare/v0.9.2...v1.3.0
