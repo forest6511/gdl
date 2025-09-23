@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 
 env:
-  GO_VERSION: '1.24'
+  GO_VERSION: '1.23'
   CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
 concurrency:
@@ -133,16 +133,20 @@ jobs:
         run: |
           # Install gocovmerge if not available
           go install github.com/wadey/gocovmerge@latest || echo "Using go tool cover instead"
-          
+
           # Merge coverage files
           if command -v gocovmerge &> /dev/null; then
             gocovmerge coverage-*.out > coverage.out
           else
             # Fallback: combine coverage files manually
             echo "mode: atomic" > coverage.out
-            tail -n +2 coverage-*.out >> coverage.out
+            for file in coverage-*.out; do
+              if [ -f "$file" ]; then
+                tail -n +2 "$file" >> coverage.out
+              fi
+            done
           fi
-          
+
           # Calculate total coverage
           coverage=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
           echo "coverage=$coverage" >> $GITHUB_OUTPUT

@@ -197,6 +197,84 @@ type DownloadError struct {
 }
 ```
 
+## Platform Optimization
+
+gdl automatically detects and applies platform-specific optimizations for maximum performance.
+
+### PlatformInfo
+
+Platform detection information.
+
+```go
+type PlatformInfo struct {
+    OS           string  // Operating system (linux, darwin, windows, etc.)
+    Arch         string  // Architecture (amd64, arm64, arm, etc.)
+    NumCPU       int     // Number of CPUs
+    IsARM        bool    // Whether running on ARM architecture
+    IsServerGrade bool   // Whether server-grade hardware (≥8 CPUs)
+    Optimizations PlatformOptimizationSet
+}
+```
+
+### PlatformOptimizationSet
+
+Platform-specific optimization settings.
+
+```go
+type PlatformOptimizationSet struct {
+    BufferSize       int  // Optimal buffer size for platform
+    Concurrency      int  // Optimal concurrent connections
+    MaxConnections   int  // Maximum connection pool size
+    UseSendfile      bool // Whether sendfile is supported
+    UseZeroCopy      bool // Whether zero-copy I/O is available
+    EnableHTTP2      bool // Whether HTTP/2 is enabled
+    ConnectionReuse  bool // Whether to reuse connections
+}
+```
+
+### Platform Detection Functions
+
+```go
+// Get current platform information
+info := gdl.GetPlatformInfo()
+
+// Get platform description string
+platformStr := gdl.GetPlatformString()
+// Returns: "linux/amd64 (16 CPUs) [zero-copy, sendfile, server-grade]"
+
+// Check if zero-copy should be used for file size
+shouldUseZeroCopy := gdl.ShouldUseZeroCopyPlatform(fileSize)
+
+// Get optimal chunk size for file size
+chunkSize := gdl.GetOptimalChunkSizePlatform(fileSize)
+```
+
+### Platform-Specific Behaviors
+
+The library automatically applies optimizations based on detected platform:
+
+#### Linux
+- Buffer Size: 512KB
+- TCP optimizations: TCP_NODELAY, TCP_QUICKACK, TCP_CORK
+- Sendfile and zero-copy I/O enabled
+- Automatic ulimit adjustment
+
+#### macOS (Darwin)
+- Intel: 256KB buffers
+- Apple Silicon: 128KB buffers (optimized for unified memory)
+- SO_REUSEPORT enabled
+- Sendfile support
+
+#### Windows
+- Buffer Size: 128KB
+- Windows auto-tuning integration
+- Conservative connection settings
+
+#### ARM Architecture
+- ARM32: 32KB buffers for embedded devices
+- ARM64: 128KB buffers with server detection
+- Optimized for power efficiency on mobile
+
 ## Progress Callbacks
 
 ### Simple Callback

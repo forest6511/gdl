@@ -163,7 +163,7 @@ test-ci-windows: ## Test Windows CI locally with act
 	@rm -rf ~/.cache/act || true
 	@echo "🐳 Cleaning up act containers..."
 	@docker ps -aq --filter "name=act-" | xargs -r docker rm -f || true
-	act workflow_dispatch -W .github/workflows/cross-platform.yml --matrix os:windows-latest --matrix go-version:1.23 --container-architecture linux/amd64
+	act workflow_dispatch -W .github/workflows/cross-platform.yml --matrix os:windows-latest --matrix go-version:1.24 --container-architecture linux/amd64
 
 test-ci-macos: ## Test macOS CI locally with act  
 	@echo "🍎 Testing macOS CI locally..."
@@ -175,7 +175,7 @@ test-ci-macos: ## Test macOS CI locally with act
 	@rm -rf ~/.cache/act || true
 	@echo "🐳 Cleaning up act containers..."
 	@docker ps -aq --filter "name=act-" | xargs -r docker rm -f || true
-	act workflow_dispatch -W .github/workflows/cross-platform.yml --matrix os:macos-latest --matrix go-version:1.23 --container-architecture linux/amd64
+	act workflow_dispatch -W .github/workflows/cross-platform.yml --matrix os:macos-latest --matrix go-version:1.24 --container-architecture linux/amd64
 
 test-ci-ubuntu: ## Test Ubuntu CI locally with act
 	@echo "🐧 Testing Ubuntu CI locally..."
@@ -209,9 +209,9 @@ test-ci-all: ## Test cross-platform compatibility locally with act (Ubuntu only,
 		fi; \
 	fi; \
 	echo "2️⃣ Testing Windows (cross-platform workflow)..."; \
-	act workflow_dispatch -W .github/workflows/cross-platform.yml --matrix os:windows-latest --matrix go-version:1.23 --container-architecture linux/amd64 || echo "🚧 Windows test skipped (expected with act)"; \
+	act workflow_dispatch -W .github/workflows/cross-platform.yml --matrix os:windows-latest --matrix go-version:1.24 --container-architecture linux/amd64 || echo "🚧 Windows test skipped (expected with act)"; \
 	echo "3️⃣ Testing macOS (cross-platform workflow)..."; \
-	act workflow_dispatch -W .github/workflows/cross-platform.yml --matrix os:macos-latest --matrix go-version:1.23 --container-architecture linux/amd64 || echo "🚧 macOS test skipped (expected with act)"; \
+	act workflow_dispatch -W .github/workflows/cross-platform.yml --matrix os:macos-latest --matrix go-version:1.24 --container-architecture linux/amd64 || echo "🚧 macOS test skipped (expected with act)"; \
 	echo "✅ Cross-platform tests completed!"; \
 	echo "💡 Note: Only Ubuntu can be fully tested locally with act."; \
 	echo "   Windows and macOS testing requires GitHub Actions environment."; \

@@ -41,7 +41,7 @@ The CI/CD pipeline is split into multiple specialized workflows for better maint
 
 6. **cross-platform.yml** - Multi-platform compatibility
    - Tests on Ubuntu, Windows, macOS
-   - Multiple Go versions (1.23, 1.24)
+   - Multiple Go versions (1.22, 1.23)
    - Binary build verification
 
 7. **benchmark.yml** - Performance benchmarks
@@ -153,7 +153,7 @@ Recommended branch protection rules:
 
 ## Environment Variables
 
-- `GO_VERSION`: Default Go version for builds (currently 1.24)
+- `GO_VERSION`: Default Go version for builds (currently 1.23)
 - `CODECOV_TOKEN`: Token for Codecov integration (secret)
 
 ## Concurrency Control

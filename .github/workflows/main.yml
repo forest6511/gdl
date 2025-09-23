@@ -27,7 +27,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version: '1.23'
           cache: true
 
       - name: Download dependencies with retry
@@ -84,6 +84,26 @@ jobs:
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
     needs: [lint, unit-tests]
     uses: ./.github/workflows/cross-platform.yml
+    secrets: inherit
+
+  # Call ARM platform workflow (only on PR and main)
+  arm-platform:
+    name: ARM Platform
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    needs: [lint, unit-tests]
+    uses: ./.github/workflows/arm-platform.yml
+    secrets: inherit
+
+  # Call performance regression workflow (on PRs with relevant changes)
+  performance-regression:
+    name: Performance Regression
+    if: github.event_name == 'pull_request'
+    needs: [unit-tests]
+    uses: ./.github/workflows/performance-regression.yml
+    permissions:
+      issues: write
+      pull-requests: write
+      contents: read
     secrets: inherit
 
   # Call benchmark workflow (only on main)

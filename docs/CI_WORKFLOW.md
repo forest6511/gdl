@@ -96,7 +96,7 @@ make test-ci-all
 
 ```bash
 # Run specific platform/version combination
-act -j cross-platform --matrix os:windows-latest --matrix go-version:1.23
+act -j cross-platform --matrix os:windows-latest --matrix go-version:1.24
 
 # Run entire cross-platform workflow
 act -W .github/workflows/cross-platform.yml
