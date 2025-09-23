@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 
 env:
-  GO_VERSION: '1.23'
+  GO_VERSION: '1.24'
 
 concurrency:
   group: cross-platform-${{ github.ref }}
@@ -23,7 +23,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        go-version: ['1.22', '1.23']
+        go-version: ['1.23', '1.24']
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout code
