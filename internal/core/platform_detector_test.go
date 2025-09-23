@@ -408,8 +408,11 @@ func TestPlatformSpecificSettings(t *testing.T) {
 	switch info.OS {
 	case "linux":
 		// Linux should have specific optimizations
-		if !isLowEnd && info.Optimizations.BufferSize != 512*1024 {
-			t.Errorf("Linux should use 512KB buffers, got %d", info.Optimizations.BufferSize)
+		// ARM64 Linux uses 128KB buffers, others use 512KB
+		if !isLowEnd && info.IsARM && info.Optimizations.BufferSize != 128*1024 {
+			t.Errorf("ARM64 Linux should use 128KB buffers, got %d", info.Optimizations.BufferSize)
+		} else if !isLowEnd && !info.IsARM && info.Optimizations.BufferSize != 512*1024 {
+			t.Errorf("x86_64 Linux should use 512KB buffers, got %d", info.Optimizations.BufferSize)
 		}
 		if !info.Optimizations.UseSendfile {
 			t.Error("Linux should support sendfile")
