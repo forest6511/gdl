@@ -3,12 +3,6 @@ name: ARM Platform Tests
 on:
   workflow_call:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - 'internal/core/platform_*.go'
-      - '.github/workflows/arm-platform.yml'
   pull_request:
     branches:
       - main
