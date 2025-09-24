@@ -225,8 +225,6 @@ gdl/
 │   ├── performance_monitor.sh  # Monitor download performance
 │   ├── real_world_test.sh     # Real-world download testing
 │   └── large_file_benchmark.sh # Large file performance testing
-├── .claude/                    # Claude Code configuration
-│   └── CLAUDE.md               # Claude Code instructions
 ├── .actrc                      # Act (local GitHub Actions) configuration
 ├── .editorconfig               # Editor configuration
 ├── .gitignore                  # Git ignore patterns
@@ -339,7 +337,6 @@ benchmark.txt           # Benchmark results
 - **`.gitignore`**: Git ignore patterns
 - **`.golangci.yml`**: Linter configuration
 - **`go.mod`/`go.sum`**: Go module files
-- **`.claude/CLAUDE.md`**: Claude Code development instructions
 
 ## Scripts
 

@@ -110,9 +110,6 @@ go list -json -deps | nancy sleuth
 
 #### **1. Planning and Design**
 ```bash
-# Review extension requirements
-cat .claude/CLAUDE.md
-
 # Check current architecture
 cat docs/PROJECT_STRUCTURE.md
 
@@ -400,7 +397,6 @@ go tool pprof mem.prof
 ## 📞 Support and Resources
 
 ### **Development Resources**
-- **Extension Guidelines**: `.claude/CLAUDE.md`
 - **Project Structure**: `docs/PROJECT_STRUCTURE.md`
 
 ### **External Resources**
