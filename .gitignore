@@ -49,15 +49,13 @@ release_notes.md
 .env
 .env.local
 
-# AI (exclude but keep some config files)
-.claude/settings.local.json    # Local overrides only
+# AI and development environment files
+.claude/                       # Local Claude Code configuration
 .serena
 .mcp.json
 claudedocs/                    # Claude Code documentation and analysis
 benchmark_test/                # Benchmark analysis results
 benchmark_analysis.md          # Benchmark analysis summary
-
-# Keep these AI config files in git:
-# .claude/CLAUDE.md           - Development guidelines
-# .claude/settings.json       - Shared Claude Code settings
+claude-commands.yml            # Claude Code commands file
+Dockerfile.arm64test           # ARM64 test Dockerfile
 examples/library_api/library_api
