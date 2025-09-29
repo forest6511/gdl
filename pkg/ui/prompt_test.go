@@ -54,11 +54,11 @@ func TestAlert(t *testing.T) {
 
 			Alert(tt.message, tt.alertType)
 
-			w.Close()
+			_ = w.Close()
 			os.Stdout = oldStdout
 
 			var buf bytes.Buffer
-			io.Copy(&buf, r)
+			_, _ = io.Copy(&buf, r)
 
 			output := buf.String()
 			if !strings.Contains(output, tt.message) {
@@ -89,11 +89,11 @@ func TestAlertHelpers(t *testing.T) {
 
 			tc.fn(tc.message)
 
-			w.Close()
+			_ = w.Close()
 			os.Stdout = oldStdout
 
 			var buf bytes.Buffer
-			io.Copy(&buf, r)
+			_, _ = io.Copy(&buf, r)
 
 			output := buf.String()
 			if !strings.Contains(output, tc.message) {
@@ -126,11 +126,11 @@ func TestShowProgressDisplay(t *testing.T) {
 
 			ShowProgress(tc.current, tc.total, tc.message)
 
-			w.Close()
+			_ = w.Close()
 			os.Stdout = oldStdout
 
 			var buf bytes.Buffer
-			io.Copy(&buf, r)
+			_, _ = io.Copy(&buf, r)
 
 			output := buf.String()
 			if !strings.Contains(output, tc.message) {
@@ -176,8 +176,8 @@ func TestPromptYesNo(t *testing.T) {
 
 			// Write test input
 			go func() {
-				w.Write([]byte(tc.input))
-				w.Close()
+				_, _ = w.Write([]byte(tc.input))
+				_ = w.Close()
 			}()
 
 			got := PromptYesNo("Test prompt", tc.defaultYes)
@@ -185,7 +185,7 @@ func TestPromptYesNo(t *testing.T) {
 			// Restore
 			os.Stdin = oldStdin
 			os.Stdout = oldStdout
-			wOut.Close()
+			_ = wOut.Close()
 
 			if got != tc.want {
 				t.Errorf("PromptYesNo(%q, %v) = %v, want %v", tc.input, tc.defaultYes, got, tc.want)
@@ -227,8 +227,8 @@ func TestPromptChoice(t *testing.T) {
 
 			// Write test input
 			go func() {
-				w.Write([]byte(tc.input))
-				w.Close()
+				_, _ = w.Write([]byte(tc.input))
+				_ = w.Close()
 			}()
 
 			got := PromptChoice("Choose an option", choices, tc.defaultChoice)
@@ -236,7 +236,7 @@ func TestPromptChoice(t *testing.T) {
 			// Restore
 			os.Stdin = oldStdin
 			os.Stdout = oldStdout
-			wOut.Close()
+			_ = wOut.Close()
 
 			if got != tc.want {
 				t.Errorf("PromptChoice(%q) = %v, want %v", tc.input, got, tc.want)
@@ -276,8 +276,8 @@ func TestPrompt(t *testing.T) {
 
 			// Write test input
 			go func() {
-				w.Write([]byte(tc.input))
-				w.Close()
+				_, _ = w.Write([]byte(tc.input))
+				_ = w.Close()
 			}()
 
 			got := Prompt(tc.message, tc.promptType)
@@ -285,7 +285,7 @@ func TestPrompt(t *testing.T) {
 			// Restore
 			os.Stdin = oldStdin
 			os.Stdout = oldStdout
-			wOut.Close()
+			_ = wOut.Close()
 
 			if got != tc.want {
 				t.Errorf("Prompt(%q, %v) = %q, want %q", tc.message, tc.promptType, got, tc.want)
@@ -321,8 +321,8 @@ func TestPromptPassword(t *testing.T) {
 
 			// Write test input
 			go func() {
-				w.Write([]byte(tc.input))
-				w.Close()
+				_, _ = w.Write([]byte(tc.input))
+				_ = w.Close()
 			}()
 
 			got := PromptPassword(tc.message)
@@ -330,7 +330,7 @@ func TestPromptPassword(t *testing.T) {
 			// Restore
 			os.Stdin = oldStdin
 			os.Stdout = oldStdout
-			wOut.Close()
+			_ = wOut.Close()
 
 			if got != tc.expected {
 				t.Errorf("PromptPassword(%q) = %q, want %q", tc.message, got, tc.expected)
