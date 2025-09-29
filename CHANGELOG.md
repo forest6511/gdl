@@ -115,7 +115,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - macOS timeout command compatibility in test scripts
 - CI job naming conflicts
-- Docker environment test issues
+- CI environment test issues
 
 [Unreleased]: https://github.com/forest6511/gdl/compare/v1.3.0...HEAD
 [0.9.2]: https://github.com/forest6511/gdl/compare/v0.9.0...v0.9.2

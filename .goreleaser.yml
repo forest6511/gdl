@@ -115,11 +115,6 @@ release:
     ```
 
   footer: |
-    ## Docker Image
-    ```bash
-    docker pull ghcr.io/forest6511/gdl:{{ .Tag }}
-    ```
-
     **Full Changelog**: https://github.com/forest6511/gdl/compare/{{ .PreviousTag }}...{{ .Tag }}
 
 nfpms:
@@ -144,30 +139,6 @@ nfpms:
         dst: /usr/share/doc/gdl/README.md
       - src: ./CHANGELOG.md
         dst: /usr/share/doc/gdl/CHANGELOG.md
-
-dockers:
-  - image_templates:
-      - 'ghcr.io/forest6511/{{ .ProjectName }}:{{ .Tag }}'
-      - 'ghcr.io/forest6511/{{ .ProjectName }}:v{{ .Major }}'
-      - 'ghcr.io/forest6511/{{ .ProjectName }}:v{{ .Major }}.{{ .Minor }}'
-      - 'ghcr.io/forest6511/{{ .ProjectName }}:latest'
-    dockerfile: docker/Dockerfile
-    use: buildx
-    extra_files:
-      - go.mod
-      - go.sum
-      - cmd
-      - internal
-      - pkg
-      - gdl.go
-    build_flag_templates:
-      - "--pull"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--label=org.opencontainers.image.source=https://github.com/forest6511/gdl"
-      - "--label=org.opencontainers.image.licenses=MIT"
 
 # Homebrew tap is manually managed in separate repository
 # brews:

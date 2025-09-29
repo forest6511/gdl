@@ -134,19 +134,6 @@
       }
     },
     {
-      "label": "docker: build",
-      "type": "shell",
-      "command": "docker",
-      "args": ["build", "-f", "docker/Dockerfile", "-t", "gdl:local", "."],
-      "group": "build",
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": false,
-        "panel": "shared"
-      }
-    },
-    {
       "label": "release: prepare",
       "type": "shell",
       "command": "./scripts/prepare-release.sh",

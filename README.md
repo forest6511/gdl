@@ -75,12 +75,6 @@ brew install forest6511/tap/gdl
 
 > **Note**: Use the full tap name `forest6511/tap/gdl` to avoid conflicts with the GNOME gdl package.
 
-#### Docker
-
-> **🚧 Coming Soon**: Docker support is planned but not yet available. Track progress in [Issue #20](https://github.com/forest6511/gdl/issues/20).
->
-> For now, please use one of the other installation methods above.
-
 #### Binary Downloads
 Download pre-built binaries from [GitHub Releases](https://github.com/forest6511/gdl/releases)
 

@@ -552,7 +552,7 @@ func TestDefaultPaths(t *testing.T) {
 // TestPluginRegistryConfigFileErrors tests error handling with config files
 func TestPluginRegistryConfigFileErrors(t *testing.T) {
 	t.Run("SaveConfigToReadOnlyDirectory", func(t *testing.T) {
-		// Skip this test if running as root (common in Docker/CI environments)
+		// Skip this test if running as root (common in CI environments)
 		if os.Getuid() == 0 {
 			t.Skip("Skipping read-only directory test when running as root")
 		}
