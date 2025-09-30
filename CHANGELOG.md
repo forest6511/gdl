@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.1] - 2025-09-30
+
+### Changed
+- **Build System**: Removed Docker support to simplify maintenance
+  - Removed Docker-related files and workflows
+  - Cleaned up GoReleaser configuration
+  - Simplified CI/CD pipelines
+
+### Fixed
+- **Test Coverage**: Improved CLI plugin system test coverage to 85%
+  - Added comprehensive tests for plugin registry operations
+  - Enhanced error handling coverage
+  - Fixed Windows-specific test compatibility issues
+
+### Removed
+- **Docker Support**: Removed all Docker-related functionality
+  - Deleted Dockerfile and Docker workflows
+  - Removed Docker configurations from GoReleaser
+  - Updated documentation to reflect Docker removal 
+
+
 ## [1.3.0] - 2025-09-23
 
 ### Added
@@ -117,7 +138,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CI job naming conflicts
 - CI environment test issues
 
-[Unreleased]: https://github.com/forest6511/gdl/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/forest6511/gdl/compare/v1.3.1...HEAD
 [0.9.2]: https://github.com/forest6511/gdl/compare/v0.9.0...v0.9.2
 [0.9.0]: https://github.com/forest6511/gdl/releases/tag/v0.9.0
 [1.3.0]: https://github.com/forest6511/gdl/compare/v0.9.2...v1.3.0
+[1.3.1]: https://github.com/forest6511/gdl/compare/v1.3.0...v1.3.1
