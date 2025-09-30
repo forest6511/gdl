@@ -157,10 +157,8 @@ if [ "$SKIP_ACT" = false ]; then
             rm -rf ~/.cache/act
         fi
         
-        # Clear Docker containers/images that might be outdated
+        # Clear act containers if Docker is available
         if command -v docker >/dev/null 2>&1; then
-            echo "🐳 Cleaning Docker cache..."
-            docker system prune -f >/dev/null 2>&1 || true
             echo "🧹 Cleaning up act containers..."
             docker ps -aq --filter "name=act-" | xargs -r docker rm -f >/dev/null 2>&1 || true
         fi

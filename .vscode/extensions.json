@@ -10,8 +10,7 @@
     "hbenl.vscode-test-explorer",
     "editorconfig.editorconfig",
     "streetsidesoftware.code-spell-checker",
-    "timonwong.shellcheck",
-    "ms-vscode.vscode-docker"
+    "timonwong.shellcheck"
   ],
   "unwantedRecommendations": []
 }

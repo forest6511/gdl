@@ -1040,9 +1040,9 @@ func TestDownloader_Download_With_Resume_Option(t *testing.T) {
 }
 
 func TestDownloader_Download_CreateDirs_Error(t *testing.T) {
-	// Skip this test in Docker/CI environments where we run as root
+	// Skip this test in CI environments where we run as root
 	if os.Getuid() == 0 {
-		t.Skip("Skipping permission test when running as root (Docker/CI environment)")
+		t.Skip("Skipping permission test when running as root (CI environment)")
 	}
 
 	testData := []byte("Test data")

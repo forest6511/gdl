@@ -161,8 +161,8 @@ test-ci-windows: ## Test Windows CI locally with act
 	fi
 	@echo "🧹 Clearing act cache..."
 	@rm -rf ~/.cache/act || true
-	@echo "🐳 Cleaning up act containers..."
-	@docker ps -aq --filter "name=act-" | xargs -r docker rm -f || true
+	@echo "🧹 Cleaning up act containers..."
+	@if command -v docker >/dev/null 2>&1; then docker ps -aq --filter "name=act-" | xargs -r docker rm -f || true; fi
 	act workflow_dispatch -W .github/workflows/cross-platform.yml --matrix os:windows-latest --matrix go-version:1.24 --container-architecture linux/amd64
 
 test-ci-macos: ## Test macOS CI locally with act  
@@ -173,8 +173,8 @@ test-ci-macos: ## Test macOS CI locally with act
 	fi
 	@echo "🧹 Clearing act cache..."
 	@rm -rf ~/.cache/act || true
-	@echo "🐳 Cleaning up act containers..."
-	@docker ps -aq --filter "name=act-" | xargs -r docker rm -f || true
+	@echo "🧹 Cleaning up act containers..."
+	@if command -v docker >/dev/null 2>&1; then docker ps -aq --filter "name=act-" | xargs -r docker rm -f || true; fi
 	act workflow_dispatch -W .github/workflows/cross-platform.yml --matrix os:macos-latest --matrix go-version:1.24 --container-architecture linux/amd64
 
 test-ci-ubuntu: ## Test Ubuntu CI locally with act
@@ -185,8 +185,8 @@ test-ci-ubuntu: ## Test Ubuntu CI locally with act
 	fi
 	@echo "🧹 Clearing act cache..."
 	@rm -rf ~/.cache/act || true
-	@echo "🐳 Cleaning up act containers..."
-	@docker ps -aq --filter "name=act-" | xargs -r docker rm -f || true
+	@echo "🧹 Cleaning up act containers..."
+	@if command -v docker >/dev/null 2>&1; then docker ps -aq --filter "name=act-" | xargs -r docker rm -f || true; fi
 	act workflow_dispatch -W .github/workflows/cross-platform.yml --matrix os:ubuntu-latest --matrix go-version:1.24 --container-architecture linux/amd64
 
 test-ci-all: ## Test cross-platform compatibility locally with act (Ubuntu only, Windows/macOS require GitHub Actions)
@@ -198,8 +198,8 @@ test-ci-all: ## Test cross-platform compatibility locally with act (Ubuntu only,
 	fi
 	@echo "🧹 Clearing act cache for fresh execution..."
 	@rm -rf ~/.cache/act || true
-	@echo "🐳 Cleaning up act containers..."
-	@docker ps -aq --filter "name=act-" | xargs -r docker rm -f || true
+	@echo "🧹 Cleaning up act containers..."
+	@if command -v docker >/dev/null 2>&1; then docker ps -aq --filter "name=act-" | xargs -r docker rm -f || true; fi
 	@echo "1️⃣ Testing Ubuntu (cross-platform workflow)..."
 	@ubuntu_success=0; \
 	if act workflow_dispatch -W .github/workflows/cross-platform.yml --matrix os:ubuntu-latest --matrix go-version:1.24 --container-architecture linux/amd64 2>&1 | tee /tmp/ubuntu-test.log; then \
