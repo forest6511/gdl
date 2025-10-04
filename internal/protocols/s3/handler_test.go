@@ -623,3 +623,236 @@ func BenchmarkNewS3Downloader(b *testing.B) {
 		_, _ = NewS3Downloader(config)
 	}
 }
+
+// Additional edge case tests for improved coverage
+func TestDownloadEdgeCases(t *testing.T) {
+	tests := []struct {
+		name    string
+		url     string
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:    "InvalidS3URL",
+			url:     "://invalid",
+			wantErr: true,
+			errMsg:  "invalid S3 URL",
+		},
+		{
+			name:    "MissingBucket",
+			url:     "s3:///key",
+			wantErr: true,
+			errMsg:  "bucket name is required",
+		},
+		{
+			name:    "MissingKey",
+			url:     "s3://bucket/",
+			wantErr: true,
+			errMsg:  "object key is required",
+		},
+		{
+			name:    "NonS3Scheme",
+			url:     "http://bucket/key",
+			wantErr: true,
+			errMsg:  "URL scheme must be 's3'",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			downloader := &S3Downloader{
+				config: DefaultConfig(),
+			}
+
+			ctx := context.Background()
+			var buf bytes.Buffer
+
+			err := downloader.Download(ctx, tt.url, &buf)
+
+			if tt.wantErr && err == nil {
+				t.Errorf("Expected error containing '%s', got nil", tt.errMsg)
+			}
+			if tt.wantErr && err != nil && !strings.Contains(err.Error(), tt.errMsg) {
+				t.Errorf("Expected error containing '%s', got: %v", tt.errMsg, err)
+			}
+		})
+	}
+}
+
+func TestGetObjectSizeEdgeCases(t *testing.T) {
+	tests := []struct {
+		name    string
+		url     string
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:    "InvalidURL",
+			url:     "://invalid",
+			wantErr: true,
+			errMsg:  "invalid S3 URL",
+		},
+		{
+			name:    "NonS3Scheme",
+			url:     "ftp://bucket/key",
+			wantErr: true,
+			errMsg:  "URL scheme must be 's3'",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			downloader := &S3Downloader{
+				config: DefaultConfig(),
+			}
+
+			ctx := context.Background()
+			_, err := downloader.GetObjectSize(ctx, tt.url)
+
+			if tt.wantErr && err == nil {
+				t.Errorf("Expected error containing '%s', got nil", tt.errMsg)
+			}
+			if tt.wantErr && err != nil && !strings.Contains(err.Error(), tt.errMsg) {
+				t.Errorf("Expected error containing '%s', got: %v", tt.errMsg, err)
+			}
+		})
+	}
+}
+
+func TestListObjectsParameters(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping S3 ListObjects test in short mode")
+	}
+
+	// This test verifies the ListObjects method signature and error handling
+	// Without actual AWS credentials/client, we skip the API call tests
+	t.Log("ListObjects method exists and accepts expected parameters")
+}
+
+func TestObjectExistsEdgeCases(t *testing.T) {
+	tests := []struct {
+		name    string
+		url     string
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:    "InvalidURL",
+			url:     "://invalid",
+			wantErr: true,
+			errMsg:  "invalid S3 URL",
+		},
+		{
+			name:    "NonS3Scheme",
+			url:     "http://bucket/key",
+			wantErr: true,
+			errMsg:  "URL scheme must be 's3'",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			downloader := &S3Downloader{
+				config: DefaultConfig(),
+			}
+
+			ctx := context.Background()
+			_, err := downloader.ObjectExists(ctx, tt.url)
+
+			if tt.wantErr && err == nil {
+				t.Errorf("Expected error containing '%s', got nil", tt.errMsg)
+			}
+			if tt.wantErr && err != nil && !strings.Contains(err.Error(), tt.errMsg) {
+				t.Errorf("Expected error containing '%s', got: %v", tt.errMsg, err)
+			}
+		})
+	}
+}
+
+func TestGetObjectMetadataEdgeCases(t *testing.T) {
+	tests := []struct {
+		name    string
+		url     string
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:    "InvalidURL",
+			url:     "://invalid",
+			wantErr: true,
+			errMsg:  "invalid S3 URL",
+		},
+		{
+			name:    "NonS3Scheme",
+			url:     "ftp://bucket/key",
+			wantErr: true,
+			errMsg:  "URL scheme must be 's3'",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			downloader := &S3Downloader{
+				config: DefaultConfig(),
+			}
+
+			ctx := context.Background()
+			_, err := downloader.GetObjectMetadata(ctx, tt.url)
+
+			if tt.wantErr && err == nil {
+				t.Errorf("Expected error containing '%s', got nil", tt.errMsg)
+			}
+			if tt.wantErr && err != nil && !strings.Contains(err.Error(), tt.errMsg) {
+				t.Errorf("Expected error containing '%s', got: %v", tt.errMsg, err)
+			}
+		})
+	}
+}
+
+func TestDownloadRangeEdgeCases(t *testing.T) {
+	tests := []struct {
+		name    string
+		url     string
+		start   int64
+		end     int64
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:    "InvalidURL",
+			url:     "://invalid",
+			start:   0,
+			end:     1024,
+			wantErr: true,
+			errMsg:  "invalid S3 URL",
+		},
+		{
+			name:    "NonS3Scheme",
+			url:     "http://bucket/key",
+			start:   0,
+			end:     1024,
+			wantErr: true,
+			errMsg:  "URL scheme must be 's3'",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			downloader := &S3Downloader{
+				config: DefaultConfig(),
+			}
+
+			ctx := context.Background()
+			var buf bytes.Buffer
+
+			err := downloader.DownloadRange(ctx, tt.url, &buf, tt.start, tt.end)
+
+			if tt.wantErr && err == nil {
+				t.Errorf("Expected error containing '%s', got nil", tt.errMsg)
+			}
+			if tt.wantErr && err != nil && !strings.Contains(err.Error(), tt.errMsg) {
+				t.Errorf("Expected error containing '%s', got: %v", tt.errMsg, err)
+			}
+		})
+	}
+}

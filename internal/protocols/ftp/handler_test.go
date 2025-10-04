@@ -800,3 +800,116 @@ func BenchmarkMockOperations(b *testing.B) {
 		}
 	})
 }
+
+// Additional tests for improved coverage using table-driven approach
+func TestDownloadEdgeCases(t *testing.T) {
+	tests := []struct {
+		name    string
+		url     string
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:    "InvalidURL",
+			url:     "://invalid",
+			wantErr: true,
+			errMsg:  "invalid FTP URL",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			downloader := NewFTPDownloader(&Config{
+				DialTimeout: 50 * time.Millisecond,
+				Timeout:     50 * time.Millisecond,
+			})
+
+			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+			defer cancel()
+
+			var buf bytes.Buffer
+			err := downloader.Download(ctx, tt.url, &buf)
+
+			if tt.wantErr && err == nil {
+				t.Errorf("Expected error containing '%s', got nil", tt.errMsg)
+			}
+			if tt.wantErr && err != nil && tt.errMsg != "" && !strings.Contains(err.Error(), tt.errMsg) {
+				t.Errorf("Expected error containing '%s', got: %v", tt.errMsg, err)
+			}
+		})
+	}
+}
+
+func TestGetFileSizeEdgeCases(t *testing.T) {
+	tests := []struct {
+		name    string
+		url     string
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:    "InvalidURL",
+			url:     "://invalid",
+			wantErr: true,
+			errMsg:  "invalid FTP URL",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			downloader := NewFTPDownloader(&Config{
+				DialTimeout: 50 * time.Millisecond,
+				Timeout:     50 * time.Millisecond,
+			})
+
+			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+			defer cancel()
+
+			_, err := downloader.GetFileSize(ctx, tt.url)
+
+			if tt.wantErr && err == nil {
+				t.Errorf("Expected error containing '%s', got nil", tt.errMsg)
+			}
+			if tt.wantErr && err != nil && tt.errMsg != "" && !strings.Contains(err.Error(), tt.errMsg) {
+				t.Errorf("Expected error containing '%s', got: %v", tt.errMsg, err)
+			}
+		})
+	}
+}
+
+func TestListFilesEdgeCases(t *testing.T) {
+	tests := []struct {
+		name    string
+		url     string
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:    "InvalidURL",
+			url:     "://invalid",
+			wantErr: true,
+			errMsg:  "invalid FTP URL",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			downloader := NewFTPDownloader(&Config{
+				DialTimeout: 50 * time.Millisecond,
+				Timeout:     50 * time.Millisecond,
+			})
+
+			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+			defer cancel()
+
+			_, err := downloader.ListFiles(ctx, tt.url)
+
+			if tt.wantErr && err == nil {
+				t.Errorf("Expected error containing '%s', got nil", tt.errMsg)
+			}
+			if tt.wantErr && err != nil && tt.errMsg != "" && !strings.Contains(err.Error(), tt.errMsg) {
+				t.Errorf("Expected error containing '%s', got: %v", tt.errMsg, err)
+			}
+		})
+	}
+}

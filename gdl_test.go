@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/forest6511/gdl/pkg/events"
+	"github.com/forest6511/gdl/pkg/middleware"
 	"github.com/forest6511/gdl/pkg/types"
 	"github.com/forest6511/gdl/pkg/validation"
 )
@@ -721,4 +723,77 @@ func TestDownloadWithOptionsComprehensive(t *testing.T) {
 func DownloadToWriterWithOptions(ctx context.Context, url string, w io.Writer, opts *Options) (*DownloadStats, error) {
 	downloader := NewDownloader()
 	return downloader.DownloadToWriter(ctx, url, w, opts)
+}
+
+// TestUseMiddleware tests the UseMiddleware method
+func TestUseMiddleware(t *testing.T) {
+	downloader := NewDownloader()
+
+	// Create a simple test middleware
+	testMiddleware := func(next middleware.Handler) middleware.Handler {
+		return func(ctx context.Context, req *middleware.DownloadRequest) (*middleware.DownloadResponse, error) {
+			return next(ctx, req)
+		}
+	}
+
+	// Register middleware
+	downloader.UseMiddleware(testMiddleware)
+
+	// Verify the method doesn't panic
+	if downloader.middleware == nil {
+		t.Error("Expected middleware to be initialized")
+	}
+}
+
+// TestOn tests the On event listener registration
+func TestOn(t *testing.T) {
+	downloader := NewDownloader()
+
+	// Create a simple test handler
+	handler := func(event events.Event) {
+		// Handler logic would go here
+	}
+
+	// Register event listener
+	downloader.On(events.EventDownloadStarted, handler)
+
+	// Verify the method doesn't panic
+	if downloader.eventEmitter == nil {
+		t.Error("Expected eventEmitter to be initialized")
+	}
+
+	// Test multiple event types
+	downloader.On(events.EventDownloadCompleted, handler)
+	downloader.On(events.EventDownloadFailed, handler)
+	downloader.On(events.EventDownloadProgress, handler)
+}
+
+// TestDownloaderMethodChaining tests that methods can be chained
+func TestDownloaderMethodChaining(t *testing.T) {
+	downloader := NewDownloader()
+
+	// Test chaining UseMiddleware calls
+	middleware1 := func(next middleware.Handler) middleware.Handler {
+		return next
+	}
+	middleware2 := func(next middleware.Handler) middleware.Handler {
+		return next
+	}
+
+	downloader.UseMiddleware(middleware1)
+	downloader.UseMiddleware(middleware2)
+
+	// Test chaining On calls
+	handler := func(event events.Event) {}
+
+	downloader.On(events.EventDownloadStarted, handler)
+	downloader.On(events.EventDownloadCompleted, handler)
+
+	// Verify downloader is still functional
+	if downloader.eventEmitter == nil {
+		t.Error("Expected eventEmitter to remain initialized after chaining")
+	}
+	if downloader.middleware == nil {
+		t.Error("Expected middleware to remain initialized after chaining")
+	}
 }
