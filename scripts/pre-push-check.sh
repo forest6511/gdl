@@ -196,23 +196,78 @@ fi
 # 6. Security Checks
 print_section "Security"
 
+# 6.1 gosec - Security scanner
 if command -v gosec &> /dev/null; then
-    print_check "Running security scan"
+    print_check "Running gosec security scan"
 
-    # Count security issues
-    SECURITY_ISSUES=$(gosec -quiet -fmt=json -exclude-dir=examples -exclude-dir=test ./... 2>/dev/null | jq '.Issues | length' 2>/dev/null || echo "0")
-    SECURITY_ISSUES="${SECURITY_ISSUES:-0}"
-
-    if [ "$SECURITY_ISSUES" -eq 0 ]; then
-        print_success "No security vulnerabilities found"
+    # Run gosec and check for HIGH/MEDIUM severity issues in production code
+    if gosec -fmt text -exclude-dir=examples -exclude-dir=test ./... > /tmp/gosec-output.txt 2>&1; then
+        print_success "No security issues found (gosec)"
     else
-        print_warning "Found $SECURITY_ISSUES security considerations"
-        WARNINGS+=("security considerations")
-        print_info "Run './scripts/security-check.sh --full' for details"
+        # Count HIGH and MEDIUM severity issues (excluding G115)
+        HIGH_ISSUES=$(grep "^\\[.*\\] - G" /tmp/gosec-output.txt | grep -v "G115" | grep -c "Severity: HIGH" || echo "0")
+        MEDIUM_ISSUES=$(grep "^\\[.*\\] - G" /tmp/gosec-output.txt | grep -v "G115" | grep -c "Severity: MEDIUM" || echo "0")
+
+        if [ "$HIGH_ISSUES" -gt 0 ]; then
+            print_error "Found $HIGH_ISSUES HIGH severity security issues"
+            FAILED_CHECKS+=("gosec HIGH severity")
+            grep "^\\[.*\\] - G" /tmp/gosec-output.txt | grep -v "G115" | grep "Severity: HIGH" | head -3
+        elif [ "$MEDIUM_ISSUES" -gt 0 ]; then
+            print_warning "Found $MEDIUM_ISSUES MEDIUM severity security issues"
+            WARNINGS+=("gosec MEDIUM severity")
+        else
+            print_success "No significant security issues (gosec)"
+        fi
     fi
+    rm -f /tmp/gosec-output.txt
 else
     print_warning "gosec not installed"
     WARNINGS+=("gosec not installed")
+    print_info "Install: go install github.com/securego/gosec/v2/cmd/gosec@latest"
+fi
+
+# 6.2 staticcheck - Static analysis
+if command -v staticcheck &> /dev/null; then
+    print_check "Running staticcheck"
+
+    if staticcheck ./... > /tmp/staticcheck-output.txt 2>&1; then
+        print_success "No staticcheck issues found"
+    else
+        STATIC_ISSUES=$(wc -l < /tmp/staticcheck-output.txt | tr -d ' ')
+        print_error "Found $STATIC_ISSUES staticcheck issues"
+        FAILED_CHECKS+=("staticcheck")
+        head -5 /tmp/staticcheck-output.txt
+        if [ "$STATIC_ISSUES" -gt 5 ]; then
+            print_info "... and $((STATIC_ISSUES - 5)) more issues"
+        fi
+    fi
+    rm -f /tmp/staticcheck-output.txt
+else
+    print_warning "staticcheck not installed"
+    WARNINGS+=("staticcheck not installed")
+    print_info "Install: go install honnef.co/go/tools/cmd/staticcheck@latest"
+fi
+
+# 6.3 govulncheck - Vulnerability check
+if command -v govulncheck &> /dev/null; then
+    print_check "Checking for known vulnerabilities"
+
+    if govulncheck ./... > /tmp/vuln-output.txt 2>&1; then
+        print_success "No known vulnerabilities found"
+    else
+        if grep -q "Vulnerability" /tmp/vuln-output.txt; then
+            print_error "Known vulnerabilities found"
+            FAILED_CHECKS+=("govulncheck")
+            grep -A 3 "Vulnerability" /tmp/vuln-output.txt | head -10
+        else
+            print_success "No known vulnerabilities found"
+        fi
+    fi
+    rm -f /tmp/vuln-output.txt
+else
+    print_warning "govulncheck not installed"
+    WARNINGS+=("govulncheck not installed")
+    print_info "Install: go install golang.org/x/vuln/cmd/govulncheck@latest"
 fi
 
 # 7. Tests

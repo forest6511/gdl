@@ -531,3 +531,73 @@ func TestSimulatorSuite_Close(t *testing.T) {
 	// Should be safe to call multiple times
 	suite.Close()
 }
+
+func TestErrorSimulator_LargeFileHandler(t *testing.T) {
+	config := &SimulationConfig{
+		MaxResponseSize: 10 * 1024 * 1024, // 10MB
+	}
+
+	sim := NewErrorSimulator(config)
+	defer sim.Close()
+
+	resp, err := http.Get(sim.GetEndpoint("/large-file"))
+	if err != nil {
+		t.Fatalf("Request failed: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// Read response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Failed to read body: %v", err)
+	}
+
+	// Should receive large file
+	if len(body) == 0 {
+		t.Error("Should receive large file data")
+	}
+}
+
+func TestErrorSimulator_RandomError(t *testing.T) {
+	config := &SimulationConfig{
+		FailureRate: 1.0, // 100% failure rate
+	}
+
+	sim := NewErrorSimulator(config)
+	defer sim.Close()
+
+	// Make multiple requests - with 100% failure rate, all should fail
+	failureCount := 0
+	for i := 0; i < 10; i++ {
+		resp, err := http.Get(sim.GetURL())
+		if err != nil {
+			failureCount++
+			continue
+		}
+		if resp.StatusCode >= 400 {
+			failureCount++
+		}
+		_ = resp.Body.Close()
+	}
+
+	// With 100% failure rate, should have failures
+	if failureCount == 0 {
+		t.Error("Expected at least some failures with 100% failure rate")
+	}
+}
+
+func TestTimeoutError_Methods(t *testing.T) {
+	err := &timeoutError{}
+
+	if err.Error() != "i/o timeout" {
+		t.Errorf("Expected error message 'i/o timeout', got %s", err.Error())
+	}
+
+	if !err.Timeout() {
+		t.Error("Expected Timeout() to return true")
+	}
+
+	if err.Temporary() {
+		t.Error("Expected Temporary() to return false")
+	}
+}
