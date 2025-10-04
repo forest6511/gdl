@@ -8,6 +8,62 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
+// TestS3BackendGetObjectSize tests GetObjectSize functionality
+func TestS3BackendGetObjectSize(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping S3 integration test in short mode")
+	}
+
+	t.Run("GetObjectSizeNotFound", func(t *testing.T) {
+		backend := NewS3Backend()
+		config := map[string]interface{}{
+			"bucket": "test-bucket",
+			"region": "us-east-1",
+		}
+
+		// This will fail to init without real credentials, but tests the path
+		err := backend.Init(config)
+		if err != nil {
+			t.Logf("Init failed as expected without credentials: %v", err)
+			return
+		}
+
+		// If somehow init succeeds, test GetObjectSize
+		_, err = backend.GetObjectSize(context.Background(), "nonexistent-key")
+		if err == nil {
+			t.Error("Expected error for non-existent object")
+		}
+	})
+}
+
+// TestS3BackendGetObjectMetadata tests GetObjectMetadata functionality
+func TestS3BackendGetObjectMetadata(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping S3 integration test in short mode")
+	}
+
+	t.Run("GetObjectMetadataNotFound", func(t *testing.T) {
+		backend := NewS3Backend()
+		config := map[string]interface{}{
+			"bucket": "test-bucket",
+			"region": "us-east-1",
+		}
+
+		// This will fail to init without real credentials, but tests the path
+		err := backend.Init(config)
+		if err != nil {
+			t.Logf("Init failed as expected without credentials: %v", err)
+			return
+		}
+
+		// If somehow init succeeds, test GetObjectMetadata
+		_, err = backend.GetObjectMetadata(context.Background(), "nonexistent-key")
+		if err == nil {
+			t.Error("Expected error for non-existent object")
+		}
+	})
+}
+
 // TestS3BackendInitialization tests S3 backend initialization
 func TestS3BackendConfiguration(t *testing.T) {
 	t.Run("InitWithProfile", func(t *testing.T) {

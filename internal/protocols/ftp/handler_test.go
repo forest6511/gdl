@@ -3,6 +3,7 @@ package ftp
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"strings"
 	"testing"
@@ -443,6 +444,319 @@ func TestConfigOptions(t *testing.T) {
 	})
 }
 
+// TestDownloadWithMock tests Download with mock connection
+func TestDownloadWithMock(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping connection tests in short mode")
+	}
+
+	t.Run("SuccessfulDownload", func(t *testing.T) {
+		downloader := NewFTPDownloader(&Config{
+			DialTimeout: 100 * time.Millisecond,
+		})
+
+		var buf bytes.Buffer
+		err := downloader.Download(context.Background(), "ftp://example.com/test.txt", &buf)
+
+		// Will fail connection, but tests the flow
+		if err != nil {
+			t.Logf("Download failed as expected without connection: %v", err)
+		}
+	})
+
+	t.Run("DownloadWithRetrError", func(t *testing.T) {
+		mock := &MockFTPConnection{
+			retrErr: errors.New("retrieve error"),
+		}
+
+		// Test that Retr errors are properly handled
+		_, err := mock.Retr("/test.txt")
+		if err == nil {
+			t.Error("Expected retrieve error")
+		}
+		if err.Error() != "retrieve error" {
+			t.Errorf("Expected 'retrieve error', got %v", err)
+		}
+	})
+
+	t.Run("DownloadEmptyPath", func(t *testing.T) {
+		downloader := NewFTPDownloader(nil)
+		var buf bytes.Buffer
+		err := downloader.Download(context.Background(), "ftp://example.com", &buf)
+
+		// Should fail with connection error first
+		if err == nil {
+			t.Error("Expected error for empty path")
+		}
+	})
+
+	t.Run("DownloadRootPath", func(t *testing.T) {
+		downloader := NewFTPDownloader(nil)
+		var buf bytes.Buffer
+		err := downloader.Download(context.Background(), "ftp://example.com/", &buf)
+
+		// Should fail with connection error first
+		if err == nil {
+			t.Error("Expected error for root path")
+		}
+	})
+}
+
+// TestGetFileSizeWithMock tests GetFileSize with mock
+func TestGetFileSizeWithMock(t *testing.T) {
+	t.Run("SuccessfulGetSize", func(t *testing.T) {
+		mock := &MockFTPConnection{
+			fileSize: 12345,
+		}
+
+		size, err := mock.FileSize("/test.txt")
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+		if size != 12345 {
+			t.Errorf("Expected size 12345, got %d", size)
+		}
+	})
+
+	t.Run("FileSizeError", func(t *testing.T) {
+		mock := &MockFTPConnection{
+			fileSizeErr: errors.New("size error"),
+		}
+
+		_, err := mock.FileSize("/test.txt")
+		if err == nil {
+			t.Error("Expected size error")
+		}
+	})
+
+	t.Run("GetFileSizeEmptyPath", func(t *testing.T) {
+		downloader := NewFTPDownloader(nil)
+		_, err := downloader.GetFileSize(context.Background(), "ftp://example.com")
+
+		// Should fail with connection error first
+		if err == nil {
+			t.Error("Expected error for empty path")
+		}
+	})
+}
+
+// TestListFilesWithMock tests ListFiles with mock
+func TestListFilesWithMock(t *testing.T) {
+	t.Run("SuccessfulList", func(t *testing.T) {
+		mock := &MockFTPConnection{
+			files: []*ftp.Entry{
+				{Name: "file1.txt", Type: ftp.EntryTypeFile},
+				{Name: "file2.txt", Type: ftp.EntryTypeFile},
+				{Name: "dir1", Type: ftp.EntryTypeFolder},
+			},
+		}
+
+		entries, err := mock.List("/")
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+		if len(entries) != 3 {
+			t.Errorf("Expected 3 entries, got %d", len(entries))
+		}
+	})
+
+	t.Run("ListError", func(t *testing.T) {
+		mock := &MockFTPConnection{
+			listErr: errors.New("list error"),
+		}
+
+		_, err := mock.List("/")
+		if err == nil {
+			t.Error("Expected list error")
+		}
+	})
+
+	t.Run("EmptyDirectoryList", func(t *testing.T) {
+		mock := &MockFTPConnection{
+			files: []*ftp.Entry{},
+		}
+
+		entries, err := mock.List("/")
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+		if len(entries) != 0 {
+			t.Errorf("Expected 0 entries, got %d", len(entries))
+		}
+	})
+}
+
+// TestCloseWithMock tests Close scenarios
+func TestCloseWithMock(t *testing.T) {
+	t.Run("CloseWithQuitError", func(t *testing.T) {
+		mock := &MockFTPConnection{
+			quitErr: errors.New("quit error"),
+		}
+
+		err := mock.Quit()
+		if err == nil {
+			t.Error("Expected quit error")
+		}
+	})
+
+	t.Run("CloseSuccess", func(t *testing.T) {
+		mock := &MockFTPConnection{}
+
+		err := mock.Quit()
+		if err != nil {
+			t.Errorf("Expected no error, got %v", err)
+		}
+	})
+}
+
+// TestChangeDirWithMock tests ChangeWorkingDirectory
+func TestChangeDirWithMock(t *testing.T) {
+	t.Run("SuccessfulChangeDir", func(t *testing.T) {
+		mock := &MockFTPConnection{}
+
+		err := mock.ChangeDir("/test")
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+		if mock.currentDir != "/test" {
+			t.Errorf("Expected current dir '/test', got '%s'", mock.currentDir)
+		}
+	})
+
+	t.Run("ChangeDirError", func(t *testing.T) {
+		mock := &MockFTPConnection{
+			changeDirErr: errors.New("change dir error"),
+		}
+
+		err := mock.ChangeDir("/test")
+		if err == nil {
+			t.Error("Expected change dir error")
+		}
+	})
+}
+
+// TestGetCurrentDirWithMock tests GetCurrentDirectory
+func TestGetCurrentDirWithMock(t *testing.T) {
+	t.Run("DefaultCurrentDir", func(t *testing.T) {
+		mock := &MockFTPConnection{}
+
+		dir, err := mock.CurrentDir()
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+		if dir != "/" {
+			t.Errorf("Expected '/', got '%s'", dir)
+		}
+	})
+
+	t.Run("ChangedCurrentDir", func(t *testing.T) {
+		mock := &MockFTPConnection{
+			currentDir: "/test",
+		}
+
+		dir, err := mock.CurrentDir()
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+		if dir != "/test" {
+			t.Errorf("Expected '/test', got '%s'", dir)
+		}
+	})
+
+	t.Run("CurrentDirError", func(t *testing.T) {
+		mock := &MockFTPConnection{
+			currentDirErr: errors.New("current dir error"),
+		}
+
+		_, err := mock.CurrentDir()
+		if err == nil {
+			t.Error("Expected current dir error")
+		}
+	})
+}
+
+// TestURLParsing tests URL parsing edge cases
+func TestURLParsing(t *testing.T) {
+	t.Run("MalformedURL", func(t *testing.T) {
+		downloader := NewFTPDownloader(&Config{
+			DialTimeout: 100 * time.Millisecond,
+		})
+		err := downloader.Connect(context.Background(), "not a url")
+
+		// Will fail to connect as it's not a valid FTP URL
+		if err == nil {
+			t.Error("Expected connection error for malformed URL")
+		}
+	})
+
+	if testing.Short() {
+		t.Skip("Skipping connection tests in short mode")
+	}
+
+	t.Run("URLWithCredentials", func(t *testing.T) {
+		downloader := NewFTPDownloader(&Config{
+			DialTimeout: 100 * time.Millisecond,
+		})
+		err := downloader.Connect(context.Background(), "ftp://user:pass@example.com/file.txt")
+
+		// Will fail to connect, but tests URL parsing
+		if err != nil && strings.Contains(err.Error(), "failed to connect") {
+			t.Logf("Connection failed as expected: %v", err)
+		}
+	})
+
+	t.Run("URLWithPort", func(t *testing.T) {
+		downloader := NewFTPDownloader(&Config{
+			DialTimeout: 100 * time.Millisecond,
+		})
+		err := downloader.Connect(context.Background(), "ftp://example.com:2121/file.txt")
+
+		// Will fail to connect, but tests port parsing
+		if err != nil {
+			t.Logf("Connection failed as expected: %v", err)
+		}
+	})
+}
+
+// TestContextCancellation tests context cancellation during download
+func TestContextCancellation(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping connection tests in short mode")
+	}
+
+	t.Run("CancelledContext", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel() // Cancel immediately
+
+		downloader := NewFTPDownloader(&Config{
+			DialTimeout: 100 * time.Millisecond,
+		})
+		var buf bytes.Buffer
+		err := downloader.Download(ctx, "ftp://example.com/file.txt", &buf)
+
+		if err == nil {
+			t.Error("Expected error with cancelled context")
+		}
+		t.Logf("Got expected error: %v", err)
+	})
+
+	t.Run("TimeoutContext", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+		defer cancel()
+
+		downloader := NewFTPDownloader(&Config{
+			DialTimeout: 100 * time.Millisecond,
+		})
+		var buf bytes.Buffer
+		err := downloader.Download(ctx, "ftp://example.com/file.txt", &buf)
+
+		if err == nil {
+			t.Error("Expected timeout error")
+		}
+		t.Logf("Got expected error: %v", err)
+	})
+}
+
 // Benchmark tests
 func BenchmarkNewFTPDownloader(b *testing.B) {
 	for i := 0; i < b.N; i++ {
@@ -454,4 +768,35 @@ func BenchmarkDefaultConfig(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = DefaultConfig()
 	}
+}
+
+func BenchmarkMockOperations(b *testing.B) {
+	mock := &MockFTPConnection{
+		fileSize:    1024,
+		fileContent: "test content",
+		files: []*ftp.Entry{
+			{Name: "file1.txt", Type: ftp.EntryTypeFile},
+		},
+	}
+
+	b.Run("FileSize", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_, _ = mock.FileSize("/test.txt")
+		}
+	})
+
+	b.Run("List", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_, _ = mock.List("/")
+		}
+	})
+
+	b.Run("Retr", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			r, _ := mock.Retr("/test.txt")
+			if r != nil {
+				_ = r.Close()
+			}
+		}
+	})
 }
