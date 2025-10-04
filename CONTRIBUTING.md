@@ -5,7 +5,7 @@ Thank you for your interest in contributing to gdl! This guide will help you get
 ## Getting Started
 
 ### Prerequisites
-- Go 1.23 or later
+- Go 1.24 or later
 - Git
 - Make (optional but recommended)
 
@@ -371,7 +371,7 @@ We use [Semantic Versioning](https://semver.org/):
 
 ### Tools and Resources
 
-- **Required**: Go 1.23+, golangci-lint
+- **Required**: Go 1.24+, golangci-lint
 - **Recommended**: act (for local CI), goimports
 - **Documentation**: 
   - [Go Code Review Guidelines](https://github.com/golang/go/wiki/CodeReviewComments)

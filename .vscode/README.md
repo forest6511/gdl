@@ -83,7 +83,7 @@ The VSCode settings are aligned with:
 ### Go Extension Issues
 1. **Ctrl+Shift+P** → "Go: Install/Update Tools"
 2. Restart VSCode
-3. Check Go version: `go version` (should be 1.23+)
+3. Check Go version: `go version` (should be 1.24+)
 
 ### Linting Issues
 1. Install golangci-lint: `go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest`
