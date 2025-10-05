@@ -1635,6 +1635,9 @@ func (d *Downloader) downloadWithResume(
 	stats.AverageSpeed = d.calculateDownloadSpeed(written, stats.Duration)
 	stats.Success = true
 
+	// Clean up resume file on successful download
+	_ = d.resumeManager.Delete(file.Name())
+
 	return stats, nil
 }
 
