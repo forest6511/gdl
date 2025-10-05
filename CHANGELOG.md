@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Resume Functionality**: Complete implementation of download resume with HTTP Range requests (#32)
+  - Automatic resume state persistence in `~/.gdl/resume/`
+  - ETag and Last-Modified validation for safe resume
+  - File integrity verification using SHA256 checksums
+  - Graceful fallback when server doesn't support Range requests
+  - Automatic cleanup of resume files on successful completion
+  - Progress saving on interruption (Ctrl+C, network failure)
+  - Resume offset tracking with partial content (206) support
+
 ## [1.3.1] - 2025-09-30
 
 ### Changed

@@ -190,13 +190,34 @@ gdl --no-concurrent https://example.com/file.zip
 
 ### Resume Downloads
 
+gdl supports automatic resume of interrupted downloads with intelligent validation:
+
 ```bash
-# Enable resume support
+# Enable resume support (with automatic state persistence)
 gdl --resume https://example.com/large-file.iso
+
+# Resume is automatic on interruption (Ctrl+C, network failure)
+# Resume state saved to: ~/.gdl/resume/
 
 # Continue partial download
 gdl --continue-partial -o partial.zip https://example.com/file.zip
 ```
+
+**Resume Features**:
+- Automatic state persistence in `~/.gdl/resume/` directory
+- ETag and Last-Modified validation for safe resume
+- SHA256 checksum verification for file integrity
+- HTTP Range request support (HTTP 206 Partial Content)
+- Graceful fallback when server doesn't support Range requests
+- Automatic cleanup of resume files on successful completion
+- Progress saving on interruption (Ctrl+C, network failure, timeout)
+
+**Resume Workflow**:
+1. Download starts → Resume state saved periodically
+2. Interruption occurs → Current progress saved with metadata
+3. Restart download → Validates ETag/Last-Modified
+4. Resume from offset → Sends HTTP Range header
+5. Complete download → Resume file automatically cleaned up
 
 ### Custom Headers
 

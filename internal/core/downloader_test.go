@@ -2120,7 +2120,7 @@ func TestDownloader_DownloadWithResume_ErrorHandling(t *testing.T) {
 			},
 			resumeOffset:   0,
 			expectError:    true,
-			expectedErrMsg: "Invalid URL format", // Changed to match actual error
+			expectedErrMsg: "Failed to create HTTP request",
 		},
 		{
 			name: "Client_Do_Error",
@@ -2140,7 +2140,7 @@ func TestDownloader_DownloadWithResume_ErrorHandling(t *testing.T) {
 			},
 			resumeOffset:   0,
 			expectError:    true,
-			expectedErrMsg: "error",
+			expectedErrMsg: "Failed to perform resume request",
 		},
 	}
 
@@ -4963,6 +4963,462 @@ func TestDownloader_RateLimitErrorPaths(t *testing.T) {
 		} else if !errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, context.Canceled) {
 			// Accept either deadline exceeded or canceled
 			t.Logf("Got error: %v (acceptable for rate limit test)", err)
+		}
+	})
+}
+
+// TestDownloader_CanResumeDownload tests the canResumeDownload validation logic
+func TestDownloader_CanResumeDownload(t *testing.T) {
+	downloader := NewDownloader()
+	url := "https://example.com/file.zip"
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "file.zip")
+
+	// Create a partial file
+	partialContent := bytes.Repeat([]byte("X"), 1024)
+	err := os.WriteFile(filePath, partialContent, 0o600)
+	if err != nil {
+		t.Fatalf("Failed to create partial file: %v", err)
+	}
+
+	baseResumeInfo := &resume.ResumeInfo{
+		URL:             url,
+		FilePath:        filePath,
+		DownloadedBytes: 1024,
+		TotalBytes:      2048,
+		ETag:            `"abc123"`,
+		LastModified:    time.Now().Add(-1 * time.Hour),
+		AcceptRanges:    true,
+	}
+
+	// Save resume info for validation
+	_ = downloader.resumeManager.Save(baseResumeInfo)
+
+	baseFileInfo := &types.FileInfo{
+		Size:           2048,
+		SupportsRanges: true,
+		Headers: map[string][]string{
+			"Etag":          {`"abc123"`},
+			"Last-Modified": {baseResumeInfo.LastModified.Format(http.TimeFormat)},
+		},
+		LastModified: baseResumeInfo.LastModified,
+	}
+
+	t.Run("valid resume with matching ETag", func(t *testing.T) {
+		canResume := downloader.canResumeDownload(baseResumeInfo, baseFileInfo, url)
+		if !canResume {
+			t.Error("Expected canResume to be true with matching ETag")
+		}
+	})
+
+	t.Run("invalid resume with URL mismatch", func(t *testing.T) {
+		canResume := downloader.canResumeDownload(baseResumeInfo, baseFileInfo, "https://different.com/file.zip")
+		if canResume {
+			t.Error("Expected canResume to be false with URL mismatch")
+		}
+	})
+
+	t.Run("invalid resume with ETag mismatch", func(t *testing.T) {
+		mismatchInfo := &types.FileInfo{
+			Size:           2048,
+			SupportsRanges: true,
+			Headers: map[string][]string{
+				"ETag": {`"different"`},
+			},
+		}
+		canResume := downloader.canResumeDownload(baseResumeInfo, mismatchInfo, url)
+		if canResume {
+			t.Error("Expected canResume to be false with ETag mismatch")
+		}
+	})
+
+	t.Run("invalid resume with Last-Modified mismatch", func(t *testing.T) {
+		resumeInfoNoETag := &resume.ResumeInfo{
+			URL:             url,
+			FilePath:        "file.zip",
+			DownloadedBytes: 1024,
+			TotalBytes:      2048,
+			ETag:            "",
+			LastModified:    time.Now().Add(-2 * time.Hour),
+			AcceptRanges:    true,
+		}
+		fileInfoDifferentTime := &types.FileInfo{
+			Size:           2048,
+			SupportsRanges: true,
+			LastModified:   time.Now().Add(-1 * time.Hour),
+		}
+		canResume := downloader.canResumeDownload(resumeInfoNoETag, fileInfoDifferentTime, url)
+		if canResume {
+			t.Error("Expected canResume to be false with Last-Modified mismatch")
+		}
+	})
+
+	t.Run("valid resume with matching Last-Modified when no ETag", func(t *testing.T) {
+		// Create another temp file for this test
+		tempDir2 := t.TempDir()
+		filePath2 := filepath.Join(tempDir2, "file2.zip")
+		partialContent2 := bytes.Repeat([]byte("Y"), 1024)
+		err := os.WriteFile(filePath2, partialContent2, 0o600)
+		if err != nil {
+			t.Fatalf("Failed to create partial file: %v", err)
+		}
+
+		resumeInfoNoETag := &resume.ResumeInfo{
+			URL:             url,
+			FilePath:        filePath2,
+			DownloadedBytes: 1024,
+			TotalBytes:      2048,
+			ETag:            "",
+			LastModified:    baseResumeInfo.LastModified,
+			AcceptRanges:    true,
+		}
+
+		// Save resume info for validation
+		_ = downloader.resumeManager.Save(resumeInfoNoETag)
+
+		fileInfoNoETag := &types.FileInfo{
+			Size:           2048,
+			SupportsRanges: true,
+			LastModified:   baseResumeInfo.LastModified,
+			Headers:        map[string][]string{},
+		}
+		canResume := downloader.canResumeDownload(resumeInfoNoETag, fileInfoNoETag, url)
+		if !canResume {
+			t.Error("Expected canResume to be true with matching Last-Modified")
+		}
+	})
+}
+
+// TestDownloader_GetETagFromHeaders tests ETag extraction from headers
+func TestDownloader_GetETagFromHeaders(t *testing.T) {
+	downloader := NewDownloader()
+
+	tests := []struct {
+		name     string
+		headers  map[string][]string
+		expected string
+	}{
+		{
+			name:     "ETag with double quotes",
+			headers:  map[string][]string{"ETag": {`"abc123"`}},
+			expected: `"abc123"`,
+		},
+		{
+			name:     "ETag without quotes",
+			headers:  map[string][]string{"ETag": {"abc123"}},
+			expected: "abc123",
+		},
+		{
+			name:     "Etag lowercase",
+			headers:  map[string][]string{"Etag": {`"xyz789"`}},
+			expected: `"xyz789"`,
+		},
+		{
+			name:     "No ETag header",
+			headers:  map[string][]string{"Content-Type": {"application/zip"}},
+			expected: "",
+		},
+		{
+			name:     "Empty headers",
+			headers:  map[string][]string{},
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := downloader.getETagFromHeaders(tt.headers)
+			if result != tt.expected {
+				t.Errorf("Expected ETag %q, got %q", tt.expected, result)
+			}
+		})
+	}
+}
+
+// TestDownloader_SaveResumeProgress tests resume progress saving
+func TestDownloader_SaveResumeProgress(t *testing.T) {
+	downloader := NewDownloader()
+
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "test.zip")
+	url := "https://example.com/test.zip"
+
+	t.Run("save progress successfully", func(t *testing.T) {
+		err := downloader.saveResumeProgress(url, filePath, 1024, 2048)
+		if err != nil {
+			t.Errorf("Expected no error, got %v", err)
+		}
+
+		// Verify resume file was created
+		resumeInfo, err := downloader.resumeManager.Load(filePath)
+		if err != nil {
+			t.Fatalf("Failed to load resume info: %v", err)
+		}
+
+		if resumeInfo.URL != url {
+			t.Errorf("Expected URL %s, got %s", url, resumeInfo.URL)
+		}
+		if resumeInfo.DownloadedBytes != 1024 {
+			t.Errorf("Expected 1024 bytes, got %d", resumeInfo.DownloadedBytes)
+		}
+		if resumeInfo.TotalBytes != 2048 {
+			t.Errorf("Expected 2048 total bytes, got %d", resumeInfo.TotalBytes)
+		}
+	})
+}
+
+// TestDownloader_CalculateDownloadSpeed tests download speed calculation
+func TestDownloader_CalculateDownloadSpeed(t *testing.T) {
+	downloader := NewDownloader()
+
+	tests := []struct {
+		name     string
+		bytes    int64
+		duration time.Duration
+		expected int64
+	}{
+		{
+			name:     "1MB in 1 second",
+			bytes:    1024 * 1024,
+			duration: 1 * time.Second,
+			expected: 1024 * 1024,
+		},
+		{
+			name:     "2MB in 2 seconds",
+			bytes:    2 * 1024 * 1024,
+			duration: 2 * time.Second,
+			expected: 1024 * 1024,
+		},
+		{
+			name:     "zero duration",
+			bytes:    1024,
+			duration: 0,
+			expected: 0,
+		},
+		{
+			name:     "zero bytes",
+			bytes:    0,
+			duration: 1 * time.Second,
+			expected: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := downloader.calculateDownloadSpeed(tt.bytes, tt.duration)
+			if result != tt.expected {
+				t.Errorf("Expected speed %d, got %d", tt.expected, result)
+			}
+		})
+	}
+}
+
+// TestDownloader_DownloadWithResume_PartialContent tests HTTP 206 partial content handling
+func TestDownloader_DownloadWithResume_PartialContent(t *testing.T) {
+	fullContent := []byte("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	resumeOffset := int64(10)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rangeHeader := r.Header.Get("Range")
+		if rangeHeader != "" {
+			// Return partial content
+			w.Header().Set("Content-Length", fmt.Sprintf("%d", len(fullContent)-int(resumeOffset)))
+			w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", resumeOffset, len(fullContent)-1, len(fullContent)))
+			w.WriteHeader(http.StatusPartialContent)
+			_, _ = w.Write(fullContent[resumeOffset:])
+		} else {
+			w.Header().Set("Content-Length", fmt.Sprintf("%d", len(fullContent)))
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(fullContent)
+		}
+	}))
+	defer server.Close()
+
+	downloader := NewDownloader()
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "partial.txt")
+
+	// Create partial file
+	f, err := os.Create(filePath)
+	if err != nil {
+		t.Fatalf("Failed to create file: %v", err)
+	}
+	_, _ = f.Write(fullContent[:resumeOffset])
+	_ = f.Close()
+
+	// Reopen for appending
+	f, err = os.OpenFile(filePath, os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		t.Fatalf("Failed to open file: %v", err)
+	}
+	defer func() { _ = f.Close() }()
+
+	options := &types.DownloadOptions{
+		Resume: true,
+	}
+
+	stats, err := downloader.downloadWithResume(context.Background(), server.URL, f, options, resumeOffset)
+	if err != nil {
+		t.Fatalf("downloadWithResume failed: %v", err)
+	}
+
+	if !stats.Resumed {
+		t.Error("Expected Resumed to be true")
+	}
+
+	if stats.Success != true {
+		t.Error("Expected Success to be true")
+	}
+
+	// Verify file content
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("Failed to read file: %v", err)
+	}
+
+	if !bytes.Equal(content, fullContent) {
+		t.Errorf("Content mismatch.\nExpected: %s\nGot: %s", string(fullContent), string(content))
+	}
+}
+
+// TestDownloader_DownloadWithResume_FullContent tests HTTP 200 fallback when server doesn't support ranges
+func TestDownloader_DownloadWithResume_FullContent(t *testing.T) {
+	fullContent := []byte("FULL_CONTENT_FROM_SERVER")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Server ignores Range header and returns full content
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(fullContent)))
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(fullContent)
+	}))
+	defer server.Close()
+
+	downloader := NewDownloader()
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "full.txt")
+
+	// Create file for appending
+	f, err := os.Create(filePath)
+	if err != nil {
+		t.Fatalf("Failed to create file: %v", err)
+	}
+	defer func() { _ = f.Close() }()
+
+	options := &types.DownloadOptions{
+		Resume: true,
+	}
+
+	resumeOffset := int64(10)
+	stats, err := downloader.downloadWithResume(context.Background(), server.URL, f, options, resumeOffset)
+	if err != nil {
+		t.Fatalf("downloadWithResume failed: %v", err)
+	}
+
+	// Server doesn't support resume, should fall back to full download
+	if stats.Resumed {
+		t.Error("Expected Resumed to be false when server returns 200")
+	}
+
+	if stats.Success != true {
+		t.Error("Expected Success to be true")
+	}
+}
+
+// TestDownloader_DownloadWithResume_ContextCancellation tests context cancellation during resume
+func TestDownloader_DownloadWithResume_ContextCancellation(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", "10000")
+		w.WriteHeader(http.StatusPartialContent)
+		// Write slowly to allow cancellation
+		time.Sleep(100 * time.Millisecond)
+		_, _ = w.Write(make([]byte, 10000))
+	}))
+	defer server.Close()
+
+	downloader := NewDownloader()
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "cancelled.txt")
+
+	f, err := os.Create(filePath)
+	if err != nil {
+		t.Fatalf("Failed to create file: %v", err)
+	}
+	defer func() { _ = f.Close() }()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // Cancel immediately
+
+	options := &types.DownloadOptions{
+		Resume: true,
+	}
+
+	_, err = downloader.downloadWithResume(ctx, server.URL, f, options, 0)
+	if err == nil {
+		t.Error("Expected error due to context cancellation")
+	}
+
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("Expected context.Canceled error, got %v", err)
+	}
+}
+
+// TestDownloader_DownloadWithResumeSupport_Integration tests full integration with resume support
+func TestDownloader_DownloadWithResumeSupport_Integration(t *testing.T) {
+	fullContent := []byte("INTEGRATION_TEST_CONTENT_FOR_RESUME_FUNCTIONALITY")
+	etag := `"integration-test-etag"`
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("ETag", etag)
+		w.Header().Set("Accept-Ranges", "bytes")
+		w.Header().Set("Last-Modified", time.Now().Format(http.TimeFormat))
+
+		rangeHeader := r.Header.Get("Range")
+		if rangeHeader != "" && r.Method == "GET" {
+			// Parse range header
+			var start int64
+			_, _ = fmt.Sscanf(rangeHeader, "bytes=%d-", &start)
+
+			w.Header().Set("Content-Length", fmt.Sprintf("%d", len(fullContent)-int(start)))
+			w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, len(fullContent)-1, len(fullContent)))
+			w.WriteHeader(http.StatusPartialContent)
+			_, _ = w.Write(fullContent[start:])
+		} else if r.Method == "HEAD" {
+			w.Header().Set("Content-Length", fmt.Sprintf("%d", len(fullContent)))
+			w.WriteHeader(http.StatusOK)
+		} else {
+			w.Header().Set("Content-Length", fmt.Sprintf("%d", len(fullContent)))
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(fullContent)
+		}
+	}))
+	defer server.Close()
+
+	downloader := NewDownloader()
+	tempDir := t.TempDir()
+	destPath := filepath.Join(tempDir, "integration.txt")
+
+	t.Run("complete download with resume enabled", func(t *testing.T) {
+		options := &types.DownloadOptions{
+			Resume:            true,
+			OverwriteExisting: true,
+		}
+
+		stats, err := downloader.Download(context.Background(), server.URL, destPath, options)
+		if err != nil {
+			t.Fatalf("Download failed: %v", err)
+		}
+
+		if !stats.Success {
+			t.Error("Expected successful download")
+		}
+
+		content, err := os.ReadFile(destPath)
+		if err != nil {
+			t.Fatalf("Failed to read file: %v", err)
+		}
+
+		if !bytes.Equal(content, fullContent) {
+			t.Errorf("Content mismatch")
 		}
 	})
 }

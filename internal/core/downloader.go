@@ -17,6 +17,7 @@ import (
 
 	"github.com/forest6511/gdl/internal/network"
 	"github.com/forest6511/gdl/internal/recovery"
+	"github.com/forest6511/gdl/internal/resume"
 	"github.com/forest6511/gdl/internal/retry"
 	"github.com/forest6511/gdl/internal/storage"
 	"github.com/forest6511/gdl/pkg/errors"
@@ -54,6 +55,7 @@ type Downloader struct {
 	bufferPool      *BufferPool
 	connectionPool  *network.ConnectionPool
 	platformInfo    *PlatformInfo
+	resumeManager   *resume.Manager
 }
 
 // NewDownloader creates a new Downloader instance with default settings.
@@ -76,6 +78,13 @@ func NewDownloader() *Downloader {
 		WithBackoffFactor(2.0).
 		WithJitter(true)
 
+	// Get user's home directory for resume files
+	homeDir, err := os.UserHomeDir()
+	resumeDir := "."
+	if err == nil {
+		resumeDir = filepath.Join(homeDir, ".gdl", "resume")
+	}
+
 	return &Downloader{
 		client:          client,
 		retryManager:    retryManager,
@@ -91,7 +100,8 @@ func NewDownloader() *Downloader {
 			platformInfo.Optimizations.MaxConnections,
 			platformInfo.Optimizations.MaxConnections,
 		),
-		platformInfo: platformInfo,
+		platformInfo:  platformInfo,
+		resumeManager: resume.NewManager(resumeDir),
 	}
 }
 
@@ -970,15 +980,44 @@ func (d *Downloader) downloadWithResumeSupport(
 	stats *types.DownloadStats,
 	fileInfo *types.FileInfo,
 ) (*types.DownloadStats, error) {
-	// For now, just use simple download without resume
-	// TODO: Implement proper resume functionality
+	// Check if we should attempt to resume
+	var resumeOffset int64
 
-	// Open file for writing
-	// #nosec G304 -- destination validated by ValidateDestination() in public API functions
-	file, err := os.Create(destination)
+	if options.Resume && fileInfo.SupportsRanges {
+		// Try to load existing resume information
+		existingInfo, err := d.resumeManager.Load(destination)
+		if err == nil && existingInfo != nil {
+			// Validate resume conditions
+			if d.canResumeDownload(existingInfo, fileInfo, url) {
+				resumeOffset = existingInfo.DownloadedBytes
+				stats.Resumed = true
+				d.logInfo("Resume", url, map[string]interface{}{
+					"offset": resumeOffset,
+				})
+			} else {
+				// Resume not valid, clean up old resume file
+				_ = d.resumeManager.Delete(destination)
+				d.logInfo("Resume invalid", url, nil)
+			}
+		}
+	}
+
+	// Open file for writing or appending
+	var file *os.File
+	var err error
+	if resumeOffset > 0 {
+		// Open for appending (resume)
+		// #nosec G304 -- destination validated by ValidateDestination() in public API functions
+		file, err = os.OpenFile(destination, os.O_WRONLY|os.O_APPEND, 0o600)
+	} else {
+		// Create new file with secure permissions (0600)
+		// #nosec G304 -- destination validated by ValidateDestination() in public API functions
+		file, err = os.OpenFile(destination, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
+	}
+
 	if err != nil {
 		downloadErr := errors.WrapErrorWithURL(err, errors.CodePermissionDenied,
-			"Failed to create destination file", url)
+			"Failed to create/open destination file", url)
 		stats.Error = downloadErr
 		stats.EndTime = time.Now()
 		stats.Duration = stats.EndTime.Sub(stats.StartTime)
@@ -987,8 +1026,35 @@ func (d *Downloader) downloadWithResumeSupport(
 	}
 	defer func() { _ = file.Close() }()
 
+	// If resuming, perform resume download; otherwise, regular download
+	if resumeOffset > 0 {
+		return d.downloadWithResume(ctx, url, file, options, resumeOffset)
+	}
+
+	// Save initial resume info for new downloads
+	if options.Resume && fileInfo.SupportsRanges {
+		initialInfo := &resume.ResumeInfo{
+			URL:             url,
+			FilePath:        destination,
+			DownloadedBytes: 0,
+			TotalBytes:      fileInfo.Size,
+			ETag:            d.getETagFromHeaders(fileInfo.Headers),
+			LastModified:    fileInfo.LastModified,
+			ContentLength:   fileInfo.Size,
+			AcceptRanges:    fileInfo.SupportsRanges,
+		}
+		_ = d.resumeManager.Save(initialInfo)
+	}
+
 	// Use the existing DownloadToWriter method
-	return d.DownloadToWriter(ctx, url, file, options)
+	result, err := d.DownloadToWriter(ctx, url, file, options)
+
+	// Clean up resume file on successful download
+	if err == nil && options.Resume {
+		_ = d.resumeManager.Delete(destination)
+	}
+
+	return result, err
 }
 
 // DownloadToWriter downloads a file from the given URL and writes it to the provided writer.
@@ -1448,7 +1514,7 @@ func (d *Downloader) parseContentDisposition(header string) string {
 	return ""
 }
 
-// downloadWithResume downloads a file with resume support (simplified version).
+// downloadWithResume downloads a file with resume support using Range requests.
 func (d *Downloader) downloadWithResume(
 	ctx context.Context,
 	url string,
@@ -1456,9 +1522,120 @@ func (d *Downloader) downloadWithResume(
 	options *types.DownloadOptions,
 	resumeOffset int64,
 ) (*types.DownloadStats, error) {
-	// For now, just use simple download without actual resume
-	// TODO: Implement proper resume functionality
-	return d.DownloadToWriter(ctx, url, file, options)
+	startTime := time.Now()
+
+	// Create HTTP request with Range header
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, errors.WrapErrorWithURL(err, errors.CodeInvalidURL,
+			"Failed to create HTTP request", url)
+	}
+
+	// Set Range header to resume from offset
+	req.Header.Set("Range", fmt.Sprintf("bytes=%d-", resumeOffset))
+	d.setRequestHeaders(req, options)
+
+	// Perform the request
+	resp, err := d.client.Do(req)
+	if err != nil {
+		return nil, errors.WrapErrorWithURL(err, errors.CodeNetworkError,
+			"Failed to perform resume request", url)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// Check for proper resume response (206 Partial Content) or full content (200 OK)
+	if resp.StatusCode != http.StatusPartialContent && resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("server returned unexpected status: %d", resp.StatusCode)
+	}
+
+	// If server doesn't support range requests, it returns 200 OK
+	// In this case, we need to skip the already downloaded bytes
+	actualResumeOffset := int64(0)
+	if resp.StatusCode == http.StatusPartialContent {
+		actualResumeOffset = resumeOffset
+	}
+
+	// Initialize download statistics
+	stats := &types.DownloadStats{
+		URL:             url,
+		Filename:        file.Name(),
+		StartTime:       startTime,
+		BytesDownloaded: actualResumeOffset,
+		Resumed:         actualResumeOffset > 0,
+	}
+
+	// Get content length from response
+	contentLength := resp.ContentLength
+	if contentLength > 0 {
+		if actualResumeOffset > 0 {
+			stats.TotalSize = actualResumeOffset + contentLength
+		} else {
+			stats.TotalSize = contentLength
+		}
+	}
+
+	// If server returned full content but we were resuming, skip already downloaded bytes
+	if resp.StatusCode == http.StatusOK && resumeOffset > 0 {
+		d.logInfo("Server doesn't support resume, discarding offset", url, map[string]interface{}{
+			"offset": resumeOffset,
+		})
+		_, _ = io.CopyN(io.Discard, resp.Body, resumeOffset)
+	}
+
+	// Copy data to file with progress tracking
+	buf := d.bufferPool.Get(DefaultChunkSize)
+	defer d.bufferPool.Put(buf)
+
+	var written int64
+	var lastProgressUpdate time.Time
+	progressInterval := 100 * time.Millisecond
+
+	for {
+		select {
+		case <-ctx.Done():
+			// Save resume info before canceling
+			_ = d.saveResumeProgress(url, file.Name(), stats.BytesDownloaded, stats.TotalSize)
+			stats.EndTime = time.Now()
+			stats.Duration = stats.EndTime.Sub(startTime)
+			return stats, ctx.Err()
+		default:
+		}
+
+		n, err := resp.Body.Read(buf)
+		if n > 0 {
+			nw, werr := file.Write(buf[:n])
+			if werr != nil {
+				_ = d.saveResumeProgress(url, file.Name(), stats.BytesDownloaded, stats.TotalSize)
+				return stats, errors.WrapErrorWithURL(werr, errors.CodePermissionDenied,
+					"Failed to write to file", url)
+			}
+			written += int64(nw)
+			stats.BytesDownloaded += int64(nw)
+
+			// Update progress callback if set
+			if options.ProgressCallback != nil && time.Since(lastProgressUpdate) > progressInterval {
+				speed := d.calculateDownloadSpeed(written, time.Since(startTime))
+				options.ProgressCallback(stats.BytesDownloaded, stats.TotalSize, speed)
+				lastProgressUpdate = time.Now()
+			}
+		}
+
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			_ = d.saveResumeProgress(url, file.Name(), stats.BytesDownloaded, stats.TotalSize)
+			return stats, errors.WrapErrorWithURL(err, errors.CodeNetworkError,
+				"Failed to read response body", url)
+		}
+	}
+
+	stats.EndTime = time.Now()
+	stats.Duration = stats.EndTime.Sub(startTime)
+	stats.AverageSpeed = d.calculateDownloadSpeed(written, stats.Duration)
+	stats.Success = true
+
+	return stats, nil
 }
 
 // performLightweightDownload performs a download using the lightweight mode
@@ -1540,4 +1717,92 @@ func (d *Downloader) performLightweightDownload(
 // parseURL is a helper function to parse URL string
 func parseURL(urlStr string) (*url.URL, error) {
 	return url.Parse(urlStr)
+}
+
+// canResumeDownload checks if a download can be resumed based on resume info and current file info.
+func (d *Downloader) canResumeDownload(resumeInfo *resume.ResumeInfo, fileInfo *types.FileInfo, url string) bool {
+	// Basic validation using resume manager
+	if !d.resumeManager.CanResume(resumeInfo) {
+		return false
+	}
+
+	// Check URL matches
+	if resumeInfo.URL != url {
+		return false
+	}
+
+	// Check ETag if available (for cache validation)
+	currentETag := d.getETagFromHeaders(fileInfo.Headers)
+	if resumeInfo.ETag != "" && currentETag != "" && resumeInfo.ETag != currentETag {
+		d.logInfo("ETag mismatch", url, map[string]interface{}{
+			"stored":  resumeInfo.ETag,
+			"current": currentETag,
+		})
+		return false
+	}
+
+	// Check Last-Modified if ETag not available
+	if resumeInfo.ETag == "" && !resumeInfo.LastModified.IsZero() && !fileInfo.LastModified.IsZero() {
+		if !resumeInfo.LastModified.Equal(fileInfo.LastModified) {
+			d.logInfo("Last-Modified mismatch", url, nil)
+			return false
+		}
+	}
+
+	return true
+}
+
+// getETagFromHeaders extracts ETag from HTTP headers.
+func (d *Downloader) getETagFromHeaders(headers map[string][]string) string {
+	if headers == nil {
+		return ""
+	}
+
+	if etag, ok := headers["Etag"]; ok && len(etag) > 0 {
+		return etag[0]
+	}
+
+	if etag, ok := headers["ETag"]; ok && len(etag) > 0 {
+		return etag[0]
+	}
+
+	return ""
+}
+
+// saveResumeProgress saves current download progress to resume file.
+func (d *Downloader) saveResumeProgress(url, filePath string, downloaded, total int64) error {
+	if d.resumeManager == nil {
+		return nil
+	}
+
+	// Load existing or create new resume info
+	resumeInfo, err := d.resumeManager.Load(filePath)
+	if err != nil || resumeInfo == nil {
+		resumeInfo = &resume.ResumeInfo{
+			URL:          url,
+			FilePath:     filePath,
+			AcceptRanges: true,
+		}
+	}
+
+	// Update progress
+	resumeInfo.DownloadedBytes = downloaded
+	resumeInfo.TotalBytes = total
+
+	// Calculate and set checksum
+	if err := d.resumeManager.CalculateAndSetChecksum(resumeInfo); err != nil {
+		d.logInfo("Failed to calculate checksum", url, map[string]interface{}{
+			"error": err.Error(),
+		})
+	}
+
+	return d.resumeManager.Save(resumeInfo)
+}
+
+// calculateDownloadSpeed calculates download speed in bytes per second.
+func (d *Downloader) calculateDownloadSpeed(bytes int64, duration time.Duration) int64 {
+	if duration == 0 {
+		return 0
+	}
+	return int64(float64(bytes) / duration.Seconds())
 }

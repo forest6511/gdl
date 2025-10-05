@@ -420,23 +420,171 @@ data := buf.Bytes()
 fmt.Printf("Downloaded %d bytes to memory\n", len(data))
 ```
 
-### Resume with Manual Control
+### Resume Support
+
+gdl provides automatic resume functionality with intelligent validation and state management.
+
+#### Automatic Resume (Recommended)
 
 ```go
-// Check if partial file exists
-info, err := os.Stat(filename)
-resumeOffset := int64(0)
-if err == nil {
-    resumeOffset = info.Size()
+// Enable automatic resume with state persistence
+options := &types.DownloadOptions{
+    Resume: true,
 }
 
+stats, err := gdl.Download(ctx, url, filename, options)
+if err != nil {
+    log.Fatal(err)
+}
+
+// Check if download was resumed
+if stats.Resumed {
+    fmt.Printf("Download resumed from previous state\n")
+    fmt.Printf("Downloaded: %d bytes, Total: %d bytes\n",
+        stats.BytesDownloaded, stats.TotalSize)
+}
+```
+
+**How Automatic Resume Works**:
+1. Resume state saved to `~/.gdl/resume/<filename>.json` during download
+2. On interruption (Ctrl+C, network failure, timeout), progress is persisted
+3. On restart, gdl automatically:
+   - Loads previous resume state
+   - Validates ETag and Last-Modified headers
+   - Verifies partial file integrity with SHA256 checksum
+   - Sends HTTP Range request to resume from offset
+   - Falls back to full download if server doesn't support Range requests
+4. On completion, resume state file is automatically cleaned up
+
+**Resume State Information**:
+```go
+// Resume state stored in ~/.gdl/resume/
+type ResumeInfo struct {
+    URL             string    // Original download URL
+    FilePath        string    // Destination file path
+    DownloadedBytes int64     // Bytes downloaded so far
+    TotalBytes      int64     // Total file size
+    ETag            string    // Server ETag for validation
+    LastModified    time.Time // Last-Modified timestamp
+    Checksum        string    // SHA256 checksum of partial file
+    AcceptRanges    bool      // Server supports Range requests
+}
+```
+
+#### Resume Validation
+
+The library automatically validates resume safety before continuing:
+
+```go
+// Validation performed automatically:
+// 1. URL must match original download
+// 2. ETag must match (if available)
+// 3. Last-Modified must match (if ETag not available)
+// 4. Partial file integrity verified with SHA256
+// 5. Server must support Range requests
+
+// If validation fails, gdl starts fresh download
+```
+
+#### Manual Resume Control
+
+For advanced use cases, you can manually control resume behavior:
+
+```go
+import "github.com/forest6511/gdl/internal/resume"
+
+// Create resume manager
+homeDir, _ := os.UserHomeDir()
+resumeDir := filepath.Join(homeDir, ".gdl", "resume")
+manager := resume.NewManager(resumeDir)
+
+// Load existing resume state
+resumeInfo, err := manager.Load(filename)
+if err == nil && resumeInfo != nil {
+    // Check if resume is safe
+    if manager.CanResume(resumeInfo) {
+        // Validate partial file integrity
+        valid, err := manager.ValidatePartialFile(resumeInfo)
+        if err == nil && valid {
+            fmt.Printf("Can safely resume from byte %d\n",
+                resumeInfo.DownloadedBytes)
+        }
+    }
+}
+
+// Perform download with resume
 options := &types.DownloadOptions{
-    Resume: resumeOffset > 0,
+    Resume: true,
+}
+stats, err := gdl.Download(ctx, url, filename, options)
+
+// Clean up resume state on success
+if stats.Success {
+    manager.Delete(filename)
+}
+```
+
+#### Resume Examples
+
+**Example 1: Large File Download with Auto-Resume**
+```go
+// Download large ISO file with automatic resume
+options := &types.DownloadOptions{
+    Resume:       true,
+    Concurrent:   8,
+    ChunkSize:    1024 * 1024, // 1MB chunks
+    Retry:        3,
+    RetryDelay:   2 * time.Second,
+}
+
+stats, err := gdl.Download(ctx,
+    "https://example.com/large-file.iso",
+    "large-file.iso",
+    options)
+
+if err != nil {
+    // Safe to retry - will resume from last position
+    log.Printf("Download failed: %v (can retry with same command)", err)
+} else if stats.Resumed {
+    log.Printf("Successfully resumed download from %d bytes",
+        stats.BytesDownloaded)
+}
+```
+
+**Example 2: Resume with Progress Tracking**
+```go
+options := &types.DownloadOptions{
+    Resume: true,
+    ProgressCallback: func(downloaded, total int64, speed float64) {
+        percent := float64(downloaded) / float64(total) * 100
+        fmt.Printf("\rProgress: %.1f%% (%.2f MB/s)",
+            percent, speed/1024/1024)
+    },
 }
 
 stats, err := gdl.Download(ctx, url, filename, options)
 if stats.Resumed {
-    fmt.Printf("Resumed from byte %d\n", resumeOffset)
+    fmt.Printf("\n✓ Download resumed successfully\n")
+}
+```
+
+**Example 3: Handling Resume Failures**
+```go
+stats, err := gdl.Download(ctx, url, filename, &types.DownloadOptions{
+    Resume: true,
+})
+
+if err != nil {
+    if dlErr, ok := err.(*types.DownloadError); ok {
+        switch dlErr.Code {
+        case types.CodeResumeValidationFailed:
+            log.Printf("Cannot resume: %v (starting fresh)", err)
+        case types.CodeRangeNotSupported:
+            log.Printf("Server doesn't support resume (starting fresh)")
+        default:
+            log.Printf("Download error: %v", err)
+        }
+    }
 }
 ```
 
