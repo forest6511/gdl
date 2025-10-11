@@ -25,6 +25,7 @@ type MockFTPConnection struct {
 	fileContent   string
 	files         []*ftp.Entry
 	currentDir    string
+	failingReader io.ReadCloser // Custom reader for testing io.Copy errors
 }
 
 func (m *MockFTPConnection) Login(user, password string) error {
@@ -34,6 +35,9 @@ func (m *MockFTPConnection) Login(user, password string) error {
 func (m *MockFTPConnection) Retr(path string) (io.ReadCloser, error) {
 	if m.retrErr != nil {
 		return nil, m.retrErr
+	}
+	if m.failingReader != nil {
+		return m.failingReader, nil
 	}
 	return io.NopCloser(strings.NewReader(m.fileContent)), nil
 }
@@ -996,4 +1000,97 @@ func TestListFilesEdgeCases(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestDownloadWithContextCancellation tests Download when context is cancelled
+func TestDownloadWithContextCancellation(t *testing.T) {
+	mock := &MockFTPConnection{
+		fileContent: strings.Repeat("x", 1000000), // Large content to ensure download takes time
+	}
+
+	downloader := NewFTPDownloader(nil)
+	downloader.SetClient(mock)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // Cancel immediately
+
+	var buf bytes.Buffer
+	err := downloader.Download(ctx, "ftp://example.com/largefile.txt", &buf)
+
+	if err == nil {
+		t.Error("Expected error due to context cancellation, got nil")
+	}
+	if !strings.Contains(err.Error(), "cancelled") {
+		t.Errorf("Expected cancellation error, got: %v", err)
+	}
+}
+
+// TestGetFileSizeWithAdditionalCases tests GetFileSize with more scenarios
+func TestGetFileSizeWithAdditionalCases(t *testing.T) {
+	t.Run("FileSizeError", func(t *testing.T) {
+		mock := &MockFTPConnection{
+			fileSizeErr: errors.New("file not found"),
+		}
+
+		downloader := NewFTPDownloader(nil)
+		downloader.SetClient(mock)
+
+		_, err := downloader.GetFileSize(context.Background(), "ftp://example.com/missing.txt")
+		if err == nil {
+			t.Error("Expected error, got nil")
+		}
+		if !strings.Contains(err.Error(), "failed to get file size") {
+			t.Errorf("Expected 'failed to get file size' error, got: %v", err)
+		}
+	})
+
+	t.Run("EmptyFilePath", func(t *testing.T) {
+		mock := &MockFTPConnection{}
+		downloader := NewFTPDownloader(nil)
+		downloader.SetClient(mock)
+
+		_, err := downloader.GetFileSize(context.Background(), "ftp://example.com/")
+		if err == nil {
+			t.Error("Expected error for empty file path, got nil")
+		}
+		if !strings.Contains(err.Error(), "no file path specified") {
+			t.Errorf("Expected 'no file path specified' error, got: %v", err)
+		}
+	})
+}
+
+// TestDownloadWithCopyError tests Download when io.Copy fails
+func TestDownloadWithCopyError(t *testing.T) {
+	// Create a failing reader
+	failingReader := &failingReadCloser{err: errors.New("read error")}
+
+	mock := &MockFTPConnection{
+		failingReader: failingReader,
+	}
+
+	downloader := NewFTPDownloader(nil)
+	downloader.SetClient(mock)
+
+	var buf bytes.Buffer
+	err := downloader.Download(context.Background(), "ftp://example.com/test.txt", &buf)
+
+	if err == nil {
+		t.Error("Expected io.Copy error, got nil")
+	}
+	if !strings.Contains(err.Error(), "failed to download file") {
+		t.Errorf("Expected 'failed to download file' error, got: %v", err)
+	}
+}
+
+// failingReadCloser is a ReadCloser that always returns an error
+type failingReadCloser struct {
+	err error
+}
+
+func (f *failingReadCloser) Read(p []byte) (n int, err error) {
+	return 0, f.err
+}
+
+func (f *failingReadCloser) Close() error {
+	return nil
 }
