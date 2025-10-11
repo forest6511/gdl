@@ -70,6 +70,10 @@ type Progress interface {
 
 // DownloadOptions contains configuration options for downloads.
 type DownloadOptions struct {
+	// Destination specifies the destination file path for the download.
+	// If empty, a filename will be extracted from the URL.
+	Destination string
+
 	// MaxRetries specifies the maximum number of retry attempts for failed downloads.
 	MaxRetries int
 

@@ -4,9 +4,14 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/forest6511/gdl/internal/core"
+	ftpProtocol "github.com/forest6511/gdl/internal/protocols/ftp"
+	s3Protocol "github.com/forest6511/gdl/internal/protocols/s3"
 	"github.com/forest6511/gdl/pkg/types"
 )
 
@@ -121,7 +126,9 @@ func (pr *ProtocolRegistry) registerBuiltinHandlers() {
 // Built-in protocol handlers
 
 // HTTPHandler handles HTTP and HTTPS protocols
-type HTTPHandler struct{}
+type HTTPHandler struct {
+	downloader *core.Downloader
+}
 
 func (h *HTTPHandler) Scheme() string {
 	return "http"
@@ -133,12 +140,48 @@ func (h *HTTPHandler) CanHandle(url string) bool {
 }
 
 func (h *HTTPHandler) Download(ctx context.Context, url string, options *types.DownloadOptions) (*types.DownloadStats, error) {
-	// TODO: Implement HTTP download logic
-	return nil, fmt.Errorf("HTTP download not yet implemented")
+	if h.downloader == nil {
+		h.downloader = core.NewDownloader()
+	}
+
+	// Determine destination from options
+	destination := options.Destination
+	if destination == "" {
+		// Extract filename from URL
+		parsedURL, err := parseURL(url)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse URL: %w", err)
+		}
+		destination = extractFilenameFromURL(parsedURL)
+	}
+
+	return h.downloader.Download(ctx, url, destination, options)
 }
 
-// FTPHandler handles FTP and FTPS protocols
-type FTPHandler struct{}
+// parseURL parses a URL string
+func parseURL(urlStr string) (*url.URL, error) {
+	return url.Parse(urlStr)
+}
+
+// extractFilenameFromURL extracts filename from URL
+func extractFilenameFromURL(u *url.URL) string {
+	path := u.Path
+	if path == "" || path == "/" {
+		return "download"
+	}
+	segments := strings.Split(strings.Trim(path, "/"), "/")
+	if len(segments) > 0 {
+		return segments[len(segments)-1]
+	}
+	return "download"
+}
+
+// FTPHandler handles FTP and FTPS protocols.
+// Note: Full success path coverage requires FTP server integration tests.
+// Unit tests cover error paths and basic functionality.
+type FTPHandler struct {
+	downloader *ftpProtocol.FTPDownloader
+}
 
 func (f *FTPHandler) Scheme() string {
 	return "ftp"
@@ -150,12 +193,73 @@ func (f *FTPHandler) CanHandle(url string) bool {
 }
 
 func (f *FTPHandler) Download(ctx context.Context, url string, options *types.DownloadOptions) (*types.DownloadStats, error) {
-	// TODO: Implement FTP download logic
-	return nil, fmt.Errorf("FTP download not yet implemented")
+	startTime := time.Now()
+
+	// Initialize FTP downloader if needed
+	if f.downloader == nil {
+		f.downloader = ftpProtocol.NewFTPDownloader(nil) // Use default config
+	}
+
+	// Determine destination from options
+	destination := options.Destination
+	if destination == "" {
+		parsedURL, err := parseURL(url)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse URL: %w", err)
+		}
+		destination = extractFilenameFromURL(parsedURL)
+	}
+
+	// Create destination file
+	// #nosec G304 -- destination is provided by user as download target, which is expected behavior
+	file, err := os.Create(destination)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create destination file: %w", err)
+	}
+	defer func() {
+		if cerr := file.Close(); cerr != nil && err == nil {
+			err = fmt.Errorf("failed to close file: %w", cerr)
+		}
+	}()
+
+	// Download the file
+	err = f.downloader.Download(ctx, url, file)
+
+	stats := &types.DownloadStats{
+		URL:       url,
+		Filename:  destination,
+		StartTime: startTime,
+		EndTime:   time.Now(),
+	}
+	stats.Duration = stats.EndTime.Sub(stats.StartTime)
+
+	if err != nil {
+		stats.Success = false
+		stats.Error = err
+		return stats, fmt.Errorf("FTP download failed: %w", err)
+	}
+
+	// Get file size
+	fileInfo, err := file.Stat()
+	if err == nil {
+		stats.BytesDownloaded = fileInfo.Size()
+		stats.TotalSize = fileInfo.Size()
+	}
+
+	stats.Success = true
+	if stats.Duration > 0 {
+		stats.AverageSpeed = int64(float64(stats.BytesDownloaded) / stats.Duration.Seconds())
+	}
+
+	return stats, nil
 }
 
-// S3Handler handles Amazon S3 protocol
-type S3Handler struct{}
+// S3Handler handles Amazon S3 protocol.
+// Note: Full success path coverage requires S3 integration tests or mocking AWS SDK.
+// Unit tests cover error paths and basic functionality.
+type S3Handler struct {
+	downloader *s3Protocol.S3Downloader
+}
 
 func (s *S3Handler) Scheme() string {
 	return "s3"
@@ -166,8 +270,69 @@ func (s *S3Handler) CanHandle(url string) bool {
 }
 
 func (s *S3Handler) Download(ctx context.Context, url string, options *types.DownloadOptions) (*types.DownloadStats, error) {
-	// TODO: Implement S3 download logic
-	return nil, fmt.Errorf("S3 download not yet implemented")
+	startTime := time.Now()
+
+	// Initialize S3 downloader if needed
+	if s.downloader == nil {
+		var err error
+		s.downloader, err = s3Protocol.NewS3Downloader(nil) // Use default config
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize S3 downloader: %w", err)
+		}
+	}
+
+	// Determine destination from options
+	destination := options.Destination
+	if destination == "" {
+		parsedURL, err := parseURL(url)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse URL: %w", err)
+		}
+		destination = extractFilenameFromURL(parsedURL)
+	}
+
+	// Create destination file
+	// #nosec G304 -- destination is provided by user as download target, which is expected behavior
+	file, err := os.Create(destination)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create destination file: %w", err)
+	}
+	defer func() {
+		if cerr := file.Close(); cerr != nil && err == nil {
+			err = fmt.Errorf("failed to close file: %w", cerr)
+		}
+	}()
+
+	// Download the file
+	err = s.downloader.Download(ctx, url, file)
+
+	stats := &types.DownloadStats{
+		URL:       url,
+		Filename:  destination,
+		StartTime: startTime,
+		EndTime:   time.Now(),
+	}
+	stats.Duration = stats.EndTime.Sub(stats.StartTime)
+
+	if err != nil {
+		stats.Success = false
+		stats.Error = err
+		return stats, fmt.Errorf("S3 download failed: %w", err)
+	}
+
+	// Get file size
+	fileInfo, err := file.Stat()
+	if err == nil {
+		stats.BytesDownloaded = fileInfo.Size()
+		stats.TotalSize = fileInfo.Size()
+	}
+
+	stats.Success = true
+	if stats.Duration > 0 {
+		stats.AverageSpeed = int64(float64(stats.BytesDownloaded) / stats.Duration.Seconds())
+	}
+
+	return stats, nil
 }
 
 // TorrentHandler handles torrent protocol
