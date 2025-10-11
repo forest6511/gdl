@@ -339,9 +339,9 @@ func TestHTTPHandler(t *testing.T) {
 			t.Fatalf("Failed to create temp file: %v", err)
 		}
 		tmpPath := tmpFile.Name()
-		tmpFile.Close()
-		os.Remove(tmpPath) // Remove it so the download can create it
-		defer os.Remove(tmpPath)
+		_ = tmpFile.Close()
+		_ = os.Remove(tmpPath) // Remove it so the download can create it
+		defer func() { _ = os.Remove(tmpPath) }()
 
 		options := &types.DownloadOptions{
 			Destination:       tmpPath,
@@ -378,12 +378,21 @@ func TestHTTPHandler(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create temp dir: %v", err)
 		}
-		defer os.RemoveAll(tmpDir)
+		defer func() { _ = os.RemoveAll(tmpDir) }()
 
 		// Change to temp dir
-		oldWd, _ := os.Getwd()
-		os.Chdir(tmpDir)
-		defer os.Chdir(oldWd)
+		oldWd, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("Failed to get working directory: %v", err)
+		}
+		if err := os.Chdir(tmpDir); err != nil {
+			t.Fatalf("Failed to change to temp dir: %v", err)
+		}
+		defer func() {
+			if err := os.Chdir(oldWd); err != nil {
+				t.Logf("Failed to restore working directory: %v", err)
+			}
+		}()
 
 		options := &types.DownloadOptions{
 			OverwriteExisting: true,
@@ -422,9 +431,9 @@ func TestHTTPHandler(t *testing.T) {
 				t.Fatalf("Failed to create temp file: %v", err)
 			}
 			tmpPath := tmpFile.Name()
-			tmpFile.Close()
-			os.Remove(tmpPath)
-			defer os.Remove(tmpPath)
+			_ = tmpFile.Close()
+			_ = os.Remove(tmpPath)
+			defer func() { _ = os.Remove(tmpPath) }()
 
 			options := &types.DownloadOptions{
 				Destination:       tmpPath,
@@ -529,12 +538,21 @@ func TestFTPHandler(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create temp dir: %v", err)
 		}
-		defer os.RemoveAll(tmpDir)
+		defer func() { _ = os.RemoveAll(tmpDir) }()
 
 		// Change to temp dir temporarily
-		oldWd, _ := os.Getwd()
-		os.Chdir(tmpDir)
-		defer os.Chdir(oldWd)
+		oldWd, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("Failed to get working directory: %v", err)
+		}
+		if err := os.Chdir(tmpDir); err != nil {
+			t.Fatalf("Failed to change to temp dir: %v", err)
+		}
+		defer func() {
+			if err := os.Chdir(oldWd); err != nil {
+				t.Logf("Failed to restore working directory: %v", err)
+			}
+		}()
 
 		options := &types.DownloadOptions{}
 
@@ -638,9 +656,9 @@ func TestS3Handler(t *testing.T) {
 			t.Fatalf("Failed to create temp file: %v", err)
 		}
 		tmpPath := tmpFile.Name()
-		tmpFile.Close()
-		os.Remove(tmpPath) // Remove so download can create it
-		defer os.Remove(tmpPath)
+		_ = tmpFile.Close()
+		_ = os.Remove(tmpPath) // Remove so download can create it
+		defer func() { _ = os.Remove(tmpPath) }()
 
 		options := &types.DownloadOptions{
 			Destination: tmpPath,
@@ -662,12 +680,21 @@ func TestS3Handler(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create temp dir: %v", err)
 		}
-		defer os.RemoveAll(tmpDir)
+		defer func() { _ = os.RemoveAll(tmpDir) }()
 
 		// Change to temp dir temporarily
-		oldWd, _ := os.Getwd()
-		os.Chdir(tmpDir)
-		defer os.Chdir(oldWd)
+		oldWd, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("Failed to get working directory: %v", err)
+		}
+		if err := os.Chdir(tmpDir); err != nil {
+			t.Fatalf("Failed to change to temp dir: %v", err)
+		}
+		defer func() {
+			if err := os.Chdir(oldWd); err != nil {
+				t.Logf("Failed to restore working directory: %v", err)
+			}
+		}()
 
 		options := &types.DownloadOptions{}
 

@@ -213,7 +213,11 @@ func (f *FTPHandler) Download(ctx context.Context, url string, options *types.Do
 	if err != nil {
 		return nil, fmt.Errorf("failed to create destination file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if cerr := file.Close(); cerr != nil && err == nil {
+			err = fmt.Errorf("failed to close file: %w", cerr)
+		}
+	}()
 
 	// Download the file
 	err = f.downloader.Download(ctx, url, file)
@@ -287,7 +291,11 @@ func (s *S3Handler) Download(ctx context.Context, url string, options *types.Dow
 	if err != nil {
 		return nil, fmt.Errorf("failed to create destination file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if cerr := file.Close(); cerr != nil && err == nil {
+			err = fmt.Errorf("failed to close file: %w", cerr)
+		}
+	}()
 
 	// Download the file
 	err = s.downloader.Download(ctx, url, file)
