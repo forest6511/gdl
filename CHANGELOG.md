@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2025-10-11
+
 ### Added
-- **Resume Functionality**: Complete implementation of download resume with HTTP Range requests (#32)
+- **Protocol Handler Registry**: Implemented a flexible protocol handler system (#33)
+  - Support for HTTP, HTTPS, FTP, FTPS, S3, and file protocols
+  - Extensible architecture for adding new protocol handlers
+  - Protocol-specific configuration and error handling
+
+- **Resume Functionality**: Enhanced download resume capabilities with HTTP Range support (#32)
   - Automatic resume state persistence in `~/.gdl/resume/`
   - ETag and Last-Modified validation for safe resume
   - File integrity verification using SHA256 checksums
@@ -16,6 +23,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Automatic cleanup of resume files on successful completion
   - Progress saving on interruption (Ctrl+C, network failure)
   - Resume offset tracking with partial content (206) support
+
+### Changed
+- **Test Coverage**: Significantly improved test coverage for protocol implementations
+  - FTP and S3 protocol handlers now have comprehensive test suites (#34)
+  - Added unit tests for error scenarios and edge cases
+  - Improved mock implementations for testing
+
+### Fixed
+- **CI/CD**: Aligned CI workflows with Go 1.24 and enhanced security checks (#30)
+  - Updated GitHub Actions workflows for compatibility
+  - Enhanced security scanning and vulnerability detection
+  - Fixed deprecated action versions
 
 ## [1.3.1] - 2025-09-30
 
@@ -148,8 +167,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CI job naming conflicts
 - CI environment test issues
 
-[Unreleased]: https://github.com/forest6511/gdl/compare/v1.3.1...HEAD
+[Unreleased]: https://github.com/forest6511/gdl/compare/v1.4.0...HEAD
 [0.9.2]: https://github.com/forest6511/gdl/compare/v0.9.0...v0.9.2
 [0.9.0]: https://github.com/forest6511/gdl/releases/tag/v0.9.0
 [1.3.0]: https://github.com/forest6511/gdl/compare/v0.9.2...v1.3.0
 [1.3.1]: https://github.com/forest6511/gdl/compare/v1.3.0...v1.3.1
+[1.4.0]: https://github.com/forest6511/gdl/compare/v1.3.1...v1.4.0
