@@ -1050,3 +1050,60 @@ func BenchmarkPluginRegistryOperations(b *testing.B) {
 		}
 	})
 }
+
+// TestLoadPlugins_ErrorPaths tests error handling in LoadPlugins
+func TestLoadPlugins_ErrorPaths(t *testing.T) {
+	t.Run("GetEnabledPluginsFails", func(t *testing.T) {
+		// Create registry with invalid config file path
+		registry := NewPluginRegistry("/invalid/path", "/invalid/config.json")
+
+		// Make config file path point to a directory (will cause read error)
+		registry.configFile = t.TempDir()
+
+		ctx := context.Background()
+		pluginManager := plugin.NewPluginManager()
+
+		// This should return an error from GetEnabledPlugins
+		err := registry.LoadPlugins(ctx, pluginManager)
+		if err == nil {
+			t.Error("Expected error when config file is invalid, got nil")
+		}
+		if !strings.Contains(err.Error(), "failed to get enabled plugins") {
+			t.Errorf("Expected 'failed to get enabled plugins' error, got: %v", err)
+		}
+	})
+
+	t.Run("PluginLoadWarnings", func(t *testing.T) {
+		pluginDir := t.TempDir()
+		configFile := filepath.Join(t.TempDir(), "plugins.json")
+
+		registry := NewPluginRegistry(pluginDir, configFile)
+
+		// Create config with plugins that have non-empty config
+		config := &PluginConfig{
+			Plugins: map[string]*PluginInfo{
+				"plugin-with-config": {
+					Name:    "plugin-with-config",
+					Version: "1.0.0",
+					Path:    "/non/existent/plugin.so",
+					Enabled: true,
+					Config:  map[string]string{"key1": "value1", "key2": "value2"},
+				},
+			},
+		}
+
+		err := registry.saveConfig(config)
+		if err != nil {
+			t.Fatalf("Failed to save test config: %v", err)
+		}
+
+		ctx := context.Background()
+		pluginManager := plugin.NewPluginManager()
+
+		// Should not return error even though plugin loading fails
+		err = registry.LoadPlugins(ctx, pluginManager)
+		if err != nil {
+			t.Errorf("LoadPlugins should not return error for missing files: %v", err)
+		}
+	})
+}
