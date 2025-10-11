@@ -176,7 +176,9 @@ func extractFilenameFromURL(u *url.URL) string {
 	return "download"
 }
 
-// FTPHandler handles FTP and FTPS protocols
+// FTPHandler handles FTP and FTPS protocols.
+// Note: Full success path coverage requires FTP server integration tests.
+// Unit tests cover error paths and basic functionality.
 type FTPHandler struct {
 	downloader *ftpProtocol.FTPDownloader
 }
@@ -252,7 +254,9 @@ func (f *FTPHandler) Download(ctx context.Context, url string, options *types.Do
 	return stats, nil
 }
 
-// S3Handler handles Amazon S3 protocol
+// S3Handler handles Amazon S3 protocol.
+// Note: Full success path coverage requires S3 integration tests or mocking AWS SDK.
+// Unit tests cover error paths and basic functionality.
 type S3Handler struct {
 	downloader *s3Protocol.S3Downloader
 }
