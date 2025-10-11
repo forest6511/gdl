@@ -608,3 +608,57 @@ func TestGetSpinnerFrames(t *testing.T) {
 		}
 	}
 }
+
+// TestFormatter_PromptNonInteractive tests Formatter.Prompt in non-interactive mode
+func TestFormatter_PromptNonInteractive(t *testing.T) {
+	formatter := NewFormatter().WithInteractive(false)
+
+	_, err := formatter.Prompt("Enter name")
+	if err == nil {
+		t.Error("Expected error in non-interactive mode, got nil")
+	}
+	if !strings.Contains(err.Error(), "interactive mode not available") {
+		t.Errorf("Expected 'interactive mode not available' error, got: %v", err)
+	}
+}
+
+// TestFormatter_ConfirmPromptNonInteractive tests Formatter.ConfirmPrompt in non-interactive mode
+func TestFormatter_ConfirmPromptNonInteractive(t *testing.T) {
+	t.Run("DefaultTrue", func(t *testing.T) {
+		formatter := NewFormatter().WithInteractive(false)
+
+		result, err := formatter.ConfirmPrompt("Continue?", true)
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+		if !result {
+			t.Error("Expected true (default), got false")
+		}
+	})
+
+	t.Run("DefaultFalse", func(t *testing.T) {
+		formatter := NewFormatter().WithInteractive(false)
+
+		result, err := formatter.ConfirmPrompt("Continue?", false)
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+		if result {
+			t.Error("Expected false (default), got true")
+		}
+	})
+}
+
+// TestFormatter_SelectPromptNonInteractive tests Formatter.SelectPrompt in non-interactive mode
+func TestFormatter_SelectPromptNonInteractive(t *testing.T) {
+	formatter := NewFormatter().WithInteractive(false)
+
+	options := []string{"Option 1", "Option 2", "Option 3"}
+	result, err := formatter.SelectPrompt("Choose", options, 1)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if result != 1 {
+		t.Errorf("Expected default index 1, got %d", result)
+	}
+}

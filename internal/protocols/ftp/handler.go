@@ -10,9 +10,53 @@ import (
 	"github.com/jlaffaye/ftp"
 )
 
+// FTPClient defines the interface for FTP operations
+type FTPClient interface {
+	Login(user, password string) error
+	Retr(path string) (io.ReadCloser, error)
+	FileSize(path string) (int64, error)
+	List(path string) ([]*ftp.Entry, error)
+	Quit() error
+	ChangeDir(path string) error
+	CurrentDir() (string, error)
+}
+
+// ftpClientAdapter adapts *ftp.ServerConn to FTPClient interface
+type ftpClientAdapter struct {
+	conn *ftp.ServerConn
+}
+
+func (a *ftpClientAdapter) Login(user, password string) error {
+	return a.conn.Login(user, password)
+}
+
+func (a *ftpClientAdapter) Retr(path string) (io.ReadCloser, error) {
+	return a.conn.Retr(path)
+}
+
+func (a *ftpClientAdapter) FileSize(path string) (int64, error) {
+	return a.conn.FileSize(path)
+}
+
+func (a *ftpClientAdapter) List(path string) ([]*ftp.Entry, error) {
+	return a.conn.List(path)
+}
+
+func (a *ftpClientAdapter) Quit() error {
+	return a.conn.Quit()
+}
+
+func (a *ftpClientAdapter) ChangeDir(path string) error {
+	return a.conn.ChangeDir(path)
+}
+
+func (a *ftpClientAdapter) CurrentDir() (string, error) {
+	return a.conn.CurrentDir()
+}
+
 // FTPDownloader handles FTP protocol downloads
 type FTPDownloader struct {
-	client *ftp.ServerConn
+	client FTPClient
 	config *Config
 }
 
@@ -48,6 +92,11 @@ func NewFTPDownloader(config *Config) *FTPDownloader {
 	return &FTPDownloader{
 		config: config,
 	}
+}
+
+// SetClient sets the FTP client (for testing purposes)
+func (f *FTPDownloader) SetClient(client FTPClient) {
+	f.client = client
 }
 
 // Connect establishes a connection to the FTP server
@@ -95,7 +144,7 @@ func (f *FTPDownloader) Connect(ctx context.Context, serverURL string) error {
 	// Set transfer mode to passive (PASV is enabled by default in modern FTP libraries)
 	// Modern FTP libraries typically use passive mode by default, so we skip explicit setting
 
-	f.client = conn
+	f.client = &ftpClientAdapter{conn: conn}
 	return nil
 }
 
