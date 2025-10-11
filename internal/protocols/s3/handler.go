@@ -13,9 +13,16 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
+// S3Client defines the interface for S3 operations
+type S3Client interface {
+	GetObject(ctx context.Context, params *s3.GetObjectInput, optFns ...func(*s3.Options)) (*s3.GetObjectOutput, error)
+	HeadObject(ctx context.Context, params *s3.HeadObjectInput, optFns ...func(*s3.Options)) (*s3.HeadObjectOutput, error)
+	ListObjectsV2(ctx context.Context, params *s3.ListObjectsV2Input, optFns ...func(*s3.Options)) (*s3.ListObjectsV2Output, error)
+}
+
 // S3Downloader handles AWS S3 protocol downloads
 type S3Downloader struct {
-	client *s3.Client
+	client S3Client
 	config *Config
 }
 
@@ -55,6 +62,11 @@ func NewS3Downloader(cfg *Config) (*S3Downloader, error) {
 	}
 
 	return downloader, nil
+}
+
+// SetClient sets the S3 client (for testing purposes)
+func (s *S3Downloader) SetClient(client S3Client) {
+	s.client = client
 }
 
 // initializeClient initializes the AWS S3 client

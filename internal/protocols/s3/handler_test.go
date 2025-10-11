@@ -3,13 +3,65 @@ package s3
 import (
 	"bytes"
 	"context"
+	"errors"
+	"io"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
+
+// MockS3Client simulates S3 client for testing
+type MockS3Client struct {
+	getObjectErr   error
+	headObjectErr  error
+	listObjectsErr error
+	objectContent  string
+	objectSize     int64
+	objects        []types.Object
+	contentType    string
+	lastModified   *time.Time
+}
+
+func (m *MockS3Client) GetObject(ctx context.Context, params *s3.GetObjectInput, optFns ...func(*s3.Options)) (*s3.GetObjectOutput, error) {
+	if m.getObjectErr != nil {
+		return nil, m.getObjectErr
+	}
+
+	body := io.NopCloser(strings.NewReader(m.objectContent))
+	size := int64(len(m.objectContent))
+
+	return &s3.GetObjectOutput{
+		Body:          body,
+		ContentLength: &size,
+		ContentType:   &m.contentType,
+	}, nil
+}
+
+func (m *MockS3Client) HeadObject(ctx context.Context, params *s3.HeadObjectInput, optFns ...func(*s3.Options)) (*s3.HeadObjectOutput, error) {
+	if m.headObjectErr != nil {
+		return nil, m.headObjectErr
+	}
+
+	return &s3.HeadObjectOutput{
+		ContentLength: &m.objectSize,
+		ContentType:   &m.contentType,
+		LastModified:  m.lastModified,
+	}, nil
+}
+
+func (m *MockS3Client) ListObjectsV2(ctx context.Context, params *s3.ListObjectsV2Input, optFns ...func(*s3.Options)) (*s3.ListObjectsV2Output, error) {
+	if m.listObjectsErr != nil {
+		return nil, m.listObjectsErr
+	}
+
+	return &s3.ListObjectsV2Output{
+		Contents: m.objects,
+	}, nil
+}
 
 func TestDefaultConfig(t *testing.T) {
 	config := DefaultConfig()
@@ -855,4 +907,312 @@ func TestDownloadRangeEdgeCases(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestDownloadWithMock tests Download with mock S3 client
+func TestDownloadWithMock(t *testing.T) {
+	t.Run("SuccessfulDownload", func(t *testing.T) {
+		mock := &MockS3Client{
+			objectContent: "test s3 content",
+			contentType:   "text/plain",
+		}
+
+		downloader := &S3Downloader{
+			config: DefaultConfig(),
+		}
+		downloader.SetClient(mock)
+
+		var buf bytes.Buffer
+		err := downloader.Download(context.Background(), "s3://test-bucket/test-key.txt", &buf)
+
+		if err != nil {
+			t.Errorf("Download failed: %v", err)
+		}
+
+		if buf.String() != "test s3 content" {
+			t.Errorf("Expected 'test s3 content', got %s", buf.String())
+		}
+	})
+
+	t.Run("DownloadWithGetObjectError", func(t *testing.T) {
+		mock := &MockS3Client{
+			getObjectErr: errors.New("access denied"),
+		}
+
+		downloader := &S3Downloader{
+			config: DefaultConfig(),
+		}
+		downloader.SetClient(mock)
+
+		var buf bytes.Buffer
+		err := downloader.Download(context.Background(), "s3://test-bucket/test-key.txt", &buf)
+
+		if err == nil {
+			t.Error("Expected access denied error")
+		}
+		if !strings.Contains(err.Error(), "access denied") {
+			t.Errorf("Expected 'access denied' in error, got %v", err)
+		}
+	})
+
+	t.Run("DownloadInvalidURL", func(t *testing.T) {
+		downloader := &S3Downloader{
+			config: DefaultConfig(),
+		}
+
+		var buf bytes.Buffer
+		err := downloader.Download(context.Background(), "://invalid", &buf)
+
+		if err == nil {
+			t.Error("Expected invalid URL error")
+		}
+	})
+
+	t.Run("DownloadWrongScheme", func(t *testing.T) {
+		downloader := &S3Downloader{
+			config: DefaultConfig(),
+		}
+
+		var buf bytes.Buffer
+		err := downloader.Download(context.Background(), "http://bucket/key", &buf)
+
+		if err == nil {
+			t.Error("Expected wrong scheme error")
+		}
+	})
+
+	t.Run("DownloadMissingKey", func(t *testing.T) {
+		downloader := &S3Downloader{
+			config: DefaultConfig(),
+		}
+
+		var buf bytes.Buffer
+		err := downloader.Download(context.Background(), "s3://bucket/", &buf)
+
+		if err == nil {
+			t.Error("Expected missing key error")
+		}
+	})
+}
+
+// TestGetObjectSizeWithMock tests GetObjectSize with mock
+func TestGetObjectSizeWithMock(t *testing.T) {
+	t.Run("SuccessfulGetSize", func(t *testing.T) {
+		mock := &MockS3Client{
+			objectSize: 12345,
+		}
+
+		downloader := &S3Downloader{
+			config: DefaultConfig(),
+		}
+		downloader.SetClient(mock)
+
+		size, err := downloader.GetObjectSize(context.Background(), "s3://bucket/key.txt")
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+		if size != 12345 {
+			t.Errorf("Expected size 12345, got %d", size)
+		}
+	})
+
+	t.Run("GetSizeError", func(t *testing.T) {
+		mock := &MockS3Client{
+			headObjectErr: errors.New("not found"),
+		}
+
+		downloader := &S3Downloader{
+			config: DefaultConfig(),
+		}
+		downloader.SetClient(mock)
+
+		_, err := downloader.GetObjectSize(context.Background(), "s3://bucket/missing.txt")
+		if err == nil {
+			t.Error("Expected not found error")
+		}
+	})
+}
+
+// TestListObjectsWithMock tests ListObjects with mock
+func TestListObjectsWithMock(t *testing.T) {
+	t.Run("SuccessfulList", func(t *testing.T) {
+		now := time.Now()
+		size1 := int64(100)
+		size2 := int64(200)
+
+		mock := &MockS3Client{
+			objects: []types.Object{
+				{Key: aws.String("file1.txt"), Size: &size1, LastModified: &now},
+				{Key: aws.String("file2.txt"), Size: &size2, LastModified: &now},
+			},
+		}
+
+		downloader := &S3Downloader{
+			config: DefaultConfig(),
+		}
+		downloader.SetClient(mock)
+
+		objects, err := downloader.ListObjects(context.Background(), "bucket", "", 0)
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+
+		if len(objects) != 2 {
+			t.Errorf("Expected 2 objects, got %d", len(objects))
+		}
+
+		if objects[0] != "file1.txt" {
+			t.Errorf("Expected 'file1.txt', got %s", objects[0])
+		}
+	})
+
+	t.Run("ListError", func(t *testing.T) {
+		mock := &MockS3Client{
+			listObjectsErr: errors.New("permission denied"),
+		}
+
+		downloader := &S3Downloader{
+			config: DefaultConfig(),
+		}
+		downloader.SetClient(mock)
+
+		_, err := downloader.ListObjects(context.Background(), "bucket", "", 0)
+		if err == nil {
+			t.Error("Expected permission denied error")
+		}
+	})
+}
+
+// TestObjectExistsWithMock tests ObjectExists with mock
+func TestObjectExistsWithMock(t *testing.T) {
+	t.Run("ObjectExists", func(t *testing.T) {
+		mock := &MockS3Client{
+			objectSize: 100,
+		}
+
+		downloader := &S3Downloader{
+			config: DefaultConfig(),
+		}
+		downloader.SetClient(mock)
+
+		exists, err := downloader.ObjectExists(context.Background(), "s3://bucket/key.txt")
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+		if !exists {
+			t.Error("Expected object to exist")
+		}
+	})
+
+	t.Run("ObjectNotExists", func(t *testing.T) {
+		mock := &MockS3Client{
+			headObjectErr: errors.New("NotFound"),
+		}
+
+		downloader := &S3Downloader{
+			config: DefaultConfig(),
+		}
+		downloader.SetClient(mock)
+
+		exists, err := downloader.ObjectExists(context.Background(), "s3://bucket/missing.txt")
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+		if exists {
+			t.Error("Expected object to not exist")
+		}
+	})
+}
+
+// TestGetObjectMetadataWithMock tests GetObjectMetadata with mock
+func TestGetObjectMetadataWithMock(t *testing.T) {
+	t.Run("SuccessfulGetMetadata", func(t *testing.T) {
+		now := time.Now()
+		contentType := "application/json"
+
+		mock := &MockS3Client{
+			objectSize:   5000,
+			contentType:  contentType,
+			lastModified: &now,
+		}
+
+		downloader := &S3Downloader{
+			config: DefaultConfig(),
+		}
+		downloader.SetClient(mock)
+
+		metadata, err := downloader.GetObjectMetadata(context.Background(), "s3://bucket/data.json")
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+
+		if size, ok := metadata["ContentLength"].(int64); !ok || size != 5000 {
+			t.Errorf("Expected size 5000, got %v", metadata["ContentLength"])
+		}
+
+		if ct, ok := metadata["ContentType"].(string); !ok || ct != contentType {
+			t.Errorf("Expected content type %s, got %v", contentType, metadata["ContentType"])
+		}
+	})
+
+	t.Run("GetMetadataError", func(t *testing.T) {
+		mock := &MockS3Client{
+			headObjectErr: errors.New("forbidden"),
+		}
+
+		downloader := &S3Downloader{
+			config: DefaultConfig(),
+		}
+		downloader.SetClient(mock)
+
+		_, err := downloader.GetObjectMetadata(context.Background(), "s3://bucket/secret.txt")
+		if err == nil {
+			t.Error("Expected forbidden error")
+		}
+	})
+}
+
+// TestDownloadRangeWithMock tests DownloadRange with mock
+func TestDownloadRangeWithMock(t *testing.T) {
+	t.Run("SuccessfulRangeDownload", func(t *testing.T) {
+		mock := &MockS3Client{
+			objectContent: "0123456789",
+		}
+
+		downloader := &S3Downloader{
+			config: DefaultConfig(),
+		}
+		downloader.SetClient(mock)
+
+		var buf bytes.Buffer
+		err := downloader.DownloadRange(context.Background(), "s3://bucket/file.bin", &buf, 0, 4)
+
+		if err != nil {
+			t.Errorf("Download range failed: %v", err)
+		}
+
+		// Mock returns all content, but in real scenario it would return range
+		content := buf.String()
+		if len(content) == 0 {
+			t.Error("Expected content from range download")
+		}
+	})
+
+	t.Run("RangeDownloadError", func(t *testing.T) {
+		mock := &MockS3Client{
+			getObjectErr: errors.New("range not satisfiable"),
+		}
+
+		downloader := &S3Downloader{
+			config: DefaultConfig(),
+		}
+		downloader.SetClient(mock)
+
+		var buf bytes.Buffer
+		err := downloader.DownloadRange(context.Background(), "s3://bucket/file.bin", &buf, 0, 100)
+
+		if err == nil {
+			t.Error("Expected range error")
+		}
+	})
 }
