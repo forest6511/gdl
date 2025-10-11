@@ -209,6 +209,7 @@ func (f *FTPHandler) Download(ctx context.Context, url string, options *types.Do
 	}
 
 	// Create destination file
+	// #nosec G304 -- destination is provided by user as download target, which is expected behavior
 	file, err := os.Create(destination)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create destination file: %w", err)
@@ -287,6 +288,7 @@ func (s *S3Handler) Download(ctx context.Context, url string, options *types.Dow
 	}
 
 	// Create destination file
+	// #nosec G304 -- destination is provided by user as download target, which is expected behavior
 	file, err := os.Create(destination)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create destination file: %w", err)
