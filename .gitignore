@@ -59,3 +59,4 @@ benchmark_analysis.md          # Benchmark analysis summary
 claude-commands.yml            # Claude Code commands file
 Dockerfile.arm64test           # ARM64 test Dockerfile
 examples/library_api/library_api
+tmp/
