@@ -1396,3 +1396,244 @@ func TestIsRetryableErrorWithDownloadError(t *testing.T) {
 		t.Logf("context.DeadlineExceeded retryable: %v", result)
 	})
 }
+
+// Test coverage improvements for CacheMiddleware error paths
+func TestCacheMiddlewareErrorCases(t *testing.T) {
+	t.Run("DeserializationFailureFallsBackToDownload", func(t *testing.T) {
+		cache := NewMemoryCache()
+		middleware := CacheMiddleware(cache, 5*time.Minute)
+
+		// Manually insert invalid cached data
+		cacheKey := generateCacheKey(&DownloadRequest{URL: "http://example.com/test.txt"})
+		if err := cache.Set(cacheKey, []byte("invalid json data"), 5*time.Minute); err != nil {
+			t.Fatalf("Failed to set cache: %v", err)
+		}
+
+		callCount := 0
+		handler := func(ctx context.Context, req *DownloadRequest) (*DownloadResponse, error) {
+			callCount++
+			return &DownloadResponse{
+				Stats: &types.DownloadStats{
+					URL:             req.URL,
+					Filename:        "test.txt",
+					TotalSize:       1024,
+					BytesDownloaded: 1024,
+					StartTime:       time.Now(),
+					EndTime:         time.Now(),
+					Duration:        time.Second,
+					Success:         true,
+				},
+				Headers:  make(map[string][]string),
+				Metadata: make(map[string]interface{}),
+			}, nil
+		}
+
+		wrappedHandler := middleware(handler)
+		req := &DownloadRequest{URL: "http://example.com/test.txt"}
+
+		// Should fall back to handler when deserialization fails
+		resp, err := wrappedHandler(context.Background(), req)
+		if err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+		if resp == nil {
+			t.Fatal("Expected response")
+		}
+		if callCount != 1 {
+			t.Errorf("Expected handler to be called once (deserialization failed), got %d", callCount)
+		}
+	})
+
+	t.Run("SerializationFailureLogsWarning", func(t *testing.T) {
+		// Create a mock cache that tracks Set calls
+		setCalled := false
+		mockCache := &mockCacheBackend{
+			data: make(map[string]cacheEntry),
+			setFunc: func(key string, data []byte, ttl time.Duration) error {
+				setCalled = true
+				return nil
+			},
+		}
+
+		middleware := CacheMiddleware(mockCache, 5*time.Minute)
+
+		handler := func(ctx context.Context, req *DownloadRequest) (*DownloadResponse, error) {
+			// Return response with nil Stats to trigger serialization error
+			return &DownloadResponse{
+				Stats:    nil, // This will cause serializeResponse to fail
+				Headers:  make(map[string][]string),
+				Metadata: make(map[string]interface{}),
+			}, nil
+		}
+
+		wrappedHandler := middleware(handler)
+		req := &DownloadRequest{URL: "http://example.com/test.txt"}
+
+		resp, err := wrappedHandler(context.Background(), req)
+		if err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+		if resp == nil {
+			t.Fatal("Expected response")
+		}
+
+		// Cache.Set should not be called because serialization failed
+		if setCalled {
+			t.Error("Expected cache.Set not to be called when serialization fails")
+		}
+	})
+
+	t.Run("CacheSetFailureLogsWarning", func(t *testing.T) {
+		// Create a mock cache that fails on Set
+		mockCache := &mockCacheBackend{
+			data: make(map[string]cacheEntry),
+			setFunc: func(key string, data []byte, ttl time.Duration) error {
+				return fmt.Errorf("cache set failed")
+			},
+		}
+
+		middleware := CacheMiddleware(mockCache, 5*time.Minute)
+
+		handler := func(ctx context.Context, req *DownloadRequest) (*DownloadResponse, error) {
+			return &DownloadResponse{
+				Stats: &types.DownloadStats{
+					URL:             req.URL,
+					Filename:        "test.txt",
+					TotalSize:       1024,
+					BytesDownloaded: 1024,
+					StartTime:       time.Now(),
+					EndTime:         time.Now(),
+					Duration:        time.Second,
+					Success:         true,
+				},
+				Headers:  make(map[string][]string),
+				Metadata: make(map[string]interface{}),
+			}, nil
+		}
+
+		wrappedHandler := middleware(handler)
+		req := &DownloadRequest{URL: "http://example.com/test.txt"}
+
+		// Should complete successfully even though cache.Set failed
+		resp, err := wrappedHandler(context.Background(), req)
+		if err != nil {
+			t.Fatalf("Expected no error even when cache.Set fails, got %v", err)
+		}
+		if resp == nil {
+			t.Fatal("Expected response")
+		}
+	})
+}
+
+// Mock cache backend for testing error cases
+type mockCacheBackend struct {
+	data    map[string]cacheEntry
+	setFunc func(key string, data []byte, ttl time.Duration) error
+}
+
+func (m *mockCacheBackend) Get(key string) ([]byte, bool) {
+	entry, exists := m.data[key]
+	if !exists || time.Now().After(entry.expiry) {
+		return nil, false
+	}
+	return entry.value, true
+}
+
+func (m *mockCacheBackend) Set(key string, data []byte, ttl time.Duration) error {
+	if m.setFunc != nil {
+		return m.setFunc(key, data, ttl)
+	}
+	m.data[key] = cacheEntry{
+		value:  data,
+		expiry: time.Now().Add(ttl),
+	}
+	return nil
+}
+
+func (m *mockCacheBackend) Delete(key string) error {
+	delete(m.data, key)
+	return nil
+}
+
+func (m *mockCacheBackend) Clear() error {
+	m.data = make(map[string]cacheEntry)
+	return nil
+}
+
+// Test generateCacheKey with UserAgent
+func TestGenerateCacheKeyWithUserAgent(t *testing.T) {
+	req1 := &DownloadRequest{
+		URL:       "http://example.com/test.txt",
+		UserAgent: "TestAgent/1.0",
+	}
+	req2 := &DownloadRequest{
+		URL:       "http://example.com/test.txt",
+		UserAgent: "TestAgent/2.0",
+	}
+	req3 := &DownloadRequest{
+		URL: "http://example.com/test.txt",
+		// No UserAgent
+	}
+
+	key1 := generateCacheKey(req1)
+	key2 := generateCacheKey(req2)
+	key3 := generateCacheKey(req3)
+
+	// Different UserAgents should produce different keys
+	if key1 == key2 {
+		t.Error("Expected different cache keys for different UserAgents")
+	}
+
+	// UserAgent vs no UserAgent should produce different keys
+	if key1 == key3 {
+		t.Error("Expected different cache keys when UserAgent is present vs absent")
+	}
+	if key2 == key3 {
+		t.Error("Expected different cache keys when UserAgent is present vs absent")
+	}
+}
+
+// Test getScheme with s3:// URLs
+func TestGetSchemeWithS3(t *testing.T) {
+	// Test full s3 URL
+	scheme := getScheme("s3://bucket/key")
+	if scheme != "s3" {
+		t.Errorf("Expected 's3', got %q", scheme)
+	}
+
+	// Test minimum valid s3 URL (len > 6, so at least 7 chars)
+	scheme = getScheme("s3://bu")
+	if scheme != "s3" {
+		t.Errorf("Expected 's3' for minimum valid s3 URL, got %q", scheme)
+	}
+
+	// Test edge cases that are too short (len <= 6)
+	// These should return "unknown" based on the implementation
+	scheme = getScheme("s3://b")
+	if scheme != "unknown" {
+		t.Errorf("Expected 'unknown' for too-short URL (len=6), got %q", scheme)
+	}
+
+	scheme = getScheme("s3://")
+	if scheme != "unknown" {
+		t.Errorf("Expected 'unknown' for bare s3:// (len=5), got %q", scheme)
+	}
+}
+
+// Test deserializeResponse with endTime parsing error
+func TestDeserializeResponseWithEndTimeError(t *testing.T) {
+	invalidData := []byte(`{
+		"stats": {
+			"start_time": "2024-01-01T00:00:00Z",
+			"end_time": "invalid-time-format"
+		}
+	}`)
+
+	_, err := deserializeResponse(invalidData)
+	if err == nil {
+		t.Error("Expected error when deserializing invalid end time")
+	}
+	if err != nil && !contains(err.Error(), "failed to parse end time") {
+		t.Errorf("Expected 'failed to parse end time' error, got: %v", err)
+	}
+}
