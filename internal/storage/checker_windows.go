@@ -1,5 +1,4 @@
 //go:build windows
-// +build windows
 
 // Package storage provides disk space management and monitoring capabilities.
 package storage
