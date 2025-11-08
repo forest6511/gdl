@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Dependencies**: Updated dependencies to latest versions (#37)
+  - cloud.google.com/go/storage: v1.56.0 → v1.57.1
+  - github.com/aws/aws-sdk-go-v2: v1.38.0 → v1.39.6
+  - github.com/aws/aws-sdk-go-v2/config: v1.31.0 → v1.31.17
+  - github.com/aws/aws-sdk-go-v2/credentials: v1.18.4 → v1.18.21
+  - github.com/aws/aws-sdk-go-v2/service/s3: v1.87.0 → v1.90.0
+  - github.com/redis/go-redis/v9: v9.12.1 → v9.16.0
+  - golang.org/x/sys: v0.35.0 → v0.38.0
+  - golang.org/x/time: v0.12.0 → v0.14.0
+  - google.golang.org/api: v0.247.0 → v0.255.0
+  - google.golang.org/grpc: v1.74.2 → v1.76.0
+  - google.golang.org/protobuf: v1.36.7 → v1.36.10
+
+### Security
+- **Go Toolchain**: Updated to go1.24.9 to address 12 security vulnerabilities (#37)
+  - Fixed GO-2025-4012: Cookie parsing memory exhaustion in net/http
+  - Fixed GO-2025-4008: ALPN negotiation information leak in crypto/tls
+  - Fixed GO-2025-3751: Sensitive headers leak on cross-origin redirect in net/http
+  - Fixed GO-2025-4011: DER parsing memory exhaustion in encoding/asn1
+  - Fixed GO-2025-4010: Insufficient IPv6 hostname validation in net/url
+  - Fixed GO-2025-4009: Quadratic complexity in encoding/pem
+  - Fixed GO-2025-4007: Quadratic complexity in crypto/x509 name constraints
+  - Fixed GO-2025-4013: DSA certificate validation panic in crypto/x509
+  - Fixed GO-2025-4015: Excessive CPU consumption in net/textproto
+  - Fixed GO-2025-3956: Unexpected paths from LookPath in os/exec
+  - Fixed GO-2025-3750: O_CREATE|O_EXCL inconsistency in os/syscall (Windows)
+  - Fixed GO-2025-3749: ExtKeyUsageAny policy validation bypass in crypto/x509
+
 ## [1.4.0] - 2025-10-11
 
 ### Added
