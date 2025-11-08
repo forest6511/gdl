@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - google.golang.org/api: v0.247.0 → v0.255.0
   - google.golang.org/grpc: v1.74.2 → v1.76.0
   - google.golang.org/protobuf: v1.36.7 → v1.36.10
+  - Note: This update also includes related indirect dependencies (OpenTelemetry, AWS internals, golang.org/x/*, google.golang.org/genproto)
+- **Infrastructure**: Added `tmp/` directory to .gitignore for temporary files
 
 ### Security
 - **Go Toolchain**: Updated to go1.24.9 to address 12 security vulnerabilities (#37)
