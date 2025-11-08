@@ -4,6 +4,8 @@ import (
 	"compress/gzip"
 	"context"
 	"crypto/sha256"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -11,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	gdlerrors "github.com/forest6511/gdl/pkg/errors"
 	"github.com/forest6511/gdl/pkg/plugin"
 	"github.com/forest6511/gdl/pkg/types"
 )
@@ -106,6 +109,24 @@ type CacheBackend interface {
 	Set(key string, value []byte, ttl time.Duration) error
 	Delete(key string) error
 	Clear() error
+}
+
+// CachedResponse represents a serializable download response for caching
+type CachedResponse struct {
+	Stats struct {
+		URL             string `json:"url"`
+		Filename        string `json:"filename"`
+		TotalSize       int64  `json:"total_size"`
+		BytesDownloaded int64  `json:"bytes_downloaded"`
+		StartTime       string `json:"start_time"` // RFC3339 format
+		EndTime         string `json:"end_time"`   // RFC3339 format
+		Duration        int64  `json:"duration"`   // nanoseconds
+		Success         bool   `json:"success"`
+		Error           string `json:"error,omitempty"`
+	} `json:"stats"`
+	Headers  map[string][]string    `json:"headers"`
+	Metadata map[string]interface{} `json:"metadata"`
+	Cached   bool                   `json:"cached"`
 }
 
 // RateLimiter interface for rate limiting
@@ -245,11 +266,15 @@ func CacheMiddleware(cache CacheBackend, ttl time.Duration) Middleware {
 			cacheKey := generateCacheKey(req)
 
 			// Try to get from cache first
-			if cached, found := cache.Get(cacheKey); found {
-				// TODO: Deserialize cached response
-				// For now, we'll skip cache hit and proceed with download
-				// In a real implementation, you'd deserialize the cached DownloadResponse
-				_ = cached
+			if cachedData, found := cache.Get(cacheKey); found {
+				// Deserialize cached response
+				resp, err := deserializeResponse(cachedData)
+				if err == nil {
+					// Successfully retrieved from cache
+					return resp, nil
+				}
+				// If deserialization fails, log and continue with download
+				log.Printf("Warning: failed to deserialize cached response: %v", err)
 			}
 
 			// Execute the download
@@ -259,13 +284,14 @@ func CacheMiddleware(cache CacheBackend, ttl time.Duration) Middleware {
 			}
 
 			// Cache the successful response
-			if resp.Stats.Success {
-				// TODO: Serialize response for caching
-				// For now, we'll just mark it as potentially cacheable
-				// In a real implementation, you'd serialize the DownloadResponse
-				cachedData := []byte(fmt.Sprintf("cached_%s", req.URL))
-				if err := cache.Set(cacheKey, cachedData, ttl); err != nil {
-					fmt.Printf("Warning: failed to cache response: %v\n", err)
+			if resp != nil && resp.Stats != nil && resp.Stats.Success {
+				// Serialize response for caching
+				if cachedData, err := serializeResponse(resp); err == nil {
+					if err := cache.Set(cacheKey, cachedData, ttl); err != nil {
+						log.Printf("Warning: failed to cache response: %v", err)
+					}
+				} else {
+					log.Printf("Warning: failed to serialize response: %v", err)
 				}
 			}
 
@@ -382,6 +408,75 @@ func generateCacheKey(req *DownloadRequest) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
+// serializeResponse converts a DownloadResponse to JSON for caching
+func serializeResponse(resp *DownloadResponse) ([]byte, error) {
+	if resp == nil || resp.Stats == nil {
+		return nil, fmt.Errorf("cannot serialize nil response or stats")
+	}
+
+	cached := &CachedResponse{
+		Headers:  resp.Headers,
+		Metadata: resp.Metadata,
+		Cached:   true, // Mark as cached
+	}
+
+	// Convert stats
+	cached.Stats.URL = resp.Stats.URL
+	cached.Stats.Filename = resp.Stats.Filename
+	cached.Stats.TotalSize = resp.Stats.TotalSize
+	cached.Stats.BytesDownloaded = resp.Stats.BytesDownloaded
+	cached.Stats.StartTime = resp.Stats.StartTime.Format(time.RFC3339)
+	cached.Stats.EndTime = resp.Stats.EndTime.Format(time.RFC3339)
+	cached.Stats.Duration = int64(resp.Stats.Duration)
+	cached.Stats.Success = resp.Stats.Success
+	if resp.Stats.Error != nil {
+		cached.Stats.Error = resp.Stats.Error.Error()
+	}
+
+	return json.Marshal(cached)
+}
+
+// deserializeResponse converts cached JSON data back to a DownloadResponse
+func deserializeResponse(data []byte) (*DownloadResponse, error) {
+	var cached CachedResponse
+	if err := json.Unmarshal(data, &cached); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal cached response: %w", err)
+	}
+
+	// Parse times
+	startTime, err := time.Parse(time.RFC3339, cached.Stats.StartTime)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse start time: %w", err)
+	}
+	endTime, err := time.Parse(time.RFC3339, cached.Stats.EndTime)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse end time: %w", err)
+	}
+
+	resp := &DownloadResponse{
+		Stats: &types.DownloadStats{
+			URL:             cached.Stats.URL,
+			Filename:        cached.Stats.Filename,
+			TotalSize:       cached.Stats.TotalSize,
+			BytesDownloaded: cached.Stats.BytesDownloaded,
+			StartTime:       startTime,
+			EndTime:         endTime,
+			Duration:        time.Duration(cached.Stats.Duration),
+			Success:         cached.Stats.Success,
+		},
+		Headers:  cached.Headers,
+		Metadata: cached.Metadata,
+		Cached:   true, // Mark as from cache
+	}
+
+	// Restore error if present
+	if cached.Stats.Error != "" {
+		resp.Stats.Error = fmt.Errorf("%s", cached.Stats.Error)
+	}
+
+	return resp, nil
+}
+
 func getScheme(url string) string {
 	if len(url) > 8 && url[:7] == "http://" {
 		return "http"
@@ -399,8 +494,17 @@ func getScheme(url string) string {
 }
 
 func isRetryableError(err error) bool {
-	// TODO: Implement proper error type checking
-	// For now, consider network-related errors as retryable
+	if err == nil {
+		return false
+	}
+
+	// Check if it's a DownloadError with Retryable field
+	var dlErr *gdlerrors.DownloadError
+	if errors.As(err, &dlErr) {
+		return dlErr.Retryable
+	}
+
+	// Fallback: check for common network error patterns
 	errStr := err.Error()
 	retryableKeywords := []string{
 		"timeout",
