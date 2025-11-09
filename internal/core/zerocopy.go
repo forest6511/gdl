@@ -2,11 +2,12 @@ package core
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"runtime"
+
+	gdlerrors "github.com/forest6511/gdl/pkg/errors"
 )
 
 // ZeroCopyDownloader provides zero-copy optimized downloads for large files
@@ -31,24 +32,26 @@ func NewZeroCopyDownloader() *ZeroCopyDownloader {
 func (zd *ZeroCopyDownloader) Download(ctx context.Context, url string, dest string) (int64, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return 0, fmt.Errorf("failed to create request: %w", err)
+		return 0, gdlerrors.WrapErrorWithURL(err, gdlerrors.CodeInvalidURL,
+			"failed to create request", url)
 	}
 
 	resp, err := zd.client.Do(req)
 	if err != nil {
-		return 0, fmt.Errorf("failed to execute request: %w", err)
+		return 0, gdlerrors.WrapErrorWithURL(err, gdlerrors.CodeNetworkError,
+			"failed to execute request", url)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
-		return 0, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return 0, gdlerrors.FromHTTPStatus(resp.StatusCode, url)
 	}
 
 	// Create destination file
 	// #nosec G304 -- dest validated by validateDestination() in DownloadFile()
 	file, err := os.Create(dest)
 	if err != nil {
-		return 0, fmt.Errorf("failed to create file: %w", err)
+		return 0, gdlerrors.NewStorageError("create file", err, dest)
 	}
 	defer func() { _ = file.Close() }()
 
@@ -94,24 +97,26 @@ func (zd *ZeroCopyDownloader) DownloadWithProgress(
 ) (int64, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return 0, fmt.Errorf("failed to create request: %w", err)
+		return 0, gdlerrors.WrapErrorWithURL(err, gdlerrors.CodeInvalidURL,
+			"failed to create request", url)
 	}
 
 	resp, err := zd.client.Do(req)
 	if err != nil {
-		return 0, fmt.Errorf("failed to execute request: %w", err)
+		return 0, gdlerrors.WrapErrorWithURL(err, gdlerrors.CodeNetworkError,
+			"failed to execute request", url)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
-		return 0, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return 0, gdlerrors.FromHTTPStatus(resp.StatusCode, url)
 	}
 
 	// Create destination file
 	// #nosec G304 -- dest validated by validateDestination() in DownloadFile()
 	file, err := os.Create(dest)
 	if err != nil {
-		return 0, fmt.Errorf("failed to create file: %w", err)
+		return 0, gdlerrors.NewStorageError("create file", err, dest)
 	}
 	defer func() { _ = file.Close() }()
 

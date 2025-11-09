@@ -2,10 +2,11 @@ package core
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net/http"
 	"time"
+
+	gdlerrors "github.com/forest6511/gdl/pkg/errors"
 )
 
 // LightweightDownloader is an optimized downloader for small files
@@ -40,7 +41,8 @@ func (ld *LightweightDownloader) Download(ctx context.Context, url string, write
 func (ld *LightweightDownloader) DownloadWithOptions(ctx context.Context, url string, writer io.Writer, userAgent string) (int64, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return 0, fmt.Errorf("failed to create request: %w", err)
+		return 0, gdlerrors.WrapErrorWithURL(err, gdlerrors.CodeInvalidURL,
+			"failed to create request", url)
 	}
 
 	if userAgent != "" {
@@ -49,19 +51,21 @@ func (ld *LightweightDownloader) DownloadWithOptions(ctx context.Context, url st
 
 	resp, err := ld.client.Do(req)
 	if err != nil {
-		return 0, fmt.Errorf("failed to execute request: %w", err)
+		return 0, gdlerrors.WrapErrorWithURL(err, gdlerrors.CodeNetworkError,
+			"failed to execute request", url)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return 0, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return 0, gdlerrors.FromHTTPStatus(resp.StatusCode, url)
 	}
 
 	// Use a small buffer for small files to reduce memory overhead
 	buf := make([]byte, 8*1024) // 8KB buffer for small files
 	written, err := io.CopyBuffer(writer, resp.Body, buf)
 	if err != nil {
-		return written, fmt.Errorf("failed to write response: %w", err)
+		return written, gdlerrors.WrapErrorWithURL(err, gdlerrors.CodeNetworkError,
+			"failed to write response", url)
 	}
 
 	return written, nil
@@ -76,7 +80,8 @@ func (ld *LightweightDownloader) DownloadWithProgress(ctx context.Context, url s
 func (ld *LightweightDownloader) DownloadWithProgressAndOptions(ctx context.Context, url string, writer io.Writer, progressFunc func(downloaded, total int64), userAgent string) (int64, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return 0, fmt.Errorf("failed to create request: %w", err)
+		return 0, gdlerrors.WrapErrorWithURL(err, gdlerrors.CodeInvalidURL,
+			"failed to create request", url)
 	}
 
 	if userAgent != "" {
@@ -85,12 +90,13 @@ func (ld *LightweightDownloader) DownloadWithProgressAndOptions(ctx context.Cont
 
 	resp, err := ld.client.Do(req)
 	if err != nil {
-		return 0, fmt.Errorf("failed to execute request: %w", err)
+		return 0, gdlerrors.WrapErrorWithURL(err, gdlerrors.CodeNetworkError,
+			"failed to execute request", url)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return 0, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return 0, gdlerrors.FromHTTPStatus(resp.StatusCode, url)
 	}
 
 	contentLength := resp.ContentLength
@@ -109,7 +115,8 @@ func (ld *LightweightDownloader) DownloadWithProgressAndOptions(ctx context.Cont
 	buf := make([]byte, 8*1024) // 8KB buffer
 	written, err := io.CopyBuffer(writer, pr, buf)
 	if err != nil {
-		return written, fmt.Errorf("failed to write response: %w", err)
+		return written, gdlerrors.WrapErrorWithURL(err, gdlerrors.CodeNetworkError,
+			"failed to write response", url)
 	}
 
 	return written, nil
