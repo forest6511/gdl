@@ -332,7 +332,7 @@ func (m *ConcurrentDownloadManager) getFileSize(url string) (int64, error) {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return 0, fmt.Errorf("status code: %d", resp.StatusCode)
+		return 0, gdlerrors.FromHTTPStatus(resp.StatusCode, url)
 	}
 
 	return resp.ContentLength, nil
