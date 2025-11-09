@@ -1036,4 +1036,88 @@ func TestDownloadWithRateLimit(t *testing.T) {
 			t.Errorf("Expected file size 50, got %d", fileInfo.Size())
 		}
 	})
+
+	t.Run("rate limit with context cancellation", func(t *testing.T) {
+		// Create slow server
+		slowServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Length", "1000")
+			// Don't set Accept-Ranges to force single download path
+			w.WriteHeader(http.StatusOK)
+
+			// Write data slowly
+			data := make([]byte, 1000)
+			for i := 0; i < 1000; i += 10 {
+				select {
+				case <-r.Context().Done():
+					return
+				default:
+					_, _ = w.Write(data[i : i+10])
+					w.(http.Flusher).Flush()
+					time.Sleep(50 * time.Millisecond)
+				}
+			}
+		}))
+		defer slowServer.Close()
+
+		options := &types.DownloadOptions{
+			MaxRate: 100, // Very slow rate to ensure we hit rate limiting
+		}
+
+		manager := NewConcurrentDownloadManagerWithOptions(options)
+
+		tempDir := t.TempDir()
+		destFile := filepath.Join(tempDir, "cancelled_test.bin")
+
+		ctx, cancel := context.WithCancel(context.Background())
+
+		// Cancel after short delay
+		go func() {
+			time.Sleep(100 * time.Millisecond)
+			cancel()
+		}()
+
+		err := manager.singleDownload(ctx, slowServer.URL, destFile)
+		if err == nil {
+			t.Error("Expected error due to context cancellation")
+		}
+	})
+
+	t.Run("rate limit with context timeout", func(t *testing.T) {
+		// Create slow server
+		slowServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Length", "1000")
+			w.WriteHeader(http.StatusOK)
+
+			// Write data very slowly
+			data := make([]byte, 1000)
+			for i := 0; i < 1000; i += 10 {
+				select {
+				case <-r.Context().Done():
+					return
+				default:
+					_, _ = w.Write(data[i : i+10])
+					w.(http.Flusher).Flush()
+					time.Sleep(100 * time.Millisecond)
+				}
+			}
+		}))
+		defer slowServer.Close()
+
+		options := &types.DownloadOptions{
+			MaxRate: 50, // Very slow rate
+		}
+
+		manager := NewConcurrentDownloadManagerWithOptions(options)
+
+		tempDir := t.TempDir()
+		destFile := filepath.Join(tempDir, "timeout_test.bin")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+		defer cancel()
+
+		err := manager.singleDownload(ctx, slowServer.URL, destFile)
+		if err == nil {
+			t.Error("Expected error due to context timeout")
+		}
+	})
 }
