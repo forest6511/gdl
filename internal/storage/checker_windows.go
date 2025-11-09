@@ -629,7 +629,8 @@ func (sc *SpaceChecker) performCleanup(suggestion CleanupSuggestion) error {
 	case CleanupDuplicateFiles:
 		return os.Remove(suggestion.Path)
 	default:
-		return fmt.Errorf("unknown cleanup type: %v", suggestion.Type)
+		return errors.NewDownloadError(errors.CodeStorageError,
+			fmt.Sprintf("unknown cleanup type: %v", suggestion.Type))
 	}
 }
 

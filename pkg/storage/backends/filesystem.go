@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 
+	gdlerrors "github.com/forest6511/gdl/pkg/errors"
 	"github.com/forest6511/gdl/pkg/storage"
 )
 
@@ -58,14 +59,15 @@ func NewFileSystemBackend() *FileSystemBackend {
 func (fs *FileSystemBackend) Init(config map[string]interface{}) error {
 	basePath, ok := config["basePath"].(string)
 	if !ok || basePath == "" {
-		return fmt.Errorf("basePath is required for filesystem backend")
+		return gdlerrors.NewValidationError("basePath", "basePath is required for filesystem backend")
 	}
 
 	// Expand tilde to home directory (Unix-style only)
 	if strings.HasPrefix(basePath, "~/") && runtime.GOOS != "windows" {
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
-			return fmt.Errorf("failed to get user home directory: %w", err)
+			return gdlerrors.WrapError(err, gdlerrors.CodeInvalidPath,
+				"failed to get user home directory")
 		}
 		basePath = filepath.Join(homeDir, basePath[2:])
 	}
@@ -73,14 +75,15 @@ func (fs *FileSystemBackend) Init(config map[string]interface{}) error {
 	// Convert to absolute path
 	absPath, err := filepath.Abs(basePath)
 	if err != nil {
-		return fmt.Errorf("failed to get absolute path: %w", err)
+		return gdlerrors.WrapError(err, gdlerrors.CodeInvalidPath,
+			"failed to get absolute path")
 	}
 
 	fs.basePath = absPath
 
 	// Create base directory if it doesn't exist
 	if err := os.MkdirAll(fs.basePath, 0750); err != nil {
-		return fmt.Errorf("failed to create base directory %s: %w", fs.basePath, err)
+		return gdlerrors.NewStorageError("create", err, fmt.Sprintf("path=%s", fs.basePath))
 	}
 
 	return nil
@@ -104,19 +107,19 @@ func (fs *FileSystemBackend) Save(ctx context.Context, key string, data io.Reade
 	// Create directory if it doesn't exist
 	dir := filepath.Dir(filePath)
 	if err := os.MkdirAll(dir, 0750); err != nil {
-		return fmt.Errorf("failed to create directory %s: %w", dir, err)
+		return gdlerrors.NewStorageError("mkdir", err, fmt.Sprintf("path=%s", dir))
 	}
 
 	// Validate and sanitize the file path to prevent directory traversal
 	cleanPath := filepath.Clean(filePath)
 	if !isPathUnder(fs.basePath, cleanPath) {
-		return fmt.Errorf("path outside base directory not allowed: %s", filePath)
+		return gdlerrors.NewInvalidPathError(filePath, nil)
 	}
 
 	// Create or truncate the file
 	file, err := os.Create(cleanPath) // #nosec G304 - path is validated and sanitized above
 	if err != nil {
-		return fmt.Errorf("failed to create file %s: %w", cleanPath, err)
+		return gdlerrors.NewStorageError("create", err, fmt.Sprintf("path=%s", cleanPath))
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
@@ -138,7 +141,7 @@ func (fs *FileSystemBackend) Save(ctx context.Context, key string, data io.Reade
 			if removeErr := os.Remove(cleanPath); removeErr != nil {
 				fmt.Printf("Warning: failed to cleanup partial file %s: %v\n", cleanPath, removeErr)
 			}
-			return fmt.Errorf("failed to save data to %s: %w", cleanPath, err)
+			return gdlerrors.NewStorageError("write", err, fmt.Sprintf("path=%s", cleanPath))
 		}
 		return nil
 	case <-ctx.Done():
@@ -146,7 +149,8 @@ func (fs *FileSystemBackend) Save(ctx context.Context, key string, data io.Reade
 		if removeErr := os.Remove(cleanPath); removeErr != nil {
 			fmt.Printf("Warning: failed to cleanup partial file %s: %v\n", cleanPath, removeErr)
 		}
-		return fmt.Errorf("save operation cancelled: %w", ctx.Err())
+		return gdlerrors.WrapError(ctx.Err(), gdlerrors.CodeCancelled,
+			"save operation cancelled")
 	}
 }
 
@@ -168,7 +172,7 @@ func (fs *FileSystemBackend) Load(ctx context.Context, key string) (io.ReadClose
 	// Validate and sanitize the file path to prevent directory traversal
 	cleanPath := filepath.Clean(filePath)
 	if !isPathUnder(fs.basePath, cleanPath) {
-		return nil, fmt.Errorf("path outside base directory not allowed: %s", filePath)
+		return nil, gdlerrors.NewInvalidPathError(filePath, nil)
 	}
 
 	// Check if file exists
@@ -179,7 +183,7 @@ func (fs *FileSystemBackend) Load(ctx context.Context, key string) (io.ReadClose
 	// Open the file
 	file, err := os.Open(cleanPath) // #nosec G304 - path is validated and sanitized above
 	if err != nil {
-		return nil, fmt.Errorf("failed to open file %s: %w", cleanPath, err)
+		return nil, gdlerrors.NewStorageError("open", err, fmt.Sprintf("path=%s", cleanPath))
 	}
 
 	// Return a reader that respects context cancellation
@@ -204,7 +208,7 @@ func (fs *FileSystemBackend) Delete(ctx context.Context, key string) error {
 
 	// Remove the file
 	if err := os.Remove(filePath); err != nil {
-		return fmt.Errorf("failed to delete file %s: %w", filePath, err)
+		return gdlerrors.NewStorageError("delete", err, fmt.Sprintf("path=%s", filePath))
 	}
 
 	// Try to remove empty parent directories
@@ -228,7 +232,7 @@ func (fs *FileSystemBackend) Exists(ctx context.Context, key string) (bool, erro
 	if os.IsNotExist(err) {
 		return false, nil
 	}
-	return false, fmt.Errorf("failed to check file existence %s: %w", filePath, err)
+	return false, gdlerrors.NewStorageError("stat", err, fmt.Sprintf("path=%s", filePath))
 }
 
 // List returns a list of keys with the given prefix
@@ -269,7 +273,8 @@ func (fs *FileSystemBackend) List(ctx context.Context, prefix string) ([]string,
 	})
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to list files: %w", err)
+		return nil, gdlerrors.NewStorageError("list", err,
+			fmt.Sprintf("basePath=%s, prefix=%s", fs.basePath, prefix))
 	}
 
 	return keys, nil

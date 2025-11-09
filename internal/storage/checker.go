@@ -477,7 +477,7 @@ func (sc *SpaceChecker) ExecuteCleanup(
 ) (uint64, error) {
 	var (
 		totalFreed uint64
-		errors     []error
+		errorsList []error
 	)
 
 	for _, suggestion := range suggestions {
@@ -487,15 +487,16 @@ func (sc *SpaceChecker) ExecuteCleanup(
 
 		err := sc.performCleanup(suggestion)
 		if err != nil {
-			errors = append(errors, err)
+			errorsList = append(errorsList, err)
 			continue
 		}
 
 		totalFreed += suggestion.Size
 	}
 
-	if len(errors) > 0 {
-		return totalFreed, fmt.Errorf("cleanup completed with %d errors", len(errors))
+	if len(errorsList) > 0 {
+		return totalFreed, errors.NewDownloadError(errors.CodeStorageError,
+			fmt.Sprintf("cleanup completed with %d errors", len(errorsList)))
 	}
 
 	return totalFreed, nil
@@ -519,7 +520,8 @@ func (sc *SpaceChecker) performCleanup(suggestion CleanupSuggestion) error {
 		return os.Remove(suggestion.Path)
 
 	default:
-		return fmt.Errorf("unknown cleanup type: %v", suggestion.Type)
+		return errors.NewDownloadError(errors.CodeStorageError,
+			fmt.Sprintf("unknown cleanup type: %v", suggestion.Type))
 	}
 }
 
