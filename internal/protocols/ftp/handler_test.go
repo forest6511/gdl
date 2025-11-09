@@ -189,6 +189,25 @@ func TestDownload(t *testing.T) {
 			t.Error("Expected error for cancelled context")
 		}
 	})
+
+	t.Run("FileRetrievalError", func(t *testing.T) {
+		mockConn := &MockFTPConnection{
+			retrErr: errors.New("550 File not found"),
+		}
+
+		downloader := NewFTPDownloader(nil)
+		downloader.SetClient(mockConn)
+
+		var buf bytes.Buffer
+		err := downloader.Download(context.Background(), "ftp://example.com/test.txt", &buf)
+
+		if err == nil {
+			t.Error("Expected file retrieval error")
+		}
+		if !strings.Contains(err.Error(), "failed to retrieve file") {
+			t.Errorf("Expected 'failed to retrieve file' error message, got: %v", err)
+		}
+	})
 }
 
 func TestGetFileSize(t *testing.T) {
