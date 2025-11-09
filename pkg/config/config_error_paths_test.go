@@ -364,7 +364,9 @@ func TestConfigLoaderSaveErrorPaths(t *testing.T) {
 		if err := os.Mkdir(readOnlyDir, 0o400); err != nil {
 			t.Fatalf("Failed to create read-only directory: %v", err)
 		}
-		defer os.Chmod(readOnlyDir, 0o700)
+		defer func() {
+			_ = os.Chmod(readOnlyDir, 0o700)
+		}()
 
 		configPath := filepath.Join(readOnlyDir, "config.json")
 		loader := NewConfigLoader(configPath)
