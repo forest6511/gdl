@@ -279,14 +279,20 @@ func (pr *PluginRegistry) downloadPlugin(ctx context.Context, source, destinatio
 func (pr *PluginRegistry) downloadFromURL(ctx context.Context, url, destination string) error {
 	// This would use the core downloader to fetch the plugin
 	// For now, we'll return a placeholder error
-	return fmt.Errorf("URL download not implemented yet - would download from %s to %s", url, destination)
+	return gdlerrors.NewDownloadError(
+		gdlerrors.CodeUnknown,
+		fmt.Sprintf("URL download not implemented yet - would download from %s to %s", url, destination),
+	)
 }
 
 // downloadFromGitHub downloads a plugin from GitHub
 func (pr *PluginRegistry) downloadFromGitHub(ctx context.Context, repo, destination string) error {
 	// This would construct a GitHub URL and download the latest release
 	// For now, we'll return a placeholder error
-	return fmt.Errorf("GitHub download not implemented yet - would download from %s to %s", repo, destination)
+	return gdlerrors.NewDownloadError(
+		gdlerrors.CodeUnknown,
+		fmt.Sprintf("GitHub download not implemented yet - would download from %s to %s", repo, destination),
+	)
 }
 
 // copyLocalFile copies a plugin from a local path

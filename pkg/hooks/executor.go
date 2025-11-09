@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"sync"
+
+	gdlerrors "github.com/forest6511/gdl/pkg/errors"
 )
 
 // DefaultHookExecutor is the default implementation of HookExecutor
@@ -24,7 +26,7 @@ func NewHookExecutor() *DefaultHookExecutor {
 // Execute runs all registered handlers for the given hook type
 func (e *DefaultHookExecutor) Execute(ctx context.Context, hook *HookContext) error {
 	if hook == nil {
-		return fmt.Errorf("hook context cannot be nil")
+		return gdlerrors.NewValidationError("hook_context", "hook context cannot be nil")
 	}
 
 	e.mu.RLock()
@@ -49,7 +51,11 @@ func (e *DefaultHookExecutor) Execute(ctx context.Context, hook *HookContext) er
 			return ctx.Err()
 		default:
 			if err := handler(ctx, hook); err != nil {
-				return fmt.Errorf("hook handler %d failed: %w", i, err)
+				return gdlerrors.NewPluginError(
+					fmt.Sprintf("hook_handler_%d", i),
+					err,
+					fmt.Sprintf("hook handler %d failed for hook type %v", i, hook.Type),
+				)
 			}
 		}
 	}
@@ -60,7 +66,7 @@ func (e *DefaultHookExecutor) Execute(ctx context.Context, hook *HookContext) er
 // Register adds a new handler for the specified hook type
 func (e *DefaultHookExecutor) Register(hookType HookType, handler HookHandler) error {
 	if handler == nil {
-		return fmt.Errorf("handler cannot be nil")
+		return gdlerrors.NewValidationError("handler", "handler cannot be nil")
 	}
 
 	e.mu.Lock()

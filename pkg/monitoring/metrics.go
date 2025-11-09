@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	gdlerrors "github.com/forest6511/gdl/pkg/errors"
 	"github.com/forest6511/gdl/pkg/types"
 )
 
@@ -248,7 +249,7 @@ func (mc *MetricsCollector) GetDownloadMetrics(id string) (*DownloadMetrics, err
 
 	metrics, exists := mc.downloads[id]
 	if !exists {
-		return nil, fmt.Errorf("metrics not found for download ID: %s", id)
+		return nil, gdlerrors.NewValidationError("download_id", fmt.Sprintf("metrics not found for download ID: %s", id))
 	}
 
 	// Return a copy to avoid race conditions
