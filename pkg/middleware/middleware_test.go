@@ -1633,7 +1633,7 @@ func TestDeserializeResponseWithEndTimeError(t *testing.T) {
 	if err == nil {
 		t.Error("Expected error when deserializing invalid end time")
 	}
-	if err != nil && !contains(err.Error(), "failed to parse end time") {
-		t.Errorf("Expected 'failed to parse end time' error, got: %v", err)
+	if err != nil && !contains(err.Error(), "storage error during cache deserialization") {
+		t.Errorf("Expected 'storage error during cache deserialization' error, got: %v", err)
 	}
 }

@@ -11,6 +11,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+
+	gdlerrors "github.com/forest6511/gdl/pkg/errors"
 )
 
 // S3Client defines the interface for S3 operations
@@ -58,7 +60,7 @@ func NewS3Downloader(cfg *Config) (*S3Downloader, error) {
 	}
 
 	if err := downloader.initializeClient(); err != nil {
-		return nil, fmt.Errorf("failed to initialize S3 client: %w", err)
+		return nil, gdlerrors.WrapError(err, gdlerrors.CodeConfigError, "failed to initialize S3 client")
 	}
 
 	return downloader, nil
@@ -102,7 +104,7 @@ func (s *S3Downloader) initializeClient() error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("failed to load AWS config: %w", err)
+		return gdlerrors.WrapError(err, gdlerrors.CodeConfigError, "failed to load AWS config")
 	}
 
 	// Create S3 client options
@@ -122,22 +124,22 @@ func (s *S3Downloader) initializeClient() error {
 func (s *S3Downloader) parseS3URL(urlStr string) (bucket, key string, err error) {
 	parsedURL, err := url.Parse(urlStr)
 	if err != nil {
-		return "", "", fmt.Errorf("invalid S3 URL: %w", err)
+		return "", "", gdlerrors.WrapError(err, gdlerrors.CodeInvalidURL, "invalid S3 URL")
 	}
 
 	if parsedURL.Scheme != "s3" {
-		return "", "", fmt.Errorf("URL scheme must be 's3', got: %s", parsedURL.Scheme)
+		return "", "", gdlerrors.NewValidationError("url_scheme", fmt.Sprintf("URL scheme must be 's3', got: %s", parsedURL.Scheme))
 	}
 
 	bucket = parsedURL.Host
 	key = strings.TrimPrefix(parsedURL.Path, "/")
 
 	if bucket == "" {
-		return "", "", fmt.Errorf("bucket name is required in S3 URL")
+		return "", "", gdlerrors.NewValidationError("bucket", "bucket name is required in S3 URL")
 	}
 
 	if key == "" {
-		return "", "", fmt.Errorf("object key is required in S3 URL")
+		return "", "", gdlerrors.NewValidationError("key", "object key is required in S3 URL")
 	}
 
 	return bucket, key, nil
@@ -158,7 +160,7 @@ func (s *S3Downloader) Download(ctx context.Context, url string, writer io.Write
 
 	result, err := s.client.GetObject(ctx, input)
 	if err != nil {
-		return fmt.Errorf("failed to get object s3://%s/%s: %w", bucket, key, err)
+		return gdlerrors.WrapError(err, gdlerrors.CodeNetworkError, fmt.Sprintf("failed to get object s3://%s/%s", bucket, key))
 	}
 	defer func() {
 		if err := result.Body.Close(); err != nil {
@@ -169,7 +171,7 @@ func (s *S3Downloader) Download(ctx context.Context, url string, writer io.Write
 	// Copy the object content to the writer
 	_, err = io.Copy(writer, result.Body)
 	if err != nil {
-		return fmt.Errorf("failed to download object s3://%s/%s: %w", bucket, key, err)
+		return gdlerrors.WrapError(err, gdlerrors.CodeNetworkError, fmt.Sprintf("failed to download object s3://%s/%s", bucket, key))
 	}
 
 	return nil
@@ -190,11 +192,11 @@ func (s *S3Downloader) GetObjectSize(ctx context.Context, url string) (int64, er
 
 	result, err := s.client.HeadObject(ctx, input)
 	if err != nil {
-		return 0, fmt.Errorf("failed to get object metadata s3://%s/%s: %w", bucket, key, err)
+		return 0, gdlerrors.WrapError(err, gdlerrors.CodeNetworkError, fmt.Sprintf("failed to get object metadata s3://%s/%s", bucket, key))
 	}
 
 	if result.ContentLength == nil {
-		return 0, fmt.Errorf("content length not available for object s3://%s/%s", bucket, key)
+		return 0, gdlerrors.NewDownloadError(gdlerrors.CodeServerError, fmt.Sprintf("content length not available for object s3://%s/%s", bucket, key))
 	}
 
 	return *result.ContentLength, nil
@@ -216,7 +218,7 @@ func (s *S3Downloader) ListObjects(ctx context.Context, bucket, prefix string, m
 
 	result, err := s.client.ListObjectsV2(ctx, input)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list objects in bucket %s: %w", bucket, err)
+		return nil, gdlerrors.WrapError(err, gdlerrors.CodeNetworkError, fmt.Sprintf("failed to list objects in bucket %s", bucket))
 	}
 
 	objects := make([]string, 0, len(result.Contents))
@@ -246,7 +248,7 @@ func (s *S3Downloader) ObjectExists(ctx context.Context, url string) (bool, erro
 		if strings.Contains(err.Error(), "NotFound") || strings.Contains(err.Error(), "NoSuchKey") {
 			return false, nil
 		}
-		return false, fmt.Errorf("failed to check object existence s3://%s/%s: %w", bucket, key, err)
+		return false, gdlerrors.WrapError(err, gdlerrors.CodeNetworkError, fmt.Sprintf("failed to check object existence s3://%s/%s", bucket, key))
 	}
 
 	return true, nil
@@ -266,7 +268,7 @@ func (s *S3Downloader) GetObjectMetadata(ctx context.Context, url string) (map[s
 
 	result, err := s.client.HeadObject(ctx, input)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get object metadata s3://%s/%s: %w", bucket, key, err)
+		return nil, gdlerrors.WrapError(err, gdlerrors.CodeNetworkError, fmt.Sprintf("failed to get object metadata s3://%s/%s", bucket, key))
 	}
 
 	metadata := make(map[string]interface{})
@@ -312,7 +314,7 @@ func (s *S3Downloader) DownloadRange(ctx context.Context, url string, writer io.
 
 	result, err := s.client.GetObject(ctx, input)
 	if err != nil {
-		return fmt.Errorf("failed to get object range s3://%s/%s [%d-%d]: %w", bucket, key, start, end, err)
+		return gdlerrors.WrapError(err, gdlerrors.CodeNetworkError, fmt.Sprintf("failed to get object range s3://%s/%s [%d-%d]", bucket, key, start, end))
 	}
 	defer func() {
 		if err := result.Body.Close(); err != nil {
@@ -322,7 +324,7 @@ func (s *S3Downloader) DownloadRange(ctx context.Context, url string, writer io.
 
 	_, err = io.Copy(writer, result.Body)
 	if err != nil {
-		return fmt.Errorf("failed to download object range s3://%s/%s [%d-%d]: %w", bucket, key, start, end, err)
+		return gdlerrors.WrapError(err, gdlerrors.CodeNetworkError, fmt.Sprintf("failed to download object range s3://%s/%s [%d-%d]", bucket, key, start, end))
 	}
 
 	return nil

@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	gdlerrors "github.com/forest6511/gdl/pkg/errors"
 )
 
 // Version represents a semantic version for plugins
@@ -24,7 +26,7 @@ func ParseVersion(versionStr string) (*Version, error) {
 
 	matches := re.FindStringSubmatch(versionStr)
 	if matches == nil {
-		return nil, fmt.Errorf("invalid version format: %s", versionStr)
+		return nil, gdlerrors.NewValidationError("version_format", fmt.Sprintf("invalid version format: %s", versionStr))
 	}
 
 	major, _ := strconv.Atoi(matches[1])
@@ -153,7 +155,8 @@ type VersionedPlugin struct {
 func NewVersionedPlugin(plugin Plugin, version string) (*VersionedPlugin, error) {
 	v, err := ParseVersion(version)
 	if err != nil {
-		return nil, fmt.Errorf("invalid plugin version: %w", err)
+		// ParseVersion already returns structured error, preserve it
+		return nil, err
 	}
 
 	return &VersionedPlugin{

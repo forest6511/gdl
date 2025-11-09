@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	gdlerrors "github.com/forest6511/gdl/pkg/errors"
 )
 
 // PluginSecurity defines security constraints for plugins
@@ -98,7 +100,7 @@ func (sv *SecurityValidator) ValidateFilePath(path string) error {
 	// Resolve absolute path
 	absPath, err := filepath.Abs(path)
 	if err != nil {
-		return fmt.Errorf("failed to resolve absolute path: %w", err)
+		return gdlerrors.NewInvalidPathError(path, err)
 	}
 
 	// Normalize path separators
@@ -108,7 +110,7 @@ func (sv *SecurityValidator) ValidateFilePath(path string) error {
 	for _, blocked := range sv.policy.BlockedPaths {
 		blockedAbs, _ := filepath.Abs(blocked)
 		if strings.HasPrefix(absPath, blockedAbs) {
-			return fmt.Errorf("path %s is blocked by security policy", absPath)
+			return gdlerrors.WrapError(nil, gdlerrors.CodePermissionDenied, fmt.Sprintf("path %s is blocked by security policy", absPath))
 		}
 	}
 
@@ -123,7 +125,7 @@ func (sv *SecurityValidator) ValidateFilePath(path string) error {
 			}
 		}
 		if !allowed {
-			return fmt.Errorf("path %s is not in allowed paths", absPath)
+			return gdlerrors.WrapError(nil, gdlerrors.CodePermissionDenied, fmt.Sprintf("path %s is not in allowed paths", absPath))
 		}
 	}
 
@@ -133,7 +135,7 @@ func (sv *SecurityValidator) ValidateFilePath(path string) error {
 // ValidateFileOperation validates file operations
 func (sv *SecurityValidator) ValidateFileOperation(operation string, path string) error {
 	if !sv.policy.FileSystemAccess {
-		return fmt.Errorf("file system access is disabled")
+		return gdlerrors.WrapError(nil, gdlerrors.CodePermissionDenied, "file system access is disabled")
 	}
 
 	if err := sv.ValidateFilePath(path); err != nil {
@@ -142,7 +144,7 @@ func (sv *SecurityValidator) ValidateFileOperation(operation string, path string
 
 	// Check read-only mode
 	if sv.policy.ReadOnlyMode && (operation == "write" || operation == "create" || operation == "delete") {
-		return fmt.Errorf("write operation %s is not allowed in read-only mode", operation)
+		return gdlerrors.WrapError(nil, gdlerrors.CodePermissionDenied, fmt.Sprintf("write operation %s is not allowed in read-only mode", operation))
 	}
 
 	return nil
@@ -151,7 +153,7 @@ func (sv *SecurityValidator) ValidateFileOperation(operation string, path string
 // ValidateFileSize validates file size against policy
 func (sv *SecurityValidator) ValidateFileSize(size int64) error {
 	if sv.policy.MaxFileSize > 0 && size > sv.policy.MaxFileSize {
-		return fmt.Errorf("file size %d bytes exceeds maximum allowed size %d bytes", size, sv.policy.MaxFileSize)
+		return gdlerrors.NewValidationError("file_size", fmt.Sprintf("file size %d bytes exceeds maximum allowed size %d bytes", size, sv.policy.MaxFileSize))
 	}
 	return nil
 }
@@ -159,13 +161,13 @@ func (sv *SecurityValidator) ValidateFileSize(size int64) error {
 // ValidateNetworkAccess validates network operations
 func (sv *SecurityValidator) ValidateNetworkAccess(host string) error {
 	if !sv.policy.NetworkAccess {
-		return fmt.Errorf("network access is disabled")
+		return gdlerrors.WrapError(nil, gdlerrors.CodePermissionDenied, "network access is disabled")
 	}
 
 	// Check blocked hosts
 	for _, blocked := range sv.policy.BlockedHosts {
 		if strings.Contains(host, blocked) {
-			return fmt.Errorf("host %s is blocked by security policy", host)
+			return gdlerrors.WrapError(nil, gdlerrors.CodePermissionDenied, fmt.Sprintf("host %s is blocked by security policy", host))
 		}
 	}
 
@@ -179,7 +181,7 @@ func (sv *SecurityValidator) ValidateNetworkAccess(host string) error {
 			}
 		}
 		if !allowed {
-			return fmt.Errorf("host %s is not in allowed hosts", host)
+			return gdlerrors.WrapError(nil, gdlerrors.CodePermissionDenied, fmt.Sprintf("host %s is not in allowed hosts", host))
 		}
 	}
 
@@ -211,7 +213,7 @@ func NewResourceMonitor(maxMemoryMB int64, maxExecTime time.Duration) *ResourceM
 func (rm *ResourceMonitor) CheckResources() error {
 	// Check execution time
 	if rm.maxExecTime > 0 && time.Since(rm.startTime) > rm.maxExecTime {
-		return fmt.Errorf("execution time exceeded maximum allowed time %v", rm.maxExecTime)
+		return gdlerrors.WrapError(nil, gdlerrors.CodeTimeout, fmt.Sprintf("execution time exceeded maximum allowed time %v", rm.maxExecTime))
 	}
 
 	// Check memory usage
@@ -222,7 +224,7 @@ func (rm *ResourceMonitor) CheckResources() error {
 		// #nosec G115 -- Safe conversion: memory stats are controlled values
 		memoryDiff := int64(memStats.Alloc - rm.initialMem.Alloc)
 		if memoryDiff > rm.maxMemory {
-			return fmt.Errorf("memory usage %d bytes exceeds maximum allowed %d bytes", memoryDiff, rm.maxMemory)
+			return gdlerrors.WrapError(nil, gdlerrors.CodePermissionDenied, fmt.Sprintf("memory usage %d bytes exceeds maximum allowed %d bytes", memoryDiff, rm.maxMemory))
 		}
 	}
 
@@ -249,7 +251,7 @@ func NewSecurePluginExecutor(plugin Plugin, security *PluginSecurity, basePath s
 func (spe *SecurePluginExecutor) Execute(ctx context.Context, method string, args ...interface{}) (interface{}, error) {
 	// Pre-execution security check
 	if err := spe.monitor.CheckResources(); err != nil {
-		return nil, fmt.Errorf("pre-execution security check failed: %w", err)
+		return nil, gdlerrors.WrapError(err, gdlerrors.CodePermissionDenied, "pre-execution security check failed")
 	}
 
 	// Create timeout context
@@ -264,7 +266,7 @@ func (spe *SecurePluginExecutor) Execute(ctx context.Context, method string, arg
 
 	// Post-execution security check
 	if resErr := spe.monitor.CheckResources(); resErr != nil {
-		return nil, fmt.Errorf("post-execution security check failed: %w", resErr)
+		return nil, gdlerrors.WrapError(resErr, gdlerrors.CodePermissionDenied, "post-execution security check failed")
 	}
 
 	return result, err
@@ -282,11 +284,11 @@ func (spe *SecurePluginExecutor) executeMethod(ctx context.Context, method strin
 				return nil, spe.plugin.Init(config)
 			}
 		}
-		return nil, fmt.Errorf("invalid arguments for Init method")
+		return nil, gdlerrors.NewValidationError("init_args", "invalid arguments for Init method")
 	case "Close":
 		return nil, spe.plugin.Close()
 	default:
-		return nil, fmt.Errorf("unsupported method: %s", method)
+		return nil, gdlerrors.NewValidationError("method", fmt.Sprintf("unsupported method: %s", method))
 	}
 }
 

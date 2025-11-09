@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	gdlerrors "github.com/forest6511/gdl/pkg/errors"
 )
 
 // HotReloadConfig configures hot reload behavior
@@ -79,7 +81,7 @@ func NewHotReloadManager(config *HotReloadConfig, manager *PluginManager, depMan
 	// Add watch directories
 	for _, dir := range config.WatchDirectories {
 		if err := hrm.addWatchDirectory(dir); err != nil {
-			return nil, fmt.Errorf("failed to watch directory %s: %w", dir, err)
+			return nil, gdlerrors.NewStorageError("watch directory", err, dir)
 		}
 	}
 
@@ -266,13 +268,14 @@ func (hrm *HotReloadManager) reloadPlugin(path string) error {
 	// Unload existing plugin if loaded
 	if exists {
 		if err := hrm.unloadPlugin(pluginName); err != nil {
-			return fmt.Errorf("failed to unload plugin: %w", err)
+			return gdlerrors.NewPluginError(pluginName, err, "failed to unload plugin")
 		}
 	}
 
 	// Load new version
 	if err := hrm.loadPlugin(path); err != nil {
-		return fmt.Errorf("failed to load plugin: %w", err)
+		// loadPlugin already returns structured error, preserve it
+		return err
 	}
 
 	// Reload dependents if necessary
@@ -304,7 +307,7 @@ func (hrm *HotReloadManager) unloadPlugin(name string) error {
 	if hrm.depManager != nil {
 		canUnload, dependents := hrm.depManager.CanUnload(name)
 		if !canUnload {
-			return fmt.Errorf("cannot unload plugin %s, required by: %v", name, dependents)
+			return gdlerrors.NewPluginError(name, nil, fmt.Sprintf("cannot unload plugin, required by: %v", dependents))
 		}
 
 		// Unregister from dependency manager

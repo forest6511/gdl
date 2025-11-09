@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 
+	gdlerrors "github.com/forest6511/gdl/pkg/errors"
 	"github.com/forest6511/gdl/pkg/storage"
 )
 
@@ -30,7 +31,7 @@ func NewS3Backend() *S3Backend {
 func (s3b *S3Backend) Init(config map[string]interface{}) error {
 	bucket, ok := config["bucket"].(string)
 	if !ok || bucket == "" {
-		return fmt.Errorf("bucket is required for S3 backend")
+		return gdlerrors.NewValidationError("bucket", "bucket is required for S3 backend")
 	}
 	s3b.bucket = bucket
 
@@ -41,7 +42,8 @@ func (s3b *S3Backend) Init(config map[string]interface{}) error {
 
 	// Initialize S3 client
 	if err := s3b.initClient(config); err != nil {
-		return fmt.Errorf("failed to initialize S3 client: %w", err)
+		return gdlerrors.NewConfigError("failed to initialize S3 client", err,
+			fmt.Sprintf("bucket=%s", bucket))
 	}
 
 	return nil
@@ -84,7 +86,8 @@ func (s3b *S3Backend) initClient(config map[string]interface{}) error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("failed to load AWS config: %w", err)
+		return gdlerrors.WrapError(err, gdlerrors.CodeAuthenticationFailed,
+			"failed to load AWS config")
 	}
 
 	// Create S3 client with optional custom endpoint
@@ -114,7 +117,8 @@ func (s3b *S3Backend) Save(ctx context.Context, key string, data io.Reader) erro
 
 	_, err := s3b.client.PutObject(ctx, input)
 	if err != nil {
-		return fmt.Errorf("failed to save object to S3 s3://%s/%s: %w", s3b.bucket, fullKey, err)
+		return gdlerrors.NewStorageError("save", err,
+			fmt.Sprintf("s3://%s/%s", s3b.bucket, fullKey))
 	}
 
 	return nil
@@ -134,7 +138,8 @@ func (s3b *S3Backend) Load(ctx context.Context, key string) (io.ReadCloser, erro
 		if strings.Contains(err.Error(), "NoSuchKey") {
 			return nil, storage.ErrKeyNotFound
 		}
-		return nil, fmt.Errorf("failed to get object from S3 s3://%s/%s: %w", s3b.bucket, fullKey, err)
+		return nil, gdlerrors.NewStorageError("load", err,
+			fmt.Sprintf("s3://%s/%s", s3b.bucket, fullKey))
 	}
 
 	return result.Body, nil
@@ -160,7 +165,8 @@ func (s3b *S3Backend) Delete(ctx context.Context, key string) error {
 
 	_, err = s3b.client.DeleteObject(ctx, input)
 	if err != nil {
-		return fmt.Errorf("failed to delete object from S3 s3://%s/%s: %w", s3b.bucket, fullKey, err)
+		return gdlerrors.NewStorageError("delete", err,
+			fmt.Sprintf("s3://%s/%s", s3b.bucket, fullKey))
 	}
 
 	return nil
@@ -180,7 +186,8 @@ func (s3b *S3Backend) Exists(ctx context.Context, key string) (bool, error) {
 		if strings.Contains(err.Error(), "NotFound") || strings.Contains(err.Error(), "NoSuchKey") {
 			return false, nil
 		}
-		return false, fmt.Errorf("failed to check object existence in S3 s3://%s/%s: %w", s3b.bucket, fullKey, err)
+		return false, gdlerrors.NewStorageError("exists", err,
+			fmt.Sprintf("s3://%s/%s", s3b.bucket, fullKey))
 	}
 
 	return true, nil
@@ -201,7 +208,8 @@ func (s3b *S3Backend) List(ctx context.Context, prefix string) ([]string, error)
 	for paginator.HasMorePages() {
 		result, err := paginator.NextPage(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("failed to list objects in S3 bucket %s: %w", s3b.bucket, err)
+			return nil, gdlerrors.NewStorageError("list", err,
+				fmt.Sprintf("bucket=%s, prefix=%s", s3b.bucket, fullPrefix))
 		}
 
 		for _, obj := range result.Contents {
@@ -257,11 +265,13 @@ func (s3b *S3Backend) GetObjectSize(ctx context.Context, key string) (int64, err
 		if strings.Contains(err.Error(), "NotFound") || strings.Contains(err.Error(), "NoSuchKey") {
 			return 0, storage.ErrKeyNotFound
 		}
-		return 0, fmt.Errorf("failed to get object metadata from S3 s3://%s/%s: %w", s3b.bucket, fullKey, err)
+		return 0, gdlerrors.NewStorageError("GetObjectSize", err,
+			fmt.Sprintf("s3://%s/%s", s3b.bucket, fullKey))
 	}
 
 	if result.ContentLength == nil {
-		return 0, fmt.Errorf("content length not available for object s3://%s/%s", s3b.bucket, fullKey)
+		return 0, gdlerrors.NewStorageError("GetObjectSize", nil,
+			fmt.Sprintf("content length not available for s3://%s/%s", s3b.bucket, fullKey))
 	}
 
 	return *result.ContentLength, nil
@@ -281,7 +291,8 @@ func (s3b *S3Backend) GetObjectMetadata(ctx context.Context, key string) (map[st
 		if strings.Contains(err.Error(), "NotFound") || strings.Contains(err.Error(), "NoSuchKey") {
 			return nil, storage.ErrKeyNotFound
 		}
-		return nil, fmt.Errorf("failed to get object metadata from S3 s3://%s/%s: %w", s3b.bucket, fullKey, err)
+		return nil, gdlerrors.NewStorageError("GetObjectMetadata", err,
+			fmt.Sprintf("s3://%s/%s", s3b.bucket, fullKey))
 	}
 
 	metadata := make(map[string]interface{})

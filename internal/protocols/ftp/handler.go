@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/jlaffaye/ftp"
+
+	gdlerrors "github.com/forest6511/gdl/pkg/errors"
 )
 
 // FTPClient defines the interface for FTP operations
@@ -103,7 +105,7 @@ func (f *FTPDownloader) SetClient(client FTPClient) {
 func (f *FTPDownloader) Connect(ctx context.Context, serverURL string) error {
 	parsedURL, err := url.Parse(serverURL)
 	if err != nil {
-		return fmt.Errorf("invalid FTP URL: %w", err)
+		return gdlerrors.WrapError(err, gdlerrors.CodeInvalidURL, "invalid FTP URL")
 	}
 
 	// Extract server address and port
@@ -128,7 +130,7 @@ func (f *FTPDownloader) Connect(ctx context.Context, serverURL string) error {
 	// Establish connection with timeout
 	conn, err := ftp.Dial(server, ftp.DialWithTimeout(f.config.DialTimeout))
 	if err != nil {
-		return fmt.Errorf("failed to connect to FTP server %s: %w", server, err)
+		return gdlerrors.WrapError(err, gdlerrors.CodeNetworkError, fmt.Sprintf("failed to connect to FTP server %s", server))
 	}
 
 	// Authenticate
@@ -138,7 +140,7 @@ func (f *FTPDownloader) Connect(ctx context.Context, serverURL string) error {
 			// Log quit error but don't override the main error
 			fmt.Printf("Warning: failed to quit FTP connection: %v\n", quitErr)
 		}
-		return fmt.Errorf("FTP authentication failed for user %s: %w", username, err)
+		return gdlerrors.WrapError(err, gdlerrors.CodeAuthenticationFailed, fmt.Sprintf("FTP authentication failed for user %s", username))
 	}
 
 	// Set transfer mode to passive (PASV is enabled by default in modern FTP libraries)
@@ -158,13 +160,13 @@ func (f *FTPDownloader) Download(ctx context.Context, urlStr string, writer io.W
 
 	parsedURL, err := url.Parse(urlStr)
 	if err != nil {
-		return fmt.Errorf("invalid FTP URL: %w", err)
+		return gdlerrors.WrapError(err, gdlerrors.CodeInvalidURL, "invalid FTP URL")
 	}
 
 	// Extract file path from URL
 	filePath := parsedURL.Path
 	if filePath == "" || filePath == "/" {
-		return fmt.Errorf("no file path specified in FTP URL")
+		return gdlerrors.NewValidationError("file_path", "no file path specified in FTP URL")
 	}
 
 	// Create a channel to handle cancellation
@@ -174,7 +176,7 @@ func (f *FTPDownloader) Download(ctx context.Context, urlStr string, writer io.W
 		// Retrieve the file
 		response, err := f.client.Retr(filePath)
 		if err != nil {
-			done <- fmt.Errorf("failed to retrieve file %s: %w", filePath, err)
+			done <- gdlerrors.WrapError(err, gdlerrors.CodeNetworkError, fmt.Sprintf("failed to retrieve file %s", filePath))
 			return
 		}
 		defer func() {
@@ -186,7 +188,7 @@ func (f *FTPDownloader) Download(ctx context.Context, urlStr string, writer io.W
 		// Copy data to writer
 		_, err = io.Copy(writer, response)
 		if err != nil {
-			done <- fmt.Errorf("failed to download file %s: %w", filePath, err)
+			done <- gdlerrors.WrapError(err, gdlerrors.CodeNetworkError, fmt.Sprintf("failed to download file %s", filePath))
 			return
 		}
 
@@ -198,7 +200,7 @@ func (f *FTPDownloader) Download(ctx context.Context, urlStr string, writer io.W
 	case err := <-done:
 		return err
 	case <-ctx.Done():
-		return fmt.Errorf("FTP download cancelled: %w", ctx.Err())
+		return gdlerrors.WrapError(ctx.Err(), gdlerrors.CodeCancelled, "FTP download cancelled")
 	}
 }
 
@@ -212,18 +214,18 @@ func (f *FTPDownloader) GetFileSize(ctx context.Context, urlStr string) (int64, 
 
 	parsedURL, err := url.Parse(urlStr)
 	if err != nil {
-		return 0, fmt.Errorf("invalid FTP URL: %w", err)
+		return 0, gdlerrors.WrapError(err, gdlerrors.CodeInvalidURL, "invalid FTP URL")
 	}
 
 	filePath := parsedURL.Path
 	if filePath == "" || filePath == "/" {
-		return 0, fmt.Errorf("no file path specified in FTP URL")
+		return 0, gdlerrors.NewValidationError("file_path", "no file path specified in FTP URL")
 	}
 
 	// Get file size using SIZE command
 	size, err := f.client.FileSize(filePath)
 	if err != nil {
-		return 0, fmt.Errorf("failed to get file size for %s: %w", filePath, err)
+		return 0, gdlerrors.WrapError(err, gdlerrors.CodeNetworkError, fmt.Sprintf("failed to get file size for %s", filePath))
 	}
 
 	return size, nil
@@ -239,7 +241,7 @@ func (f *FTPDownloader) ListFiles(ctx context.Context, urlStr string) ([]string,
 
 	parsedURL, err := url.Parse(urlStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid FTP URL: %w", err)
+		return nil, gdlerrors.WrapError(err, gdlerrors.CodeInvalidURL, "invalid FTP URL")
 	}
 
 	dirPath := parsedURL.Path
@@ -250,7 +252,7 @@ func (f *FTPDownloader) ListFiles(ctx context.Context, urlStr string) ([]string,
 	// List files in directory
 	entries, err := f.client.List(dirPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list directory %s: %w", dirPath, err)
+		return nil, gdlerrors.WrapError(err, gdlerrors.CodeNetworkError, fmt.Sprintf("failed to list directory %s", dirPath))
 	}
 
 	files := make([]string, 0, len(entries))
@@ -281,7 +283,7 @@ func (f *FTPDownloader) IsConnected() bool {
 // ChangeWorkingDirectory changes the current working directory on the FTP server
 func (f *FTPDownloader) ChangeWorkingDirectory(path string) error {
 	if f.client == nil {
-		return fmt.Errorf("FTP client not connected")
+		return gdlerrors.NewDownloadError(gdlerrors.CodeNetworkError, "FTP client not connected")
 	}
 
 	return f.client.ChangeDir(path)
@@ -290,7 +292,7 @@ func (f *FTPDownloader) ChangeWorkingDirectory(path string) error {
 // GetCurrentDirectory returns the current working directory on the FTP server
 func (f *FTPDownloader) GetCurrentDirectory() (string, error) {
 	if f.client == nil {
-		return "", fmt.Errorf("FTP client not connected")
+		return "", gdlerrors.NewDownloadError(gdlerrors.CodeNetworkError, "FTP client not connected")
 	}
 
 	return f.client.CurrentDir()

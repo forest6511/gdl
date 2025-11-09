@@ -19,6 +19,7 @@ import (
 	"github.com/forest6511/gdl/internal/retry"
 	"github.com/forest6511/gdl/internal/storage"
 	"github.com/forest6511/gdl/pkg/cli"
+	gdlerrors "github.com/forest6511/gdl/pkg/errors"
 	"github.com/forest6511/gdl/pkg/plugin"
 	"github.com/forest6511/gdl/pkg/ratelimit"
 	"github.com/forest6511/gdl/pkg/types"
@@ -479,11 +480,11 @@ func performNetworkCheck(ctx context.Context, cfg *config) error {
 		if cfg.interactive {
 			proceed, err := formatter.ConfirmPrompt("Network conditions are poor. Continue anyway?", false)
 			if err != nil || !proceed {
-				return fmt.Errorf("download cancelled due to poor network conditions")
+				return gdlerrors.NewDownloadError(gdlerrors.CodeCancelled, "download cancelled due to poor network conditions")
 			}
 		} else {
 			formatter.PrintMessage(ui.MessageWarning, "Poor network conditions detected")
-			return fmt.Errorf("poor network conditions")
+			return gdlerrors.NewDownloadError(gdlerrors.CodeNetworkError, "poor network conditions")
 		}
 	}
 
@@ -509,10 +510,10 @@ func performDiskSpaceCheck(outputFile string, estimatedSize uint64, cfg *config)
 					false,
 				)
 				if err != nil || !proceed {
-					return fmt.Errorf("download cancelled due to insufficient disk space")
+					return gdlerrors.NewDownloadError(gdlerrors.CodeCancelled, "download cancelled due to insufficient disk space")
 				}
 			} else {
-				return fmt.Errorf("insufficient disk space")
+				return gdlerrors.NewDownloadError(gdlerrors.CodeInsufficientSpace, "insufficient disk space")
 			}
 		} else {
 			formatter.PrintMessage(ui.MessageSuccess, "Sufficient disk space available")
@@ -569,7 +570,7 @@ func performPreDownloadChecks(
 	}
 
 	if !checksPassed && !cfg.interactive {
-		return fmt.Errorf("pre-download checks failed")
+		return gdlerrors.NewDownloadError(gdlerrors.CodeValidationError, "pre-download checks failed")
 	}
 
 	return nil
@@ -621,7 +622,7 @@ func validateAndPrepareDownload(cfg *config, url string) (string, error) {
 	if url == "" {
 		formatter.PrintMessage(ui.MessageError, "URL is required")
 		showUsage()
-		return "", fmt.Errorf("URL is required")
+		return "", gdlerrors.NewValidationError("URL", "URL is required")
 	}
 
 	// Determine output filename
@@ -638,7 +639,7 @@ func validateAndPrepareDownload(cfg *config, url string) (string, error) {
 				false,
 			)
 			if err != nil || !proceed {
-				return "", fmt.Errorf("operation cancelled")
+				return "", gdlerrors.NewDownloadError(gdlerrors.CodeCancelled, "operation cancelled")
 			}
 			cfg.overwrite = true
 		}
@@ -660,7 +661,7 @@ func setupDownloaders(ctx context.Context, cfg *config) (*gdl.Downloader, *core.
 	// Handle storage URL if provided
 	if cfg.storageURL != "" {
 		if err := handleStorageURL(ctx, downloader, cfg.storageURL); err != nil {
-			return nil, nil, fmt.Errorf("storage URL setup failed: %v", err)
+			return nil, nil, gdlerrors.WrapError(err, gdlerrors.CodeConfigError, "storage URL setup failed")
 		}
 	}
 
@@ -912,7 +913,7 @@ func parseArgs() (*config, string, error) {
 	// Validate max-rate if specified
 	if cfg.maxRate != "" {
 		if err := ratelimit.ValidateRate(cfg.maxRate); err != nil {
-			return nil, "", fmt.Errorf("invalid --max-rate: %w", err)
+			return nil, "", gdlerrors.WrapError(err, gdlerrors.CodeValidationError, "invalid --max-rate")
 		}
 	}
 
@@ -931,17 +932,17 @@ func parseArgs() (*config, string, error) {
 
 	// Validate concurrent settings
 	if cfg.concurrent < 1 {
-		return nil, "", fmt.Errorf("concurrent connections must be at least 1")
+		return nil, "", gdlerrors.NewValidationError("concurrent", "concurrent connections must be at least 1")
 	}
 
 	if cfg.concurrent > 32 {
-		return nil, "", fmt.Errorf("concurrent connections cannot exceed 32")
+		return nil, "", gdlerrors.NewValidationError("concurrent", "concurrent connections cannot exceed 32")
 	}
 
 	// Validate chunk size if specified
 	if cfg.chunkSize != autoValue {
 		if err := validateChunkSize(cfg.chunkSize); err != nil {
-			return nil, "", fmt.Errorf("invalid chunk-size: %w", err)
+			return nil, "", gdlerrors.WrapError(err, gdlerrors.CodeValidationError, "invalid chunk-size")
 		}
 	}
 
@@ -971,7 +972,7 @@ func validateChunkSize(chunkSize string) error {
 // parseSize parses a size string with units into bytes.
 func parseSize(sizeStr string) (int64, error) {
 	if sizeStr == "" {
-		return 0, fmt.Errorf("empty size string")
+		return 0, gdlerrors.NewValidationError("size", "empty size string")
 	}
 
 	// Define unit multipliers
@@ -1003,7 +1004,7 @@ func parseSize(sizeStr string) (int64, error) {
 		return int64(value), nil
 	}
 
-	return 0, fmt.Errorf("invalid size format: %s", sizeStr)
+	return 0, gdlerrors.NewValidationError("size", fmt.Sprintf("invalid size format: %s", sizeStr))
 }
 
 // runPluginCommand handles plugin subcommands
@@ -1172,7 +1173,7 @@ func setupPlugins(ctx context.Context, downloader *gdl.Downloader, cfg *config) 
 
 	// Load all enabled plugins first
 	if err := pluginRegistry.LoadPlugins(ctx, pluginManager); err != nil {
-		return fmt.Errorf("failed to load plugins: %w", err)
+		return gdlerrors.WrapError(err, gdlerrors.CodePluginError, "failed to load plugins")
 	}
 
 	// Enable specific plugins from command line
@@ -1180,11 +1181,11 @@ func setupPlugins(ctx context.Context, downloader *gdl.Downloader, cfg *config) 
 		// Try to get the plugin from the manager
 		pluginInstance, err := pluginManager.Get(pluginName)
 		if err != nil {
-			return fmt.Errorf("plugin %s not found: %w", pluginName, err)
+			return gdlerrors.NewPluginError(pluginName, err, "plugin not found")
 		}
 
 		if err := downloader.UsePlugin(pluginInstance); err != nil {
-			return fmt.Errorf("failed to use plugin %s: %w", pluginName, err)
+			return gdlerrors.NewPluginError(pluginName, err, "failed to use plugin")
 		}
 	}
 
@@ -1195,7 +1196,7 @@ func setupPlugins(ctx context.Context, downloader *gdl.Downloader, cfg *config) 
 func handleStorageURL(ctx context.Context, downloader *gdl.Downloader, storageURL string) error {
 	parsedURL, err := url.Parse(storageURL)
 	if err != nil {
-		return fmt.Errorf("invalid storage URL: %w", err)
+		return gdlerrors.WrapErrorWithURL(err, gdlerrors.CodeInvalidURL, "invalid storage URL", storageURL)
 	}
 
 	switch parsedURL.Scheme {
@@ -1209,7 +1210,7 @@ func handleStorageURL(ctx context.Context, downloader *gdl.Downloader, storageUR
 		// Handle file URLs like file:///path/to/dir/
 		return setupFileStorage(ctx, downloader, parsedURL)
 	default:
-		return fmt.Errorf("unsupported storage scheme: %s", parsedURL.Scheme)
+		return gdlerrors.NewValidationError("storage_scheme", fmt.Sprintf("unsupported storage scheme: %s", parsedURL.Scheme))
 	}
 }
 

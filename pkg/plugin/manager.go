@@ -7,6 +7,7 @@ import (
 	"plugin"
 	"sync"
 
+	gdlerrors "github.com/forest6511/gdl/pkg/errors"
 	"github.com/forest6511/gdl/pkg/types"
 )
 
@@ -147,7 +148,7 @@ func (pm *PluginManager) ExecuteHook(hook HookType, data interface{}) error {
 // LoadFromDirectory loads all plugins from a directory
 func (pm *PluginManager) LoadFromDirectory(dir string) error {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		return fmt.Errorf("plugin directory %s does not exist", dir)
+		return gdlerrors.NewInvalidPathError(dir, nil)
 	}
 
 	return filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
@@ -168,18 +169,18 @@ func (pm *PluginManager) LoadFromDirectory(dir string) error {
 func (pm *PluginManager) loadPlugin(path string) error {
 	p, err := plugin.Open(path)
 	if err != nil {
-		return fmt.Errorf("failed to open plugin %s: %w", path, err)
+		return gdlerrors.NewPluginError(path, err, "failed to open plugin")
 	}
 
 	// Look for the plugin instance
 	sym, err := p.Lookup("Plugin")
 	if err != nil {
-		return fmt.Errorf("plugin %s does not export 'Plugin' symbol: %w", path, err)
+		return gdlerrors.NewPluginError(path, err, "does not export 'Plugin' symbol")
 	}
 
 	pluginInstance, ok := sym.(Plugin)
 	if !ok {
-		return fmt.Errorf("plugin %s does not implement Plugin interface", path)
+		return gdlerrors.NewPluginError(path, nil, "does not implement Plugin interface")
 	}
 
 	return pm.Register(pluginInstance)
@@ -222,12 +223,14 @@ func (pm *PluginManager) Close() error {
 	var errors []error
 	for name, plugin := range pm.plugins {
 		if err := plugin.Close(); err != nil {
-			errors = append(errors, fmt.Errorf("failed to close plugin %s: %w", name, err))
+			errors = append(errors, gdlerrors.NewPluginError(name, err, "failed to close plugin"))
 		}
 	}
 
 	if len(errors) > 0 {
-		return fmt.Errorf("errors occurred while closing plugins: %v", errors)
+		// Return first error to preserve its error code and context
+		// TODO: Consider using errors.Join() in Go 1.20+ for multiple errors
+		return errors[0]
 	}
 
 	return nil

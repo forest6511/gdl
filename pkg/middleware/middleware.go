@@ -145,7 +145,9 @@ func RateLimitMiddleware(limiter RateLimiter) Middleware {
 			if !limiter.Allow() {
 				// If not allowed, wait for permission
 				if err := limiter.Wait(ctx); err != nil {
-					return nil, fmt.Errorf("rate limit exceeded: %w", err)
+					// Preserve the original error (context.Canceled, DeadlineExceeded, etc.)
+					// Don't misclassify as timeout - let caller handle appropriately
+					return nil, err
 				}
 			}
 
@@ -161,7 +163,7 @@ func AuthenticationMiddleware(auth plugin.AuthPlugin) Middleware {
 			// Create HTTP request for authentication
 			httpReq, err := http.NewRequestWithContext(ctx, "GET", req.URL, nil)
 			if err != nil {
-				return nil, fmt.Errorf("failed to create request for authentication: %w", err)
+				return nil, gdlerrors.WrapErrorWithURL(err, gdlerrors.CodeNetworkError, "failed to create request for authentication", req.URL)
 			}
 
 			// Add headers from download request
@@ -171,7 +173,7 @@ func AuthenticationMiddleware(auth plugin.AuthPlugin) Middleware {
 
 			// Authenticate the request
 			if err := auth.Authenticate(ctx, httpReq); err != nil {
-				return nil, fmt.Errorf("authentication failed: %w", err)
+				return nil, gdlerrors.WrapErrorWithURL(err, gdlerrors.CodeAuthenticationFailed, "authentication failed", req.URL)
 			}
 
 			// Update headers from authenticated request
@@ -375,7 +377,9 @@ func RetryMiddleware(maxRetries int, delay time.Duration) Middleware {
 				}
 			}
 
-			return nil, fmt.Errorf("download failed after %d retries: %w", maxRetries, lastErr)
+			// Return the last error as-is to preserve its error code
+			// Don't misclassify validation/permission errors as network errors
+			return nil, lastErr
 		}
 	}
 }
@@ -411,7 +415,7 @@ func generateCacheKey(req *DownloadRequest) string {
 // serializeResponse converts a DownloadResponse to JSON for caching
 func serializeResponse(resp *DownloadResponse) ([]byte, error) {
 	if resp == nil || resp.Stats == nil {
-		return nil, fmt.Errorf("cannot serialize nil response or stats")
+		return nil, gdlerrors.NewValidationError("response", "response and stats must not be nil")
 	}
 
 	cached := &CachedResponse{
@@ -440,17 +444,19 @@ func serializeResponse(resp *DownloadResponse) ([]byte, error) {
 func deserializeResponse(data []byte) (*DownloadResponse, error) {
 	var cached CachedResponse
 	if err := json.Unmarshal(data, &cached); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal cached response: %w", err)
+		return nil, gdlerrors.NewStorageError("cache deserialization", err, "failed to unmarshal cached response")
 	}
 
 	// Parse times
 	startTime, err := time.Parse(time.RFC3339, cached.Stats.StartTime)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse start time: %w", err)
+		return nil, gdlerrors.NewStorageError("cache deserialization", err,
+			fmt.Sprintf("failed to parse start time: %s", cached.Stats.StartTime))
 	}
 	endTime, err := time.Parse(time.RFC3339, cached.Stats.EndTime)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse end time: %w", err)
+		return nil, gdlerrors.NewStorageError("cache deserialization", err,
+			fmt.Sprintf("failed to parse end time: %s", cached.Stats.EndTime))
 	}
 
 	resp := &DownloadResponse{
@@ -471,7 +477,7 @@ func deserializeResponse(data []byte) (*DownloadResponse, error) {
 
 	// Restore error if present
 	if cached.Stats.Error != "" {
-		resp.Stats.Error = fmt.Errorf("%s", cached.Stats.Error)
+		resp.Stats.Error = errors.New(cached.Stats.Error)
 	}
 
 	return resp, nil

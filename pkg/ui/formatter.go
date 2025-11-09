@@ -462,7 +462,11 @@ func (f *Formatter) FormatStatusIndicator(status StatusIndicator, message string
 // Prompt displays an interactive prompt and returns the user's response.
 func (f *Formatter) Prompt(message string) (string, error) {
 	if !f.interactive {
-		return "", fmt.Errorf("interactive mode not available")
+		return "", errors.NewConfigError(
+			"interactive mode not available",
+			nil,
+			"formatter is configured for non-interactive mode",
+		)
 	}
 
 	promptMsg := f.FormatMessage(MessagePrompt, "%s", message)
@@ -535,7 +539,10 @@ func (f *Formatter) SelectPrompt(message string, options []string, defaultIndex 
 
 	index, err := strconv.Atoi(response)
 	if err != nil || index < 1 || index > len(options) {
-		return defaultIndex, fmt.Errorf("invalid selection")
+		return defaultIndex, errors.NewValidationError(
+			"selection",
+			fmt.Sprintf("must be between 1 and %d, got %s", len(options), response),
+		)
 	}
 
 	return index - 1, nil

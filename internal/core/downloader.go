@@ -1545,7 +1545,7 @@ func (d *Downloader) downloadWithResume(
 
 	// Check for proper resume response (206 Partial Content) or full content (200 OK)
 	if resp.StatusCode != http.StatusPartialContent && resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("server returned unexpected status: %d", resp.StatusCode)
+		return nil, errors.FromHTTPStatus(resp.StatusCode, url)
 	}
 
 	// If server doesn't support range requests, it returns 200 OK

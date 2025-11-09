@@ -2,7 +2,6 @@ package protocols
 
 import (
 	"context"
-	"fmt"
 	"net/url"
 	"os"
 	"strings"
@@ -12,6 +11,7 @@ import (
 	"github.com/forest6511/gdl/internal/core"
 	ftpProtocol "github.com/forest6511/gdl/internal/protocols/ftp"
 	s3Protocol "github.com/forest6511/gdl/internal/protocols/s3"
+	gdlerrors "github.com/forest6511/gdl/pkg/errors"
 	"github.com/forest6511/gdl/pkg/types"
 )
 
@@ -47,7 +47,7 @@ func (pr *ProtocolRegistry) Register(handler ProtocolHandler) error {
 
 	scheme := handler.Scheme()
 	if _, exists := pr.protocols[scheme]; exists {
-		return fmt.Errorf("protocol handler for scheme %s already registered", scheme)
+		return gdlerrors.NewValidationError("protocol_handler", "protocol handler for scheme "+scheme+" already registered")
 	}
 
 	pr.protocols[scheme] = handler
@@ -60,7 +60,7 @@ func (pr *ProtocolRegistry) Unregister(scheme string) error {
 	defer pr.mu.Unlock()
 
 	if _, exists := pr.protocols[scheme]; !exists {
-		return fmt.Errorf("protocol handler for scheme %s not found", scheme)
+		return gdlerrors.NewValidationError("protocol_handler", "protocol handler for scheme "+scheme+" not found")
 	}
 
 	delete(pr.protocols, scheme)
@@ -74,17 +74,17 @@ func (pr *ProtocolRegistry) GetHandler(urlStr string) (ProtocolHandler, error) {
 
 	parsedURL, err := url.Parse(urlStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid URL: %w", err)
+		return nil, gdlerrors.WrapErrorWithURL(err, gdlerrors.CodeInvalidURL, "invalid URL", urlStr)
 	}
 
 	scheme := strings.ToLower(parsedURL.Scheme)
 	handler, exists := pr.protocols[scheme]
 	if !exists {
-		return nil, fmt.Errorf("no handler registered for scheme: %s", scheme)
+		return nil, gdlerrors.NewValidationError("protocol_handler", "no handler registered for scheme: "+scheme)
 	}
 
 	if !handler.CanHandle(urlStr) {
-		return nil, fmt.Errorf("handler for scheme %s cannot handle URL: %s", scheme, urlStr)
+		return nil, gdlerrors.NewValidationError("protocol_handler", "handler for scheme "+scheme+" cannot handle URL")
 	}
 
 	return handler, nil
@@ -150,7 +150,7 @@ func (h *HTTPHandler) Download(ctx context.Context, url string, options *types.D
 		// Extract filename from URL
 		parsedURL, err := parseURL(url)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse URL: %w", err)
+			return nil, gdlerrors.WrapErrorWithURL(err, gdlerrors.CodeInvalidURL, "failed to parse URL", url)
 		}
 		destination = extractFilenameFromURL(parsedURL)
 	}
@@ -205,7 +205,7 @@ func (f *FTPHandler) Download(ctx context.Context, url string, options *types.Do
 	if destination == "" {
 		parsedURL, err := parseURL(url)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse URL: %w", err)
+			return nil, gdlerrors.WrapErrorWithURL(err, gdlerrors.CodeInvalidURL, "failed to parse URL", url)
 		}
 		destination = extractFilenameFromURL(parsedURL)
 	}
@@ -214,11 +214,11 @@ func (f *FTPHandler) Download(ctx context.Context, url string, options *types.Do
 	// #nosec G304 -- destination is provided by user as download target, which is expected behavior
 	file, err := os.Create(destination)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create destination file: %w", err)
+		return nil, gdlerrors.WrapError(err, gdlerrors.CodeInvalidPath, "failed to create destination file")
 	}
 	defer func() {
 		if cerr := file.Close(); cerr != nil && err == nil {
-			err = fmt.Errorf("failed to close file: %w", cerr)
+			err = gdlerrors.WrapError(cerr, gdlerrors.CodeStorageError, "failed to close file")
 		}
 	}()
 
@@ -236,7 +236,7 @@ func (f *FTPHandler) Download(ctx context.Context, url string, options *types.Do
 	if err != nil {
 		stats.Success = false
 		stats.Error = err
-		return stats, fmt.Errorf("FTP download failed: %w", err)
+		return stats, gdlerrors.WrapError(err, gdlerrors.CodeNetworkError, "FTP download failed")
 	}
 
 	// Get file size
@@ -277,7 +277,7 @@ func (s *S3Handler) Download(ctx context.Context, url string, options *types.Dow
 		var err error
 		s.downloader, err = s3Protocol.NewS3Downloader(nil) // Use default config
 		if err != nil {
-			return nil, fmt.Errorf("failed to initialize S3 downloader: %w", err)
+			return nil, gdlerrors.WrapError(err, gdlerrors.CodeConfigError, "failed to initialize S3 downloader")
 		}
 	}
 
@@ -286,7 +286,7 @@ func (s *S3Handler) Download(ctx context.Context, url string, options *types.Dow
 	if destination == "" {
 		parsedURL, err := parseURL(url)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse URL: %w", err)
+			return nil, gdlerrors.WrapErrorWithURL(err, gdlerrors.CodeInvalidURL, "failed to parse URL", url)
 		}
 		destination = extractFilenameFromURL(parsedURL)
 	}
@@ -295,11 +295,11 @@ func (s *S3Handler) Download(ctx context.Context, url string, options *types.Dow
 	// #nosec G304 -- destination is provided by user as download target, which is expected behavior
 	file, err := os.Create(destination)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create destination file: %w", err)
+		return nil, gdlerrors.WrapError(err, gdlerrors.CodeInvalidPath, "failed to create destination file")
 	}
 	defer func() {
 		if cerr := file.Close(); cerr != nil && err == nil {
-			err = fmt.Errorf("failed to close file: %w", cerr)
+			err = gdlerrors.WrapError(cerr, gdlerrors.CodeStorageError, "failed to close file")
 		}
 	}()
 
@@ -317,7 +317,7 @@ func (s *S3Handler) Download(ctx context.Context, url string, options *types.Dow
 	if err != nil {
 		stats.Success = false
 		stats.Error = err
-		return stats, fmt.Errorf("S3 download failed: %w", err)
+		return stats, gdlerrors.WrapError(err, gdlerrors.CodeNetworkError, "S3 download failed")
 	}
 
 	// Get file size
@@ -349,5 +349,5 @@ func (t *TorrentHandler) CanHandle(url string) bool {
 
 func (t *TorrentHandler) Download(ctx context.Context, url string, options *types.DownloadOptions) (*types.DownloadStats, error) {
 	// TODO: Implement torrent download logic
-	return nil, fmt.Errorf("torrent download not yet implemented")
+	return nil, gdlerrors.NewDownloadError(gdlerrors.CodeUnknown, "torrent download not yet implemented")
 }

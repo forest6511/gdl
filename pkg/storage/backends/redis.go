@@ -9,6 +9,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
+	gdlerrors "github.com/forest6511/gdl/pkg/errors"
 	"github.com/forest6511/gdl/pkg/storage"
 )
 
@@ -57,7 +58,8 @@ func (r *RedisBackend) Init(config map[string]interface{}) error {
 	ctx := context.Background()
 	_, err := r.client.Ping(ctx).Result()
 	if err != nil {
-		return fmt.Errorf("failed to connect to Redis: %w", err)
+		return gdlerrors.WrapError(err, gdlerrors.CodeNetworkError,
+			"failed to connect to Redis")
 	}
 
 	return nil
@@ -71,13 +73,13 @@ func (r *RedisBackend) Save(ctx context.Context, key string, data io.Reader) err
 	// Note: Redis is not ideal for large objects
 	dataBytes, err := io.ReadAll(data)
 	if err != nil {
-		return fmt.Errorf("failed to read data: %w", err)
+		return gdlerrors.NewStorageError("read", err, fmt.Sprintf("key=%s", fullKey))
 	}
 
 	// Store in Redis
 	err = r.client.Set(ctx, fullKey, dataBytes, 0).Err()
 	if err != nil {
-		return fmt.Errorf("failed to save data to Redis key %s: %w", fullKey, err)
+		return gdlerrors.NewStorageError("save", err, fmt.Sprintf("key=%s", fullKey))
 	}
 
 	return nil
@@ -93,7 +95,7 @@ func (r *RedisBackend) Load(ctx context.Context, key string) (io.ReadCloser, err
 		if err == redis.Nil {
 			return nil, storage.ErrKeyNotFound
 		}
-		return nil, fmt.Errorf("failed to get data from Redis key %s: %w", fullKey, err)
+		return nil, gdlerrors.NewStorageError("load", err, fmt.Sprintf("key=%s", fullKey))
 	}
 
 	// Return as ReadCloser
@@ -107,7 +109,7 @@ func (r *RedisBackend) Delete(ctx context.Context, key string) error {
 	// Check if key exists first
 	exists, err := r.client.Exists(ctx, fullKey).Result()
 	if err != nil {
-		return fmt.Errorf("failed to check key existence in Redis: %w", err)
+		return gdlerrors.NewStorageError("exists", err, fmt.Sprintf("key=%s", fullKey))
 	}
 	if exists == 0 {
 		return storage.ErrKeyNotFound
@@ -116,7 +118,7 @@ func (r *RedisBackend) Delete(ctx context.Context, key string) error {
 	// Delete from Redis
 	err = r.client.Del(ctx, fullKey).Err()
 	if err != nil {
-		return fmt.Errorf("failed to delete data from Redis key %s: %w", fullKey, err)
+		return gdlerrors.NewStorageError("delete", err, fmt.Sprintf("key=%s", fullKey))
 	}
 
 	return nil
@@ -128,7 +130,7 @@ func (r *RedisBackend) Exists(ctx context.Context, key string) (bool, error) {
 
 	exists, err := r.client.Exists(ctx, fullKey).Result()
 	if err != nil {
-		return false, fmt.Errorf("failed to check key existence in Redis key %s: %w", fullKey, err)
+		return false, gdlerrors.NewStorageError("exists", err, fmt.Sprintf("key=%s", fullKey))
 	}
 
 	return exists > 0, nil
@@ -151,7 +153,8 @@ func (r *RedisBackend) List(ctx context.Context, prefix string) ([]string, error
 	}
 
 	if err := iter.Err(); err != nil {
-		return nil, fmt.Errorf("failed to scan Redis keys with pattern %s: %w", pattern, err)
+		return nil, gdlerrors.NewStorageError("list", err,
+			fmt.Sprintf("pattern=%s", pattern))
 	}
 
 	return keys, nil
@@ -193,7 +196,8 @@ func (r *RedisBackend) SetExpiration(ctx context.Context, key string, seconds in
 
 	err := r.client.Expire(ctx, fullKey, time.Duration(seconds)*time.Second).Err()
 	if err != nil {
-		return fmt.Errorf("failed to set expiration for Redis key %s: %w", fullKey, err)
+		return gdlerrors.NewStorageError("SetExpiration", err,
+			fmt.Sprintf("key=%s, seconds=%d", fullKey, seconds))
 	}
 
 	return nil
@@ -205,7 +209,7 @@ func (r *RedisBackend) GetTTL(ctx context.Context, key string) (int64, error) {
 
 	ttl, err := r.client.TTL(ctx, fullKey).Result()
 	if err != nil {
-		return 0, fmt.Errorf("failed to get TTL for Redis key %s: %w", fullKey, err)
+		return 0, gdlerrors.NewStorageError("GetTTL", err, fmt.Sprintf("key=%s", fullKey))
 	}
 
 	return int64(ttl.Seconds()), nil
@@ -223,7 +227,8 @@ func (r *RedisBackend) SetMetadata(ctx context.Context, key string, metadata map
 
 	err := r.client.HSet(ctx, metaKey, fields).Err()
 	if err != nil {
-		return fmt.Errorf("failed to set metadata for Redis key %s: %w", metaKey, err)
+		return gdlerrors.NewStorageError("SetMetadata", err,
+			fmt.Sprintf("key=%s", metaKey))
 	}
 
 	return nil
@@ -235,7 +240,8 @@ func (r *RedisBackend) GetMetadata(ctx context.Context, key string) (map[string]
 
 	result, err := r.client.HGetAll(ctx, metaKey).Result()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get metadata for Redis key %s: %w", metaKey, err)
+		return nil, gdlerrors.NewStorageError("GetMetadata", err,
+			fmt.Sprintf("key=%s", metaKey))
 	}
 
 	if len(result) == 0 {
@@ -257,7 +263,7 @@ func (r *RedisBackend) Increment(ctx context.Context, key string) (int64, error)
 
 	result, err := r.client.Incr(ctx, fullKey).Result()
 	if err != nil {
-		return 0, fmt.Errorf("failed to increment Redis key %s: %w", fullKey, err)
+		return 0, gdlerrors.NewStorageError("Increment", err, fmt.Sprintf("key=%s", fullKey))
 	}
 
 	return result, nil
@@ -269,7 +275,7 @@ func (r *RedisBackend) AddToSet(ctx context.Context, key string, member interfac
 
 	err := r.client.SAdd(ctx, fullKey, member).Err()
 	if err != nil {
-		return fmt.Errorf("failed to add to set Redis key %s: %w", fullKey, err)
+		return gdlerrors.NewStorageError("AddToSet", err, fmt.Sprintf("key=%s", fullKey))
 	}
 
 	return nil
@@ -281,7 +287,8 @@ func (r *RedisBackend) GetSetMembers(ctx context.Context, key string) ([]string,
 
 	members, err := r.client.SMembers(ctx, fullKey).Result()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get set members for Redis key %s: %w", fullKey, err)
+		return nil, gdlerrors.NewStorageError("GetSetMembers", err,
+			fmt.Sprintf("key=%s", fullKey))
 	}
 
 	return members, nil
