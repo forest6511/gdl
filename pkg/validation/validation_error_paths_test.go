@@ -3,6 +3,7 @@ package validation
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -253,6 +254,9 @@ func TestValidateDestinationErrors(t *testing.T) {
 	})
 
 	t.Run("ParentDirectoryAccessFailure", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("Skipping on Windows: chmod does not work the same way")
+		}
 		if os.Getuid() == 0 {
 			t.Skip("Skipping test when running as root (permissions tests won't work)")
 		}

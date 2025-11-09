@@ -3,6 +3,7 @@ package plugin
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	gdlerrors "github.com/forest6511/gdl/pkg/errors"
@@ -11,6 +12,10 @@ import (
 // TestPluginLoaderErrorPaths tests all error paths in plugin loader
 func TestPluginLoaderErrorPaths(t *testing.T) {
 	t.Run("Load_InvalidPath", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("Skipping on Windows: Unix-style paths not supported")
+		}
+
 		loader := NewPluginLoader(&LoaderConfig{
 			BlockedPaths: []string{"/blocked"},
 		})
@@ -191,6 +196,10 @@ func TestPluginLoaderErrorPaths(t *testing.T) {
 	})
 
 	t.Run("AddSearchPath_Blocked", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("Skipping on Windows: Unix-style paths not supported")
+		}
+
 		loader := NewPluginLoader(&LoaderConfig{
 			BlockedPaths: []string{"/blocked"},
 		})
