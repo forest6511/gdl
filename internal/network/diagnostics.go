@@ -13,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	gdlerrors "github.com/forest6511/gdl/pkg/errors"
 )
 
 // DiagnosticResult represents the result of a network diagnostic test.
@@ -363,10 +365,9 @@ func (d *Diagnostics) TestDNSResolution(
 	result.Details["resolution_results"] = resolutionResults
 
 	if !result.Success {
-		result.Error = fmt.Errorf(
-			"DNS resolution failed for %d out of %d tests",
-			failed,
-			successful+failed,
+		result.Error = gdlerrors.NewDownloadError(
+			gdlerrors.CodeNetworkError,
+			fmt.Sprintf("DNS resolution failed for %d out of %d tests", failed, successful+failed),
 		)
 		result.Suggestions = []string{
 			"Check your DNS server configuration",
@@ -439,7 +440,10 @@ func (d *Diagnostics) TestConnectivity(ctx context.Context, testHosts []string) 
 	result.Details["connectivity_results"] = connectivityResults
 
 	if !result.Success {
-		result.Error = fmt.Errorf("connectivity test failed for all %d hosts", len(testHosts))
+		result.Error = gdlerrors.NewDownloadError(
+			gdlerrors.CodeNetworkError,
+			fmt.Sprintf("connectivity test failed for all %d hosts", len(testHosts)),
+		)
 		result.Suggestions = []string{
 			"Check your internet connection",
 			"Verify firewall settings",

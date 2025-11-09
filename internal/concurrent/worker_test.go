@@ -105,7 +105,7 @@ func TestWorkerDownload(t *testing.T) {
 				Complete:   false,
 			},
 			wantErr:        true,
-			expectedErrMsg: "unexpected status code: 500",
+			expectedErrMsg: "failed after 4 attempts",
 		},
 		{
 			name: "No chunk assigned",

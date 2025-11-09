@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	gdlerrors "github.com/forest6511/gdl/pkg/errors"
 )
 
 // ResumeInfo contains metadata about a partial download that can be resumed.
@@ -88,18 +90,18 @@ func (m *Manager) Save(info *ResumeInfo) error {
 
 	// Ensure the resume directory exists
 	if err := os.MkdirAll(m.resumeDir, 0o750); err != nil {
-		return fmt.Errorf("failed to create resume directory: %w", err)
+		return gdlerrors.NewStorageError("create resume directory", err, m.resumeDir)
 	}
 
 	// Marshal the resume info to JSON
 	data, err := json.MarshalIndent(info, "", "  ")
 	if err != nil {
-		return fmt.Errorf("failed to marshal resume info: %w", err)
+		return gdlerrors.WrapError(err, gdlerrors.CodeStorageError, "marshal resume info")
 	}
 
 	// Write to the resume file
 	if err := os.WriteFile(resumeFilePath, data, 0o600); err != nil {
-		return fmt.Errorf("failed to write resume file: %w", err)
+		return gdlerrors.NewStorageError("write resume file", err, resumeFilePath)
 	}
 
 	return nil
@@ -118,13 +120,13 @@ func (m *Manager) Load(filePath string) (*ResumeInfo, error) {
 	// #nosec G304 - Resume file path is constructed internally, not from user input
 	data, err := os.ReadFile(resumeFilePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read resume file: %w", err)
+		return nil, gdlerrors.NewStorageError("read resume file", err, resumeFilePath)
 	}
 
 	// Unmarshal the JSON data
 	var info ResumeInfo
 	if err := json.Unmarshal(data, &info); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal resume info: %w", err)
+		return nil, gdlerrors.WrapError(err, gdlerrors.CodeStorageError, "unmarshal resume info")
 	}
 
 	return &info, nil
@@ -135,7 +137,7 @@ func (m *Manager) Delete(filePath string) error {
 	resumeFilePath := m.getResumeFilePath(filePath)
 
 	if err := os.Remove(resumeFilePath); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("failed to delete resume file: %w", err)
+		return gdlerrors.NewStorageError("delete resume file", err, resumeFilePath)
 	}
 
 	return nil
@@ -154,29 +156,33 @@ func (m *Manager) ValidatePartialFile(info *ResumeInfo) error {
 	// Check if the partial file exists
 	fileInfo, err := os.Stat(info.FilePath)
 	if os.IsNotExist(err) {
-		return fmt.Errorf("partial file does not exist: %s", info.FilePath)
+		return gdlerrors.NewInvalidPathError(info.FilePath, err)
 	}
 
 	if err != nil {
-		return fmt.Errorf("failed to stat partial file: %w", err)
+		return gdlerrors.NewStorageError("stat partial file", err, info.FilePath)
 	}
 
 	// Check if the file size matches the resume info
 	if fileInfo.Size() != info.DownloadedBytes {
-		return fmt.Errorf("partial file size (%d) does not match resume info (%d)",
-			fileInfo.Size(), info.DownloadedBytes)
+		return gdlerrors.NewValidationError(
+			"partial file size",
+			fmt.Sprintf("size %d does not match resume info %d", fileInfo.Size(), info.DownloadedBytes),
+		)
 	}
 
 	// Validate checksum if available
 	if info.Checksum != "" {
 		calculatedChecksum, err := m.calculateFileChecksum(info.FilePath)
 		if err != nil {
-			return fmt.Errorf("failed to calculate file checksum: %w", err)
+			return gdlerrors.WrapError(err, gdlerrors.CodeStorageError, "calculate file checksum")
 		}
 
 		if calculatedChecksum != info.Checksum {
-			return fmt.Errorf("file checksum mismatch: expected %s, got %s",
-				info.Checksum, calculatedChecksum)
+			return gdlerrors.NewValidationError(
+				"file checksum",
+				fmt.Sprintf("expected %s, got %s", info.Checksum, calculatedChecksum),
+			)
 		}
 	}
 
@@ -200,13 +206,13 @@ func (m *Manager) calculateFileChecksum(filePath string) (string, error) {
 	// #nosec G304 -- filePath is constructed internally from validated download destination
 	file, err := os.Open(filePath)
 	if err != nil {
-		return "", fmt.Errorf("failed to open file: %w", err)
+		return "", gdlerrors.NewStorageError("open file", err, filePath)
 	}
 	defer func() { _ = file.Close() }()
 
 	hash := sha256.New()
 	if _, err := io.Copy(hash, file); err != nil {
-		return "", fmt.Errorf("failed to calculate checksum: %w", err)
+		return "", gdlerrors.NewStorageError("calculate checksum", err, filePath)
 	}
 
 	return fmt.Sprintf("%x", hash.Sum(nil)), nil
@@ -238,7 +244,7 @@ func (m *Manager) CleanupOldResumeFiles(maxAge time.Duration) error {
 
 	matches, err := filepath.Glob(pattern)
 	if err != nil {
-		return fmt.Errorf("failed to find resume files: %w", err)
+		return gdlerrors.NewStorageError("find resume files", err, pattern)
 	}
 
 	cutoff := time.Now().Add(-maxAge)
@@ -266,7 +272,7 @@ func (m *Manager) ListResumeFiles() ([]string, error) {
 
 	matches, err := filepath.Glob(pattern)
 	if err != nil {
-		return nil, fmt.Errorf("failed to find resume files: %w", err)
+		return nil, gdlerrors.NewStorageError("find resume files", err, pattern)
 	}
 
 	var resumeFiles []string

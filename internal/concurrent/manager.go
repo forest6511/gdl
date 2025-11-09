@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	gdlerrors "github.com/forest6511/gdl/pkg/errors"
 	"github.com/forest6511/gdl/pkg/progress"
 	"github.com/forest6511/gdl/pkg/ratelimit"
 	"github.com/forest6511/gdl/pkg/types"
@@ -49,13 +50,13 @@ func (m *ConcurrentDownloadManager) Download(ctx context.Context, url, dest stri
 	// Get file size first
 	fileSize, err := m.getFileSize(url)
 	if err != nil {
-		return fmt.Errorf("getting file size: %w", err)
+		return gdlerrors.WrapErrorWithURL(err, gdlerrors.CodeNetworkError, "getting file size", url)
 	}
 
 	// Check if server supports range requests
 	supportsRange, err := m.checkRangeSupport(url)
 	if err != nil {
-		return fmt.Errorf("checking range support: %w", err)
+		return gdlerrors.WrapErrorWithURL(err, gdlerrors.CodeNetworkError, "checking range support", url)
 	}
 
 	if !supportsRange || fileSize <= 0 {
@@ -70,7 +71,7 @@ func (m *ConcurrentDownloadManager) Download(ctx context.Context, url, dest stri
 	// Create temporary directory for chunks
 	tempDir := dest + ".chunks"
 	if err := os.MkdirAll(tempDir, 0o750); err != nil {
-		return fmt.Errorf("creating temp directory: %w", err)
+		return gdlerrors.NewStorageError("creating temp directory", err, tempDir)
 	}
 	defer m.cleanup(tempDir)
 
@@ -108,13 +109,16 @@ func (m *ConcurrentDownloadManager) Download(ctx context.Context, url, dest stri
 	// Check if all chunks completed
 	for _, chunk := range chunks {
 		if !chunk.Complete {
-			return fmt.Errorf("chunk %d incomplete", chunk.Index)
+			return gdlerrors.NewDownloadError(
+				gdlerrors.CodeNetworkError,
+				fmt.Sprintf("chunk %d incomplete", chunk.Index),
+			)
 		}
 	}
 
 	// Merge chunks into final file
 	if err := m.mergeChunks(tempDir, dest, chunks); err != nil {
-		return fmt.Errorf("merging chunks: %w", err)
+		return gdlerrors.WrapError(err, gdlerrors.CodeStorageError, "merging chunks")
 	}
 
 	return nil
@@ -133,7 +137,7 @@ func (m *ConcurrentDownloadManager) startWorkers(ctx context.Context, tempDir st
 			file, err := os.Create(chunkFile)
 			if err != nil {
 				if w.Error != nil {
-					w.Error <- fmt.Errorf("creating chunk file: %w", err)
+					w.Error <- gdlerrors.NewStorageError("creating chunk file", err, chunkFile)
 				}
 
 				return
@@ -159,7 +163,7 @@ func (w *Worker) downloadChunkToFile(ctx context.Context, file *os.File) error {
 	// Create range request
 	req, err := http.NewRequestWithContext(ctx, "GET", w.URL, nil)
 	if err != nil {
-		return fmt.Errorf("creating request: %w", err)
+		return gdlerrors.WrapErrorWithURL(err, gdlerrors.CodeNetworkError, "creating request", w.URL)
 	}
 
 	// Set range header
@@ -170,12 +174,12 @@ func (w *Worker) downloadChunkToFile(ctx context.Context, file *os.File) error {
 	// Execute request
 	resp, err := w.Client.Do(req)
 	if err != nil {
-		return fmt.Errorf("executing request: %w", err)
+		return gdlerrors.WrapErrorWithURL(err, gdlerrors.CodeNetworkError, "executing request", w.URL)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusPartialContent && resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return gdlerrors.FromHTTPStatus(resp.StatusCode, w.URL)
 	}
 
 	// Download and write to file
@@ -186,12 +190,15 @@ func (w *Worker) downloadChunkToFile(ctx context.Context, file *os.File) error {
 			// Apply rate limiting if a limiter is set
 			if w.RateLimiter != nil {
 				if rateLimiterErr := w.RateLimiter.Wait(ctx, n); rateLimiterErr != nil {
-					return fmt.Errorf("rate limiting error: %w", rateLimiterErr)
+					if ctx.Err() != nil {
+						return gdlerrors.WrapError(rateLimiterErr, gdlerrors.CodeCancelled, "rate limiting cancelled")
+					}
+					return gdlerrors.WrapError(rateLimiterErr, gdlerrors.CodeTimeout, "rate limiting timeout")
 				}
 			}
 
 			if _, writeErr := file.Write(buffer[:n]); writeErr != nil {
-				return fmt.Errorf("writing to file: %w", writeErr)
+				return gdlerrors.NewStorageError("writing to file", writeErr, file.Name())
 			}
 
 			w.ChunkInfo.Downloaded += int64(n)
@@ -212,7 +219,7 @@ func (w *Worker) downloadChunkToFile(ctx context.Context, file *os.File) error {
 		}
 
 		if err != nil {
-			return fmt.Errorf("reading response: %w", err)
+			return gdlerrors.WrapErrorWithURL(err, gdlerrors.CodeNetworkError, "reading response", w.URL)
 		}
 	}
 
@@ -236,7 +243,7 @@ func (m *ConcurrentDownloadManager) mergeChunks(tempDir, dest string, chunks []*
 	// #nosec G304 -- dest validated by ValidateDestination() in public API functions
 	destFile, err := os.Create(dest)
 	if err != nil {
-		return fmt.Errorf("creating destination file: %w", err)
+		return gdlerrors.NewStorageError("creating destination file", err, dest)
 	}
 	defer func() { _ = destFile.Close() }()
 
@@ -247,12 +254,20 @@ func (m *ConcurrentDownloadManager) mergeChunks(tempDir, dest string, chunks []*
 		// #nosec G304 -- chunkPath is constructed internally from validated tempDir
 		chunkFile, err := os.Open(chunkPath)
 		if err != nil {
-			return fmt.Errorf("opening chunk %d: %w", i, err)
+			return gdlerrors.NewStorageError(
+				fmt.Sprintf("opening chunk %d", i),
+				err,
+				chunkPath,
+			)
 		}
 
 		if _, err := io.Copy(destFile, chunkFile); err != nil {
 			_ = chunkFile.Close()
-			return fmt.Errorf("copying chunk %d: %w", i, err)
+			return gdlerrors.NewStorageError(
+				fmt.Sprintf("copying chunk %d", i),
+				err,
+				chunkPath,
+			)
 		}
 
 		_ = chunkFile.Close()
@@ -359,7 +374,7 @@ func (m *ConcurrentDownloadManager) singleDownload(ctx context.Context, url, des
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("status code: %d", resp.StatusCode)
+		return gdlerrors.FromHTTPStatus(resp.StatusCode, url)
 	}
 
 	// #nosec G304 -- dest validated by ValidateDestination() in public API functions
@@ -377,11 +392,14 @@ func (m *ConcurrentDownloadManager) singleDownload(ctx context.Context, url, des
 			if n > 0 {
 				// Apply rate limiting
 				if rateLimiterErr := m.rateLimiter.Wait(ctx, n); rateLimiterErr != nil {
-					return fmt.Errorf("rate limiting error: %w", rateLimiterErr)
+					if ctx.Err() != nil {
+						return gdlerrors.WrapError(rateLimiterErr, gdlerrors.CodeCancelled, "rate limiting cancelled")
+					}
+					return gdlerrors.WrapError(rateLimiterErr, gdlerrors.CodeTimeout, "rate limiting timeout")
 				}
 
 				if _, writeErr := file.Write(buffer[:n]); writeErr != nil {
-					return fmt.Errorf("writing to file: %w", writeErr)
+					return gdlerrors.NewStorageError("writing to file", writeErr, dest)
 				}
 			}
 
@@ -389,7 +407,7 @@ func (m *ConcurrentDownloadManager) singleDownload(ctx context.Context, url, des
 				break
 			}
 			if readErr != nil {
-				return fmt.Errorf("reading response: %w", readErr)
+				return gdlerrors.WrapErrorWithURL(readErr, gdlerrors.CodeNetworkError, "reading response", url)
 			}
 		}
 		return nil

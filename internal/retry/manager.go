@@ -2,12 +2,11 @@ package retry
 
 import (
 	"context"
-	"fmt"
 	"math"
 	"math/rand"
 	"time"
 
-	"github.com/forest6511/gdl/pkg/errors"
+	gdlerrors "github.com/forest6511/gdl/pkg/errors"
 )
 
 // RetryManager manages retry attempts with configurable backoff strategies.
@@ -54,7 +53,7 @@ func (rm *RetryManager) ShouldRetry(err error, attempt int) bool {
 	}
 
 	// Check if the error is retryable using the error package's logic
-	return errors.IsRetryable(err)
+	return gdlerrors.IsRetryable(err)
 }
 
 // NextDelay calculates the delay for the next retry attempt using exponential backoff.
@@ -137,10 +136,10 @@ func (rm *RetryManager) ExecuteWithRetry(ctx context.Context, operation func() e
 
 		// Check if we should retry this error and if we have attempts left
 		if !rm.ShouldRetry(err, attempt) {
-			return fmt.Errorf(
-				"operation failed after %d attempt(s) (non-retryable error): %w",
-				attempt+1,
+			return gdlerrors.WrapError(
 				err,
+				gdlerrors.CodeNetworkError,
+				"operation failed (non-retryable error)",
 			)
 		}
 
@@ -161,7 +160,7 @@ func (rm *RetryManager) ExecuteWithRetry(ctx context.Context, operation func() e
 	}
 
 	// All retries exhausted
-	return fmt.Errorf("operation failed after %d attempt(s): %w", rm.MaxRetries+1, lastErr)
+	return gdlerrors.WrapError(lastErr, gdlerrors.CodeTimeout, "operation failed (max retries exhausted)")
 }
 
 // ExecuteWithRetryCallback executes an operation with retry logic and calls a callback on each retry.
@@ -190,10 +189,10 @@ func (rm *RetryManager) ExecuteWithRetryCallback(
 
 		// Check if we should retry this error and if we have attempts left
 		if !rm.ShouldRetry(err, attempt) {
-			return fmt.Errorf(
-				"operation failed after %d attempt(s) (non-retryable error): %w",
-				attempt+1,
+			return gdlerrors.WrapError(
 				err,
+				gdlerrors.CodeNetworkError,
+				"operation failed (non-retryable error)",
 			)
 		}
 
@@ -220,7 +219,7 @@ func (rm *RetryManager) ExecuteWithRetryCallback(
 	}
 
 	// All retries exhausted
-	return fmt.Errorf("operation failed after %d attempt(s): %w", rm.MaxRetries+1, lastErr)
+	return gdlerrors.WrapError(lastErr, gdlerrors.CodeTimeout, "operation failed (max retries exhausted)")
 }
 
 // WithMaxRetries returns a new RetryManager with the specified maximum retries.
@@ -310,10 +309,10 @@ func (rm *RetryManager) ExecuteWithRetryAndStats(
 		// Check if we should retry this error and if we have attempts left
 		if !rm.ShouldRetry(err, attempt) {
 			stats.TotalDelay = totalDelay
-			return stats, fmt.Errorf(
-				"operation failed after %d attempt(s) (non-retryable error): %w",
-				attempt+1,
+			return stats, gdlerrors.WrapError(
 				err,
+				gdlerrors.CodeNetworkError,
+				"operation failed (non-retryable error)",
 			)
 		}
 
@@ -340,7 +339,7 @@ func (rm *RetryManager) ExecuteWithRetryAndStats(
 	// All retries exhausted
 	stats.TotalDelay = totalDelay
 
-	return stats, fmt.Errorf("operation failed after %d attempt(s): %w", rm.MaxRetries+1, lastErr)
+	return stats, gdlerrors.WrapError(lastErr, gdlerrors.CodeTimeout, "operation failed (max retries exhausted)")
 }
 
 // RetryableOperation wraps an operation to make it retryable with the manager.

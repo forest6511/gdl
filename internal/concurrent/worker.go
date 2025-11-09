@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	gdlerrors "github.com/forest6511/gdl/pkg/errors"
 	"github.com/forest6511/gdl/pkg/ratelimit"
 )
 
@@ -48,14 +49,26 @@ func NewWorker(id int, url string) *Worker {
 // Download starts downloading the assigned chunk.
 func (w *Worker) Download(ctx context.Context) error {
 	if w.ChunkInfo == nil {
-		return fmt.Errorf("worker %d: no chunk assigned", w.ID)
+		return gdlerrors.NewDownloadError(
+			gdlerrors.CodeValidationError,
+			fmt.Sprintf("worker %d: no chunk assigned", w.ID),
+		)
 	}
 
 	// Try download with retry logic
 	err := w.downloadChunk(ctx)
 	if err != nil {
 		if w.Error != nil {
-			w.Error <- fmt.Errorf("worker %d failed chunk %d: %w", w.ID, w.ChunkInfo.Index, err)
+			// Don't re-wrap DownloadError instances
+			if gdlerrors.GetErrorCode(err) != gdlerrors.CodeUnknown {
+				w.Error <- err
+			} else {
+				w.Error <- gdlerrors.WrapError(
+					err,
+					gdlerrors.CodeNetworkError,
+					fmt.Sprintf("worker %d failed chunk %d", w.ID, w.ChunkInfo.Index),
+				)
+			}
 		}
 
 		return err
@@ -105,11 +118,18 @@ func (w *Worker) downloadChunk(ctx context.Context) error {
 		if attempt < maxRetries {
 			// Send error notification about retry
 			if w.Error != nil {
-				w.Error <- fmt.Errorf("worker %d: chunk %d attempt %d failed, retrying: %w",
-					w.ID, w.ChunkInfo.Index, attempt+1, err)
+				w.Error <- gdlerrors.WrapError(
+					err,
+					gdlerrors.CodeNetworkError,
+					fmt.Sprintf("worker %d: chunk %d attempt %d failed, retrying", w.ID, w.ChunkInfo.Index, attempt+1),
+				)
 			}
 		} else {
-			return fmt.Errorf("failed after %d attempts: %w", maxRetries+1, err)
+			return gdlerrors.WrapError(
+				err,
+				gdlerrors.CodeNetworkError,
+				fmt.Sprintf("failed after %d attempts", maxRetries+1),
+			)
 		}
 	}
 
@@ -121,7 +141,7 @@ func (w *Worker) performDownload(ctx context.Context) error {
 	// Create range request
 	req, err := http.NewRequest("GET", w.URL, nil)
 	if err != nil {
-		return fmt.Errorf("creating request: %w", err)
+		return gdlerrors.WrapErrorWithURL(err, gdlerrors.CodeNetworkError, "creating request", w.URL)
 	}
 
 	// Set range header for partial content
@@ -132,13 +152,13 @@ func (w *Worker) performDownload(ctx context.Context) error {
 	// Execute request
 	resp, err := w.Client.Do(req)
 	if err != nil {
-		return fmt.Errorf("executing request: %w", err)
+		return gdlerrors.WrapErrorWithURL(err, gdlerrors.CodeNetworkError, "executing request", w.URL)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	// Check status code
 	if resp.StatusCode != http.StatusPartialContent && resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return gdlerrors.FromHTTPStatus(resp.StatusCode, w.URL)
 	}
 
 	// Create buffer for reading
@@ -151,7 +171,10 @@ func (w *Worker) performDownload(ctx context.Context) error {
 			// Apply rate limiting if a limiter is set
 			if w.RateLimiter != nil {
 				if rateLimiterErr := w.RateLimiter.Wait(ctx, n); rateLimiterErr != nil {
-					return fmt.Errorf("rate limiting error: %w", rateLimiterErr)
+					if ctx.Err() != nil {
+						return gdlerrors.WrapError(rateLimiterErr, gdlerrors.CodeCancelled, "rate limiting cancelled")
+					}
+					return gdlerrors.WrapError(rateLimiterErr, gdlerrors.CodeTimeout, "rate limiting timeout")
 				}
 			}
 
@@ -175,15 +198,17 @@ func (w *Worker) performDownload(ctx context.Context) error {
 		}
 
 		if err != nil {
-			return fmt.Errorf("reading response: %w", err)
+			return gdlerrors.WrapErrorWithURL(err, gdlerrors.CodeNetworkError, "reading response", w.URL)
 		}
 	}
 
 	// Verify we downloaded the expected amount
 	expectedSize := w.ChunkInfo.End - w.ChunkInfo.Start + 1
 	if w.ChunkInfo.Downloaded != expectedSize {
-		return fmt.Errorf("size mismatch: downloaded %d, expected %d",
-			w.ChunkInfo.Downloaded, expectedSize)
+		return gdlerrors.NewDownloadError(
+			gdlerrors.CodeCorruptedData,
+			fmt.Sprintf("size mismatch: downloaded %d, expected %d", w.ChunkInfo.Downloaded, expectedSize),
+		)
 	}
 
 	return nil
