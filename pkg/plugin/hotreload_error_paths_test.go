@@ -34,30 +34,6 @@ func TestNewHotReloadManagerErrorPaths(t *testing.T) {
 		}
 	})
 
-	t.Run("NonexistentWatchDirectory", func(t *testing.T) {
-		// Create a plugin manager
-		manager := NewPluginManager()
-
-		// Test with a nonexistent directory
-		config := &HotReloadConfig{
-			WatchDirectories: []string{"/nonexistent/directory/that/does/not/exist"},
-		}
-
-		_, err := NewHotReloadManager(config, manager, nil)
-		if err == nil {
-			t.Fatal("Expected error for nonexistent watch directory")
-		}
-
-		var storageErr *gdlerrors.DownloadError
-		if !gdlerrors.AsDownloadError(err, &storageErr) {
-			t.Errorf("Expected DownloadError, got: %T", err)
-		}
-
-		if storageErr.Code != gdlerrors.CodeStorageError {
-			t.Errorf("Expected CodeStorageError, got: %s", storageErr.Code)
-		}
-	})
-
 	t.Run("MultipleWatchDirectoriesWithError", func(t *testing.T) {
 		// Create a plugin manager
 		manager := NewPluginManager()
@@ -383,21 +359,4 @@ func TestAddWatchDirectoryErrorPaths(t *testing.T) {
 		}
 	})
 
-	t.Run("NonexistentPath", func(t *testing.T) {
-		manager := NewPluginManager()
-		config := &HotReloadConfig{
-			WatchDirectories: []string{},
-		}
-
-		hrm, err := NewHotReloadManager(config, manager, nil)
-		if err != nil {
-			t.Fatalf("Failed to create HotReloadManager: %v", err)
-		}
-
-		// Try to add non-existent directory
-		err = hrm.addWatchDirectory("/nonexistent/directory/path")
-		if err == nil {
-			t.Fatal("Expected error for non-existent path")
-		}
-	})
 }

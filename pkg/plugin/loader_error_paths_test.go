@@ -238,7 +238,11 @@ func TestPluginManagerErrorPaths(t *testing.T) {
 	t.Run("LoadFromDirectory_InvalidPath", func(t *testing.T) {
 		manager := NewPluginManager()
 
-		err := manager.LoadFromDirectory("/nonexistent/directory")
+		// Create a cross-platform path to a nonexistent directory
+		tempDir := t.TempDir()
+		nonexistentPath := filepath.Join(tempDir, "nonexistent", "directory")
+
+		err := manager.LoadFromDirectory(nonexistentPath)
 		if err == nil {
 			t.Fatal("Expected error for invalid directory")
 		}
