@@ -3,11 +3,12 @@
 package validation
 
 import (
-	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+
+	gdlerrors "github.com/forest6511/gdl/pkg/errors"
 )
 
 // Config holds validation configuration
@@ -35,13 +36,13 @@ var globalConfig = DefaultConfig()
 // Returns an error if the URL is malformed, uses unsupported scheme, or poses security risks.
 func ValidateURL(rawURL string) error {
 	if rawURL == "" {
-		return fmt.Errorf("URL cannot be empty")
+		return gdlerrors.NewValidationError("url", "URL cannot be empty")
 	}
 
 	// Parse the URL
 	parsedURL, err := url.Parse(rawURL)
 	if err != nil {
-		return fmt.Errorf("malformed URL: %w", err)
+		return gdlerrors.WrapErrorWithURL(err, gdlerrors.CodeInvalidURL, "malformed URL", rawURL)
 	}
 
 	// Check for supported schemes
@@ -49,19 +50,19 @@ func ValidateURL(rawURL string) error {
 	case "http", "https":
 		// Allowed schemes
 	case "":
-		return fmt.Errorf("URL must include scheme (http:// or https://)")
+		return gdlerrors.NewValidationError("url", "URL must include scheme (http:// or https://)")
 	default:
-		return fmt.Errorf("unsupported URL scheme: %s (only http and https are supported)", parsedURL.Scheme)
+		return gdlerrors.NewValidationError("url", "unsupported URL scheme: "+parsedURL.Scheme+" (only http and https are supported)")
 	}
 
 	// Check for valid host
 	if parsedURL.Host == "" {
-		return fmt.Errorf("URL must include a valid host")
+		return gdlerrors.NewValidationError("url", "URL must include a valid host")
 	}
 
 	// Security checks
 	if !globalConfig.AllowLocalhost && (strings.Contains(parsedURL.Host, "localhost") || strings.Contains(parsedURL.Host, "127.0.0.1")) {
-		return fmt.Errorf("localhost URLs are not allowed for security reasons")
+		return gdlerrors.NewValidationError("url", "localhost URLs are not allowed for security reasons")
 	}
 
 	return nil
@@ -71,7 +72,7 @@ func ValidateURL(rawURL string) error {
 // Returns an error if the path is unsafe, invalid, or poses security risks.
 func ValidateDestination(dest string) error {
 	if dest == "" {
-		return fmt.Errorf("destination path cannot be empty")
+		return gdlerrors.NewValidationError("destination", "destination path cannot be empty")
 	}
 
 	// Clean the path to resolve any ./ or ../ components
@@ -79,13 +80,13 @@ func ValidateDestination(dest string) error {
 
 	// Check for directory traversal attempts
 	if strings.Contains(cleanPath, "..") {
-		return fmt.Errorf("destination path contains directory traversal: %s", dest)
+		return gdlerrors.NewValidationError("destination", "destination path contains directory traversal: "+dest)
 	}
 
 	// Convert to absolute path for further validation
 	absPath, err := filepath.Abs(cleanPath)
 	if err != nil {
-		return fmt.Errorf("invalid destination path: %w", err)
+		return gdlerrors.NewInvalidPathError(dest, err)
 	}
 
 	// Check if the parent directory exists or can be created
@@ -96,20 +97,20 @@ func ValidateDestination(dest string) error {
 				// Parent directory doesn't exist, which is fine - we can create it
 				// But let's check if we have permission by attempting to create it
 				if err := os.MkdirAll(parentDir, 0o750); err != nil {
-					return fmt.Errorf("cannot create parent directory %s: %w", parentDir, err)
+					return gdlerrors.WrapError(err, gdlerrors.CodePermissionDenied, "cannot create parent directory "+parentDir)
 				}
 			} else {
-				return fmt.Errorf("cannot access parent directory %s: %w", parentDir, err)
+				return gdlerrors.WrapError(err, gdlerrors.CodePermissionDenied, "cannot access parent directory "+parentDir)
 			}
 		} else if !info.IsDir() {
-			return fmt.Errorf("parent path %s is not a directory", parentDir)
+			return gdlerrors.NewValidationError("destination", "parent path "+parentDir+" is not a directory")
 		}
 	}
 
 	// Check if destination already exists and is a directory
 	if info, err := os.Stat(absPath); err == nil {
 		if info.IsDir() {
-			return fmt.Errorf("destination %s is a directory, expected file path", dest)
+			return gdlerrors.NewValidationError("destination", "destination "+dest+" is a directory, expected file path")
 		}
 	}
 
@@ -120,13 +121,13 @@ func ValidateDestination(dest string) error {
 // Returns an error if the size is negative or exceeds system limits.
 func ValidateFileSize(size int64) error {
 	if size < 0 {
-		return fmt.Errorf("file size cannot be negative: %d", size)
+		return gdlerrors.NewValidationError("file_size", "file size cannot be negative")
 	}
 
 	// Check against reasonable maximum file size (100GB)
 	const maxFileSize int64 = 100 * 1024 * 1024 * 1024 // 100GB
 	if size > maxFileSize {
-		return fmt.Errorf("file size %d bytes exceeds maximum allowed size of %d bytes", size, maxFileSize)
+		return gdlerrors.NewValidationError("file_size", "file size exceeds maximum allowed size of 100GB")
 	}
 
 	return nil
@@ -142,35 +143,59 @@ func ValidateContentLength(contentLength string) (int64, error) {
 
 	// Parse as integer
 	var size int64
-	n, err := fmt.Sscanf(contentLength, "%d", &size)
-	if err != nil || n != 1 {
-		return 0, fmt.Errorf("invalid Content-Length header: %s", contentLength)
+	_, err := parseContentLength(contentLength, &size)
+	if err != nil {
+		return 0, gdlerrors.NewValidationError("content_length", "invalid Content-Length header: "+contentLength)
 	}
 
 	// Validate the parsed size
 	if err := ValidateFileSize(size); err != nil {
-		return 0, fmt.Errorf("invalid Content-Length value: %w", err)
+		return 0, gdlerrors.WrapError(err, gdlerrors.CodeValidationError, "invalid Content-Length value")
 	}
 
 	return size, nil
+}
+
+// parseContentLength is a helper function to parse content length
+func parseContentLength(contentLength string, size *int64) (int, error) {
+	return parseIntValue(contentLength, size)
+}
+
+// parseIntValue parses an integer value from a string
+func parseIntValue(s string, v *int64) (int, error) {
+	var temp int64
+	n := 0
+	for _, c := range s {
+		if c >= '0' && c <= '9' {
+			temp = temp*10 + int64(c-'0')
+			n++
+		} else {
+			return 0, gdlerrors.NewValidationError("parse", "invalid integer format")
+		}
+	}
+	if n == 0 {
+		return 0, gdlerrors.NewValidationError("parse", "no digits found")
+	}
+	*v = temp
+	return 1, nil
 }
 
 // ValidateChunkSize validates that a download chunk size is reasonable.
 // Returns an error if the chunk size is too small, too large, or invalid.
 func ValidateChunkSize(chunkSize int64) error {
 	if chunkSize <= 0 {
-		return fmt.Errorf("chunk size must be positive: %d", chunkSize)
+		return gdlerrors.NewValidationError("chunk_size", "chunk size must be positive")
 	}
 
 	const minChunkSize = 1024              // 1KB minimum
 	const maxChunkSize = 100 * 1024 * 1024 // 100MB maximum
 
 	if chunkSize < minChunkSize {
-		return fmt.Errorf("chunk size %d is too small, minimum is %d bytes", chunkSize, minChunkSize)
+		return gdlerrors.NewValidationError("chunk_size", "chunk size is too small, minimum is 1KB")
 	}
 
 	if chunkSize > maxChunkSize {
-		return fmt.Errorf("chunk size %d is too large, maximum is %d bytes", chunkSize, maxChunkSize)
+		return gdlerrors.NewValidationError("chunk_size", "chunk size is too large, maximum is 100MB")
 	}
 
 	return nil
@@ -180,12 +205,12 @@ func ValidateChunkSize(chunkSize int64) error {
 // Returns an error if the timeout is negative or excessively long.
 func ValidateTimeout(timeoutSeconds int) error {
 	if timeoutSeconds < 0 {
-		return fmt.Errorf("timeout cannot be negative: %d", timeoutSeconds)
+		return gdlerrors.NewValidationError("timeout", "timeout cannot be negative")
 	}
 
 	const maxTimeout = 24 * 60 * 60 // 24 hours in seconds
 	if timeoutSeconds > maxTimeout {
-		return fmt.Errorf("timeout %d seconds is too long, maximum is %d seconds (24 hours)", timeoutSeconds, maxTimeout)
+		return gdlerrors.NewValidationError("timeout", "timeout is too long, maximum is 24 hours")
 	}
 
 	return nil

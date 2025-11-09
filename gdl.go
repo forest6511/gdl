@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/forest6511/gdl/internal/core"
+	gdlerrors "github.com/forest6511/gdl/pkg/errors"
 	"github.com/forest6511/gdl/pkg/events"
 	"github.com/forest6511/gdl/pkg/middleware"
 	"github.com/forest6511/gdl/pkg/plugin"
@@ -102,10 +103,10 @@ type DownloadStats struct {
 func Download(ctx context.Context, url, dest string) (*DownloadStats, error) {
 	// Tier 1: Public API validation
 	if err := validation.ValidateURL(url); err != nil {
-		return nil, fmt.Errorf("invalid URL: %w", err)
+		return nil, gdlerrors.WrapErrorWithURL(err, gdlerrors.CodeInvalidURL, "invalid URL", url)
 	}
 	if err := validation.ValidateDestination(dest); err != nil {
-		return nil, fmt.Errorf("invalid destination: %w", err)
+		return nil, gdlerrors.WrapError(err, gdlerrors.CodeInvalidPath, "invalid destination")
 	}
 
 	dl := core.NewDownloader()
@@ -155,23 +156,23 @@ func convertStats(stats *types.DownloadStats) *DownloadStats {
 func DownloadWithOptions(ctx context.Context, url, dest string, opts *Options) (*DownloadStats, error) {
 	// Tier 1: Public API validation
 	if err := validation.ValidateURL(url); err != nil {
-		return nil, fmt.Errorf("invalid URL: %w", err)
+		return nil, gdlerrors.WrapErrorWithURL(err, gdlerrors.CodeInvalidURL, "invalid URL", url)
 	}
 	if err := validation.ValidateDestination(dest); err != nil {
-		return nil, fmt.Errorf("invalid destination: %w", err)
+		return nil, gdlerrors.WrapError(err, gdlerrors.CodeInvalidPath, "invalid destination")
 	}
 
 	// Validate options if provided
 	if opts != nil {
 		if opts.ChunkSize > 0 {
 			if err := validation.ValidateChunkSize(opts.ChunkSize); err != nil {
-				return nil, fmt.Errorf("invalid chunk size: %w", err)
+				return nil, gdlerrors.NewValidationError("chunk_size", err.Error())
 			}
 		}
 		if opts.Timeout > 0 {
 			timeoutSeconds := int(opts.Timeout.Seconds())
 			if err := validation.ValidateTimeout(timeoutSeconds); err != nil {
-				return nil, fmt.Errorf("invalid timeout: %w", err)
+				return nil, gdlerrors.NewValidationError("timeout", err.Error())
 			}
 		}
 	}
@@ -232,10 +233,10 @@ func DownloadWithOptions(ctx context.Context, url, dest string, opts *Options) (
 func DownloadToWriter(ctx context.Context, url string, w io.Writer) (*DownloadStats, error) {
 	// Tier 1: Public API validation
 	if err := validation.ValidateURL(url); err != nil {
-		return nil, fmt.Errorf("invalid URL: %w", err)
+		return nil, gdlerrors.WrapErrorWithURL(err, gdlerrors.CodeInvalidURL, "invalid URL", url)
 	}
 	if w == nil {
-		return nil, fmt.Errorf("writer cannot be nil")
+		return nil, gdlerrors.NewValidationError("writer", "writer cannot be nil")
 	}
 
 	dl := core.NewDownloader()
@@ -296,7 +297,7 @@ func DownloadWithResume(ctx context.Context, url, dest string) (*DownloadStats, 
 func GetFileInfo(ctx context.Context, url string) (*FileInfo, error) {
 	// Tier 1: Public API validation
 	if err := validation.ValidateURL(url); err != nil {
-		return nil, fmt.Errorf("invalid URL: %w", err)
+		return nil, gdlerrors.WrapErrorWithURL(err, gdlerrors.CodeInvalidURL, "invalid URL", url)
 	}
 
 	dl := core.NewDownloader()
@@ -375,10 +376,10 @@ func (d *Downloader) SetStorageBackend(name string, backend storage.StorageBacke
 func (d *Downloader) Download(ctx context.Context, url, dest string, opts *Options) (*DownloadStats, error) {
 	// Validate inputs
 	if err := validation.ValidateURL(url); err != nil {
-		return nil, fmt.Errorf("invalid URL: %w", err)
+		return nil, gdlerrors.WrapErrorWithURL(err, gdlerrors.CodeInvalidURL, "invalid URL", url)
 	}
 	if err := validation.ValidateDestination(dest); err != nil {
-		return nil, fmt.Errorf("invalid destination: %w", err)
+		return nil, gdlerrors.WrapError(err, gdlerrors.CodeInvalidPath, "invalid destination")
 	}
 
 	// Emit pre-download event
@@ -397,7 +398,7 @@ func (d *Downloader) Download(ctx context.Context, url, dest string, opts *Optio
 		"url":  url,
 		"dest": dest,
 	}); err != nil {
-		return nil, fmt.Errorf("pre-download hook failed: %w", err)
+		return nil, gdlerrors.WrapError(err, gdlerrors.CodePluginError, "pre-download hook failed")
 	}
 
 	// Convert options
@@ -485,10 +486,10 @@ func (d *Downloader) Download(ctx context.Context, url, dest string, opts *Optio
 // DownloadToWriter downloads to an io.Writer with plugin support.
 func (d *Downloader) DownloadToWriter(ctx context.Context, url string, w io.Writer, opts *Options) (*DownloadStats, error) {
 	if err := validation.ValidateURL(url); err != nil {
-		return nil, fmt.Errorf("invalid URL: %w", err)
+		return nil, gdlerrors.WrapErrorWithURL(err, gdlerrors.CodeInvalidURL, "invalid URL", url)
 	}
 	if w == nil {
-		return nil, fmt.Errorf("writer cannot be nil")
+		return nil, gdlerrors.NewValidationError("writer", "writer cannot be nil")
 	}
 
 	// Convert options
@@ -515,7 +516,7 @@ func (d *Downloader) DownloadToWriter(ctx context.Context, url string, w io.Writ
 // GetFileInfo retrieves file information with plugin support.
 func (d *Downloader) GetFileInfo(ctx context.Context, url string) (*FileInfo, error) {
 	if err := validation.ValidateURL(url); err != nil {
-		return nil, fmt.Errorf("invalid URL: %w", err)
+		return nil, gdlerrors.WrapErrorWithURL(err, gdlerrors.CodeInvalidURL, "invalid URL", url)
 	}
 
 	info, err := d.coreDownloader.GetFileInfo(ctx, url)

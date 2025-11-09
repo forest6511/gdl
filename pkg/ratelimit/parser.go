@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	gdlerrors "github.com/forest6511/gdl/pkg/errors"
 )
 
 // ParseRate parses a human-readable rate string into bytes per second.
@@ -33,18 +35,18 @@ func ParseRate(rateStr string) (int64, error) {
 	matches := re.FindStringSubmatch(rateStr)
 
 	if len(matches) < 2 {
-		return 0, fmt.Errorf("invalid rate format: %q (examples: 1MB/s, 500k, 2048)", rateStr)
+		return 0, gdlerrors.NewValidationError("rate", "invalid rate format (examples: 1MB/s, 500k, 2048)")
 	}
 
 	// Parse the numeric part
 	numStr := matches[1]
 	num, err := strconv.ParseFloat(numStr, 64)
 	if err != nil {
-		return 0, fmt.Errorf("invalid number in rate: %q", numStr)
+		return 0, gdlerrors.NewValidationError("rate", "invalid number in rate: "+numStr)
 	}
 
 	if num < 0 {
-		return 0, fmt.Errorf("rate cannot be negative: %f", num)
+		return 0, gdlerrors.NewValidationError("rate", "rate cannot be negative")
 	}
 
 	// Parse the unit (if present)
@@ -59,7 +61,7 @@ func ParseRate(rateStr string) (int64, error) {
 		case "g", "gb":
 			multiplier = 1024 * 1024 * 1024
 		default:
-			return 0, fmt.Errorf("unsupported unit: %q (supported: k, kb, m, mb, g, gb)", unit)
+			return 0, gdlerrors.NewValidationError("rate", "unsupported unit: "+unit+" (supported: k, kb, m, mb, g, gb)")
 		}
 	}
 
@@ -67,7 +69,7 @@ func ParseRate(rateStr string) (int64, error) {
 
 	// Sanity check for very small rates
 	if result > 0 && result < 1 {
-		return 0, fmt.Errorf("rate too small: %d bytes/s (minimum: 1 byte/s)", result)
+		return 0, gdlerrors.NewValidationError("rate", "rate too small (minimum: 1 byte/s)")
 	}
 
 	return result, nil
