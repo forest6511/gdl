@@ -935,8 +935,9 @@ func TestDownloadWithMock(t *testing.T) {
 	})
 
 	t.Run("DownloadWithGetObjectError", func(t *testing.T) {
+		accessDeniedErr := errors.New("access denied")
 		mock := &MockS3Client{
-			getObjectErr: errors.New("access denied"),
+			getObjectErr: accessDeniedErr,
 		}
 
 		downloader := &S3Downloader{
@@ -950,8 +951,13 @@ func TestDownloadWithMock(t *testing.T) {
 		if err == nil {
 			t.Error("Expected access denied error")
 		}
-		if !strings.Contains(err.Error(), "access denied") {
-			t.Errorf("Expected 'access denied' in error, got %v", err)
+		// Check that the underlying error is preserved via Unwrap
+		if !errors.Is(err, accessDeniedErr) {
+			t.Errorf("Expected underlying error to be access denied, got %v", err)
+		}
+		// Check that the wrapper message is appropriate
+		if !strings.Contains(err.Error(), "failed to get object") {
+			t.Errorf("Expected 'failed to get object' in error message, got %v", err)
 		}
 	})
 
