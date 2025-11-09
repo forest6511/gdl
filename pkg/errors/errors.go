@@ -74,6 +74,21 @@ const (
 
 	// CodeCorruptedData represents errors when downloaded data is corrupted.
 	CodeCorruptedData
+
+	// CodeInvalidPath represents errors related to invalid file paths.
+	CodeInvalidPath
+
+	// CodePluginError represents errors related to plugin operations.
+	CodePluginError
+
+	// CodeConfigError represents errors related to configuration.
+	CodeConfigError
+
+	// CodeValidationError represents errors related to input validation.
+	CodeValidationError
+
+	// CodeStorageError represents errors related to storage operations.
+	CodeStorageError
 )
 
 // String returns a string representation of the error code.
@@ -105,6 +120,16 @@ func (c ErrorCode) String() string {
 		return "cancelled"
 	case CodeCorruptedData:
 		return "corrupted_data"
+	case CodeInvalidPath:
+		return "invalid_path"
+	case CodePluginError:
+		return "plugin_error"
+	case CodeConfigError:
+		return "config_error"
+	case CodeValidationError:
+		return "validation_error"
+	case CodeStorageError:
+		return "storage_error"
 	default:
 		return unknownValue
 	}
@@ -271,7 +296,9 @@ func isRetryableByCode(code ErrorCode) bool {
 		return true
 	case CodeInvalidURL, CodeFileExists, CodePermissionDenied,
 		CodeFileNotFound, CodeAuthenticationFailed, CodeClientError,
-		CodeCancelled, CodeCorruptedData:
+		CodeCancelled, CodeCorruptedData, CodeInvalidPath,
+		CodePluginError, CodeConfigError, CodeValidationError,
+		CodeStorageError:
 		return false
 	case CodeInsufficientSpace:
 		return false // Usually not retryable without user intervention
@@ -362,4 +389,88 @@ func GetErrorCode(err error) ErrorCode {
 	}
 
 	return CodeUnknown
+}
+
+// NewInvalidPathError creates a DownloadError for invalid file path errors.
+// This is a convenience function for path-related errors in configuration,
+// storage, and file operations.
+func NewInvalidPathError(path string, underlying error) *DownloadError {
+	message := fmt.Sprintf("invalid file path: %s", path)
+	if underlying != nil {
+		return WrapError(underlying, CodeInvalidPath, message)
+	}
+	return &DownloadError{
+		Code:      CodeInvalidPath,
+		Message:   message,
+		Details:   path,
+		Retryable: false,
+	}
+}
+
+// NewPluginError creates a DownloadError for plugin-related errors.
+// This is a convenience function for plugin loading, execution, and validation errors.
+func NewPluginError(pluginName string, underlying error, details string) *DownloadError {
+	message := fmt.Sprintf("plugin error: %s", pluginName)
+	retryable := false
+	if underlying != nil {
+		retryable = isRetryableError(underlying)
+	}
+	return &DownloadError{
+		Code:       CodePluginError,
+		Message:    message,
+		Details:    details,
+		Underlying: underlying,
+		Retryable:  retryable,
+	}
+}
+
+// NewConfigError creates a DownloadError for configuration errors.
+// This is a convenience function for invalid configuration values,
+// missing required fields, and configuration parsing errors.
+func NewConfigError(message string, underlying error, details string) *DownloadError {
+	if underlying != nil {
+		return &DownloadError{
+			Code:       CodeConfigError,
+			Message:    message,
+			Details:    details,
+			Underlying: underlying,
+			Retryable:  isRetryableError(underlying),
+		}
+	}
+	return &DownloadError{
+		Code:      CodeConfigError,
+		Message:   message,
+		Details:   details,
+		Retryable: false,
+	}
+}
+
+// NewValidationError creates a DownloadError for input validation errors.
+// This is a convenience function for invalid user inputs, malformed data,
+// and constraint violations.
+func NewValidationError(field string, reason string) *DownloadError {
+	message := fmt.Sprintf("validation failed for %s: %s", field, reason)
+	return &DownloadError{
+		Code:      CodeValidationError,
+		Message:   message,
+		Details:   fmt.Sprintf("field=%s, reason=%s", field, reason),
+		Retryable: false,
+	}
+}
+
+// NewStorageError creates a DownloadError for storage operation errors.
+// This is a convenience function for cache, database, and persistent storage errors.
+func NewStorageError(operation string, underlying error, details string) *DownloadError {
+	message := fmt.Sprintf("storage error during %s", operation)
+	retryable := false
+	if underlying != nil {
+		retryable = isRetryableError(underlying)
+	}
+	return &DownloadError{
+		Code:       CodeStorageError,
+		Message:    message,
+		Details:    details,
+		Underlying: underlying,
+		Retryable:  retryable,
+	}
 }
