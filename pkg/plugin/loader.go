@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	gdlerrors "github.com/forest6511/gdl/pkg/errors"
 )
 
 // PluginInfo contains metadata about a loaded plugin
@@ -77,18 +79,18 @@ func (pl *PluginLoader) Load(path string) (Plugin, error) {
 
 	// Validate the plugin path
 	if err := pl.validatePath(path); err != nil {
-		return nil, fmt.Errorf("invalid plugin path: %w", err)
+		return nil, gdlerrors.NewInvalidPathError(path, err)
 	}
 
 	// Get file information
 	fileInfo, err := os.Stat(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to stat plugin file: %w", err)
+		return nil, gdlerrors.NewStorageError("stat plugin file", err, path)
 	}
 
 	// Check file size
 	if pl.maxPluginSize > 0 && fileInfo.Size() > pl.maxPluginSize {
-		return nil, fmt.Errorf("plugin file too large: %d bytes (max: %d)", fileInfo.Size(), pl.maxPluginSize)
+		return nil, gdlerrors.NewValidationError("plugin_size", fmt.Sprintf("file too large: %d bytes (max: %d)", fileInfo.Size(), pl.maxPluginSize))
 	}
 
 	// Calculate checksum if verification is enabled
@@ -96,26 +98,26 @@ func (pl *PluginLoader) Load(path string) (Plugin, error) {
 	if pl.verifyChecksum {
 		checksum, err = pl.calculateChecksum(path)
 		if err != nil {
-			return nil, fmt.Errorf("failed to calculate checksum: %w", err)
+			return nil, gdlerrors.NewStorageError("calculate checksum", err, path)
 		}
 	}
 
 	// Load the plugin
 	nativePlugin, err := plugin.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open plugin %s: %w", path, err)
+		return nil, gdlerrors.NewPluginError(path, err, "failed to open plugin")
 	}
 
 	// Look for the Plugin symbol
 	symbol, err := nativePlugin.Lookup("Plugin")
 	if err != nil {
-		return nil, fmt.Errorf("plugin %s does not export 'Plugin' symbol: %w", path, err)
+		return nil, gdlerrors.NewPluginError(path, err, "does not export 'Plugin' symbol")
 	}
 
 	// Validate that the symbol implements the Plugin interface
 	pluginInstance, ok := symbol.(Plugin)
 	if !ok {
-		return nil, fmt.Errorf("plugin %s does not implement Plugin interface", path)
+		return nil, gdlerrors.NewPluginError(path, nil, "does not implement Plugin interface")
 	}
 
 	// Create plugin info
@@ -160,7 +162,7 @@ func (pl *PluginLoader) LoadFromSearchPath(filename string) (Plugin, error) {
 		fmt.Printf("Failed to load plugin from %s: %v\n", pluginPath, err)
 	}
 
-	return nil, fmt.Errorf("plugin %s not found in search paths: %v", filename, pl.searchPaths)
+	return nil, gdlerrors.NewPluginError(filename, nil, fmt.Sprintf("not found in search paths: %v", pl.searchPaths))
 }
 
 // DiscoverPlugins discovers all plugins in the search paths
@@ -193,7 +195,7 @@ func (pl *PluginLoader) DiscoverPlugins() ([]string, error) {
 		})
 
 		if err != nil {
-			return nil, fmt.Errorf("failed to discover plugins in %s: %w", searchPath, err)
+			return nil, gdlerrors.NewStorageError("discover plugins", err, searchPath)
 		}
 	}
 
@@ -204,7 +206,7 @@ func (pl *PluginLoader) DiscoverPlugins() ([]string, error) {
 func (pl *PluginLoader) LoadAll() ([]Plugin, []error) {
 	discovered, err := pl.DiscoverPlugins()
 	if err != nil {
-		return nil, []error{fmt.Errorf("failed to discover plugins: %w", err)}
+		return nil, []error{gdlerrors.NewStorageError("discover plugins", err, "")}
 	}
 
 	var plugins []Plugin
@@ -213,7 +215,7 @@ func (pl *PluginLoader) LoadAll() ([]Plugin, []error) {
 	for _, path := range discovered {
 		pluginInstance, err := pl.Load(path)
 		if err != nil {
-			errors = append(errors, fmt.Errorf("failed to load %s: %w", path, err))
+			errors = append(errors, gdlerrors.NewPluginError(path, err, "failed to load"))
 			continue
 		}
 		plugins = append(plugins, pluginInstance)
@@ -243,12 +245,12 @@ func (pl *PluginLoader) UnloadPlugin(path string) error {
 
 	info, exists := pl.loadedPlugins[path]
 	if !exists {
-		return fmt.Errorf("plugin %s is not loaded", path)
+		return gdlerrors.NewPluginError(path, nil, "plugin is not loaded")
 	}
 
 	// Close the plugin if it implements the interface
 	if err := info.Plugin.Close(); err != nil {
-		return fmt.Errorf("failed to close plugin %s: %w", path, err)
+		return gdlerrors.NewPluginError(path, err, "failed to close plugin")
 	}
 
 	// Remove from loaded plugins map
@@ -266,7 +268,7 @@ func (pl *PluginLoader) UnloadAll() []error {
 
 	for path, info := range pl.loadedPlugins {
 		if err := info.Plugin.Close(); err != nil {
-			errors = append(errors, fmt.Errorf("failed to close plugin %s: %w", path, err))
+			errors = append(errors, gdlerrors.NewPluginError(path, err, "failed to close plugin"))
 		}
 	}
 
@@ -280,7 +282,7 @@ func (pl *PluginLoader) UnloadAll() []error {
 func (pl *PluginLoader) AddSearchPath(path string) error {
 	// Validate the path
 	if err := pl.validatePath(path); err != nil {
-		return fmt.Errorf("invalid search path: %w", err)
+		return gdlerrors.NewInvalidPathError(path, err)
 	}
 
 	pl.mu.Lock()
@@ -326,13 +328,13 @@ func (pl *PluginLoader) validatePath(path string) error {
 	// Convert to absolute path
 	absPath, err := filepath.Abs(path)
 	if err != nil {
-		return fmt.Errorf("failed to get absolute path: %w", err)
+		return gdlerrors.NewInvalidPathError(path, err)
 	}
 
 	// Check blocked paths first
 	for _, blocked := range pl.blockedPaths {
 		if strings.HasPrefix(absPath, blocked) {
-			return fmt.Errorf("path is blocked: %s", absPath)
+			return gdlerrors.WrapError(nil, gdlerrors.CodeInvalidPath, fmt.Sprintf("path is blocked: %s", absPath))
 		}
 	}
 
@@ -346,7 +348,7 @@ func (pl *PluginLoader) validatePath(path string) error {
 			}
 		}
 		if !allowed {
-			return fmt.Errorf("path not in allowed paths: %s", absPath)
+			return gdlerrors.WrapError(nil, gdlerrors.CodeInvalidPath, fmt.Sprintf("path not in allowed paths: %s", absPath))
 		}
 	}
 
@@ -358,7 +360,7 @@ func (pl *PluginLoader) calculateChecksum(path string) (string, error) {
 	// Validate and sanitize the path to prevent file inclusion vulnerabilities
 	cleanPath := filepath.Clean(path)
 	if !filepath.IsAbs(cleanPath) {
-		return "", fmt.Errorf("path must be absolute: %s", path)
+		return "", gdlerrors.NewValidationError("path", fmt.Sprintf("must be absolute: %s", path))
 	}
 
 	file, err := os.Open(cleanPath) // #nosec G304 - path is validated and sanitized above
@@ -402,31 +404,31 @@ func (pl *PluginLoader) VerifyPlugin(path string) error {
 	// Validate and sanitize the path to prevent file inclusion vulnerabilities
 	cleanPath := filepath.Clean(path)
 	if !filepath.IsAbs(cleanPath) {
-		return fmt.Errorf("path must be absolute: %s", path)
+		return gdlerrors.NewValidationError("path", fmt.Sprintf("must be absolute: %s", path))
 	}
 
 	// Check if file exists and is readable
 	file, err := os.Open(cleanPath) // #nosec G304 - path is validated and sanitized above
 	if err != nil {
-		return fmt.Errorf("cannot open plugin file: %w", err)
+		return gdlerrors.NewStorageError("open plugin file", err, cleanPath)
 	}
 	defer func() { _ = file.Close() }()
 
 	// Get file info
 	info, err := file.Stat()
 	if err != nil {
-		return fmt.Errorf("cannot stat plugin file: %w", err)
+		return gdlerrors.NewStorageError("stat plugin file", err, cleanPath)
 	}
 
 	// Check file size
 	if pl.maxPluginSize > 0 && info.Size() > pl.maxPluginSize {
-		return fmt.Errorf("plugin file too large: %d bytes", info.Size())
+		return gdlerrors.NewValidationError("plugin_size", fmt.Sprintf("file too large: %d bytes", info.Size()))
 	}
 
 	// Check file permissions
 	mode := info.Mode()
 	if mode&0111 == 0 {
-		return fmt.Errorf("plugin file is not executable")
+		return gdlerrors.NewValidationError("plugin_permissions", "plugin file is not executable")
 	}
 
 	// Additional security checks could be added here
@@ -439,7 +441,7 @@ func (pl *PluginLoader) VerifyPlugin(path string) error {
 func (pl *PluginLoader) ReloadPlugin(path string) (Plugin, error) {
 	// Unload the existing plugin
 	if err := pl.UnloadPlugin(path); err != nil && !strings.Contains(err.Error(), "is not loaded") {
-		return nil, fmt.Errorf("failed to unload plugin for reload: %w", err)
+		return nil, gdlerrors.NewPluginError(path, err, "failed to unload plugin for reload")
 	}
 
 	// Load the plugin again
@@ -457,7 +459,7 @@ func (pl *PluginLoader) GetPluginByName(name string) (Plugin, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("plugin with name %s not found", name)
+	return nil, gdlerrors.NewPluginError(name, nil, "not found")
 }
 
 // GetPluginsByType returns all loaded plugins of a specific type

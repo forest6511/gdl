@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	gdlerrors "github.com/forest6511/gdl/pkg/errors"
 	"github.com/forest6511/gdl/pkg/plugin"
 )
 
@@ -55,7 +56,7 @@ func NewPluginRegistry(pluginDir, configFile string) *PluginRegistry {
 func (pr *PluginRegistry) List(ctx context.Context) ([]*PluginInfo, error) {
 	config, err := pr.loadConfig()
 	if err != nil {
-		return nil, fmt.Errorf("failed to load plugin config: %w", err)
+		return nil, gdlerrors.NewConfigError("failed to load plugin config", err, pr.configFile)
 	}
 
 	var plugins []*PluginInfo
@@ -71,23 +72,23 @@ func (pr *PluginRegistry) Install(ctx context.Context, source, name string) erro
 	// Check if plugin already exists first
 	config, err := pr.loadConfig()
 	if err != nil {
-		return fmt.Errorf("failed to load plugin config: %w", err)
+		return gdlerrors.NewConfigError("failed to load plugin config", err, pr.configFile)
 	}
 
 	if _, exists := config.Plugins[name]; exists {
-		return fmt.Errorf("plugin '%s' already exists", name)
+		return gdlerrors.NewPluginError(name, nil, "plugin already exists")
 	}
 
 	// Ensure plugin directory exists
 	if err := os.MkdirAll(pr.pluginDir, 0750); err != nil {
-		return fmt.Errorf("failed to create plugin directory: %w", err)
+		return gdlerrors.NewInvalidPathError(pr.pluginDir, err)
 	}
 
 	pluginPath := filepath.Join(pr.pluginDir, name+".so")
 
 	// Download/copy plugin based on source type
 	if err := pr.downloadPlugin(ctx, source, pluginPath); err != nil {
-		return fmt.Errorf("failed to download plugin: %w", err)
+		return gdlerrors.NewPluginError(name, err, "failed to download plugin")
 	}
 
 	// Load plugin to verify it's valid
@@ -98,7 +99,7 @@ func (pr *PluginRegistry) Install(ctx context.Context, source, name string) erro
 			// Log the cleanup error but don't override the main error
 			fmt.Printf("Warning: failed to cleanup plugin file %s: %v\n", pluginPath, removeErr)
 		}
-		return fmt.Errorf("failed to load plugin: %w", err)
+		return gdlerrors.NewPluginError(name, err, "failed to load plugin")
 	}
 
 	// Create plugin info
@@ -117,7 +118,7 @@ func (pr *PluginRegistry) Install(ctx context.Context, source, name string) erro
 	config.Plugins[name] = pluginInfo
 
 	if err := pr.saveConfig(config); err != nil {
-		return fmt.Errorf("failed to save plugin config: %w", err)
+		return gdlerrors.NewConfigError("failed to save plugin config", err, pr.configFile)
 	}
 
 	return nil
@@ -127,24 +128,24 @@ func (pr *PluginRegistry) Install(ctx context.Context, source, name string) erro
 func (pr *PluginRegistry) Remove(ctx context.Context, name string) error {
 	config, err := pr.loadConfig()
 	if err != nil {
-		return fmt.Errorf("failed to load plugin config: %w", err)
+		return gdlerrors.NewConfigError("failed to load plugin config", err, pr.configFile)
 	}
 
 	pluginInfo, exists := config.Plugins[name]
 	if !exists {
-		return fmt.Errorf("plugin %s not found", name)
+		return gdlerrors.NewPluginError(name, nil, "plugin not found")
 	}
 
 	// Remove plugin file
 	if err := os.Remove(pluginInfo.Path); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("failed to remove plugin file: %w", err)
+		return gdlerrors.NewStorageError("remove plugin file", err, pluginInfo.Path)
 	}
 
 	// Remove from configuration
 	delete(config.Plugins, name)
 
 	if err := pr.saveConfig(config); err != nil {
-		return fmt.Errorf("failed to save plugin config: %w", err)
+		return gdlerrors.NewConfigError("failed to save plugin config", err, pr.configFile)
 	}
 
 	return nil
@@ -164,18 +165,18 @@ func (pr *PluginRegistry) Disable(ctx context.Context, name string) error {
 func (pr *PluginRegistry) setPluginEnabled(name string, enabled bool) error {
 	config, err := pr.loadConfig()
 	if err != nil {
-		return fmt.Errorf("failed to load plugin config: %w", err)
+		return gdlerrors.NewConfigError("failed to load plugin config", err, pr.configFile)
 	}
 
 	pluginInfo, exists := config.Plugins[name]
 	if !exists {
-		return fmt.Errorf("plugin %s not found", name)
+		return gdlerrors.NewPluginError(name, nil, "plugin not found")
 	}
 
 	pluginInfo.Enabled = enabled
 
 	if err := pr.saveConfig(config); err != nil {
-		return fmt.Errorf("failed to save plugin config: %w", err)
+		return gdlerrors.NewConfigError("failed to save plugin config", err, pr.configFile)
 	}
 
 	return nil
@@ -185,12 +186,12 @@ func (pr *PluginRegistry) setPluginEnabled(name string, enabled bool) error {
 func (pr *PluginRegistry) Configure(ctx context.Context, name, key, value string) error {
 	config, err := pr.loadConfig()
 	if err != nil {
-		return fmt.Errorf("failed to load plugin config: %w", err)
+		return gdlerrors.NewConfigError("failed to load plugin config", err, pr.configFile)
 	}
 
 	pluginInfo, exists := config.Plugins[name]
 	if !exists {
-		return fmt.Errorf("plugin %s not found", name)
+		return gdlerrors.NewPluginError(name, nil, "plugin not found")
 	}
 
 	if pluginInfo.Config == nil {
@@ -200,7 +201,7 @@ func (pr *PluginRegistry) Configure(ctx context.Context, name, key, value string
 	pluginInfo.Config[key] = value
 
 	if err := pr.saveConfig(config); err != nil {
-		return fmt.Errorf("failed to save plugin config: %w", err)
+		return gdlerrors.NewConfigError("failed to save plugin config", err, pr.configFile)
 	}
 
 	return nil
@@ -227,7 +228,8 @@ func (pr *PluginRegistry) GetEnabledPlugins(ctx context.Context) ([]*PluginInfo,
 func (pr *PluginRegistry) LoadPlugins(ctx context.Context, pluginManager *plugin.PluginManager) error {
 	enabledPlugins, err := pr.GetEnabledPlugins(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to get enabled plugins: %w", err)
+		// GetEnabledPlugins already returns structured DownloadError, preserve it
+		return err
 	}
 
 	for _, pluginInfo := range enabledPlugins {
@@ -295,7 +297,7 @@ func (pr *PluginRegistry) copyLocalFile(source, destination string) error {
 
 	sourceFile, err := os.Open(cleanSource) // #nosec G304 - path is cleaned and validated above
 	if err != nil {
-		return fmt.Errorf("failed to open source file: %w", err)
+		return gdlerrors.NewStorageError("open source file", err, cleanSource)
 	}
 	defer func() {
 		if err := sourceFile.Close(); err != nil {
@@ -305,7 +307,7 @@ func (pr *PluginRegistry) copyLocalFile(source, destination string) error {
 
 	destFile, err := os.Create(cleanDest) // #nosec G304 - path is cleaned and validated above
 	if err != nil {
-		return fmt.Errorf("failed to create destination file: %w", err)
+		return gdlerrors.NewStorageError("create destination file", err, cleanDest)
 	}
 	defer func() {
 		if err := destFile.Close(); err != nil {
@@ -314,7 +316,7 @@ func (pr *PluginRegistry) copyLocalFile(source, destination string) error {
 	}()
 
 	if _, err := destFile.ReadFrom(sourceFile); err != nil {
-		return fmt.Errorf("failed to copy file: %w", err)
+		return gdlerrors.NewStorageError("copy file", err, destination)
 	}
 
 	return nil
@@ -332,7 +334,7 @@ func (pr *PluginRegistry) loadConfig() (*PluginConfig, error) {
 
 	data, err := os.ReadFile(pr.configFile)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read config file: %w", err)
+		return nil, gdlerrors.NewStorageError("read config file", err, pr.configFile)
 	}
 
 	if len(data) == 0 {
@@ -340,7 +342,7 @@ func (pr *PluginRegistry) loadConfig() (*PluginConfig, error) {
 	}
 
 	if err := json.Unmarshal(data, config); err != nil {
-		return nil, fmt.Errorf("failed to parse config file: %w", err)
+		return nil, gdlerrors.NewConfigError("failed to parse config file", err, pr.configFile)
 	}
 
 	return config, nil
@@ -351,16 +353,16 @@ func (pr *PluginRegistry) saveConfig(config *PluginConfig) error {
 	// Ensure config directory exists
 	configDir := filepath.Dir(pr.configFile)
 	if err := os.MkdirAll(configDir, 0750); err != nil {
-		return fmt.Errorf("failed to create config directory: %w", err)
+		return gdlerrors.NewInvalidPathError(configDir, err)
 	}
 
 	data, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
-		return fmt.Errorf("failed to marshal config: %w", err)
+		return gdlerrors.NewConfigError("failed to marshal config", err, pr.configFile)
 	}
 
 	if err := os.WriteFile(pr.configFile, data, 0600); err != nil {
-		return fmt.Errorf("failed to write config file: %w", err)
+		return gdlerrors.NewStorageError("write config file", err, pr.configFile)
 	}
 
 	return nil

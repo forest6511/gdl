@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	gdlerrors "github.com/forest6511/gdl/pkg/errors"
 )
 
 // RetryPolicyConfig defines the retry policy configuration.
@@ -297,7 +299,11 @@ func NewConfigLoader(configPath string) *ConfigLoader {
 func DefaultConfigPath() (string, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return "", fmt.Errorf("failed to get user home directory: %w", err)
+		return "", gdlerrors.NewConfigError(
+			"failed to get user home directory",
+			err,
+			"unable to determine default config path",
+		)
 	}
 
 	configDir := filepath.Join(homeDir, ".config", "gdl")
@@ -316,13 +322,21 @@ func (cl *ConfigLoader) Load() (*Config, error) {
 	// Read configuration file
 	data, err := os.ReadFile(cl.configPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read config file %s: %w", cl.configPath, err)
+		return nil, gdlerrors.NewConfigError(
+			fmt.Sprintf("failed to read config file %s", cl.configPath),
+			err,
+			fmt.Sprintf("config path: %s", cl.configPath),
+		)
 	}
 
 	// Parse JSON configuration
 	var config Config
 	if err := json.Unmarshal(data, &config); err != nil {
-		return nil, fmt.Errorf("failed to parse config file %s: %w", cl.configPath, err)
+		return nil, gdlerrors.NewConfigError(
+			fmt.Sprintf("failed to parse config file %s", cl.configPath),
+			err,
+			fmt.Sprintf("config path: %s", cl.configPath),
+		)
 	}
 
 	// Validate and apply defaults for missing fields
@@ -336,18 +350,30 @@ func (cl *ConfigLoader) Save(config *Config) error {
 	// Ensure config directory exists
 	configDir := filepath.Dir(cl.configPath)
 	if err := os.MkdirAll(configDir, 0o750); err != nil {
-		return fmt.Errorf("failed to create config directory %s: %w", configDir, err)
+		return gdlerrors.NewConfigError(
+			fmt.Sprintf("failed to create config directory %s", configDir),
+			err,
+			fmt.Sprintf("config path: %s", cl.configPath),
+		)
 	}
 
 	// Marshal configuration to JSON
 	data, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
-		return fmt.Errorf("failed to marshal config: %w", err)
+		return gdlerrors.NewConfigError(
+			"failed to marshal config",
+			err,
+			fmt.Sprintf("config path: %s", cl.configPath),
+		)
 	}
 
 	// Write configuration file
 	if err := os.WriteFile(cl.configPath, data, 0o600); err != nil {
-		return fmt.Errorf("failed to write config file %s: %w", cl.configPath, err)
+		return gdlerrors.NewConfigError(
+			fmt.Sprintf("failed to write config file %s", cl.configPath),
+			err,
+			fmt.Sprintf("config path: %s", cl.configPath),
+		)
 	}
 
 	return nil
@@ -460,24 +486,27 @@ func (cl *ConfigLoader) applyDefaults(config *Config) {
 // Validate validates the configuration for consistency and correctness.
 func (c *Config) validateRetryPolicy() error {
 	if c.RetryPolicy.MaxRetries < 0 {
-		return fmt.Errorf(
-			"retry policy max_retries must be non-negative, got %d",
-			c.RetryPolicy.MaxRetries,
+		return gdlerrors.NewValidationError(
+			"retry_policy.max_retries",
+			fmt.Sprintf("must be non-negative, got %d", c.RetryPolicy.MaxRetries),
 		)
 	}
 	if c.RetryPolicy.BaseDelay <= 0 {
-		return fmt.Errorf(
-			"retry policy base_delay must be positive, got %v",
-			c.RetryPolicy.BaseDelay,
+		return gdlerrors.NewValidationError(
+			"retry_policy.base_delay",
+			fmt.Sprintf("must be positive, got %v", c.RetryPolicy.BaseDelay),
 		)
 	}
 	if c.RetryPolicy.MaxDelay <= 0 {
-		return fmt.Errorf("retry policy max_delay must be positive, got %v", c.RetryPolicy.MaxDelay)
+		return gdlerrors.NewValidationError(
+			"retry_policy.max_delay",
+			fmt.Sprintf("must be positive, got %v", c.RetryPolicy.MaxDelay),
+		)
 	}
 	if c.RetryPolicy.BackoffFactor <= 0 {
-		return fmt.Errorf(
-			"retry policy backoff_factor must be positive, got %f",
-			c.RetryPolicy.BackoffFactor,
+		return gdlerrors.NewValidationError(
+			"retry_policy.backoff_factor",
+			fmt.Sprintf("must be positive, got %f", c.RetryPolicy.BackoffFactor),
 		)
 	}
 
@@ -488,7 +517,10 @@ func (c *Config) validateRetryPolicy() error {
 		"custom":      true,
 	}
 	if !validStrategies[c.RetryPolicy.Strategy] {
-		return fmt.Errorf("invalid retry strategy: %s", c.RetryPolicy.Strategy)
+		return gdlerrors.NewValidationError(
+			"retry_policy.strategy",
+			fmt.Sprintf("invalid retry strategy: %s", c.RetryPolicy.Strategy),
+		)
 	}
 
 	return nil
@@ -501,7 +533,10 @@ func (c *Config) validateErrorHandling() error {
 		"structured": true,
 	}
 	if !validErrorFormats[c.ErrorHandling.ErrorFormat] {
-		return fmt.Errorf("invalid error format: %s", c.ErrorHandling.ErrorFormat)
+		return gdlerrors.NewValidationError(
+			"error_handling.error_format",
+			fmt.Sprintf("invalid error format: %s", c.ErrorHandling.ErrorFormat),
+		)
 	}
 	return nil
 }
@@ -514,7 +549,10 @@ func (c *Config) validateOutputFormat() error {
 		"table": true,
 	}
 	if !validOutputFormats[c.OutputFormat.Format] {
-		return fmt.Errorf("invalid output format: %s", c.OutputFormat.Format)
+		return gdlerrors.NewValidationError(
+			"output_format.format",
+			fmt.Sprintf("invalid output format: %s", c.OutputFormat.Format),
+		)
 	}
 
 	validLogLevels := map[string]bool{
@@ -524,7 +562,10 @@ func (c *Config) validateOutputFormat() error {
 		"error": true,
 	}
 	if !validLogLevels[c.OutputFormat.LogLevel] {
-		return fmt.Errorf("invalid log level: %s", c.OutputFormat.LogLevel)
+		return gdlerrors.NewValidationError(
+			"output_format.log_level",
+			fmt.Sprintf("invalid log level: %s", c.OutputFormat.LogLevel),
+		)
 	}
 
 	return nil
@@ -532,45 +573,72 @@ func (c *Config) validateOutputFormat() error {
 
 func (c *Config) validateTimeouts() error {
 	if c.Timeouts.ConnectTimeout <= 0 {
-		return fmt.Errorf("connect timeout must be positive, got %v", c.Timeouts.ConnectTimeout)
+		return gdlerrors.NewValidationError(
+			"timeouts.connect_timeout",
+			fmt.Sprintf("must be positive, got %v", c.Timeouts.ConnectTimeout),
+		)
 	}
 	if c.Timeouts.ReadTimeout <= 0 {
-		return fmt.Errorf("read timeout must be positive, got %v", c.Timeouts.ReadTimeout)
+		return gdlerrors.NewValidationError(
+			"timeouts.read_timeout",
+			fmt.Sprintf("must be positive, got %v", c.Timeouts.ReadTimeout),
+		)
 	}
 	if c.Timeouts.WriteTimeout <= 0 {
-		return fmt.Errorf("write timeout must be positive, got %v", c.Timeouts.WriteTimeout)
+		return gdlerrors.NewValidationError(
+			"timeouts.write_timeout",
+			fmt.Sprintf("must be positive, got %v", c.Timeouts.WriteTimeout),
+		)
 	}
 	if c.Timeouts.RequestTimeout <= 0 {
-		return fmt.Errorf("request timeout must be positive, got %v", c.Timeouts.RequestTimeout)
+		return gdlerrors.NewValidationError(
+			"timeouts.request_timeout",
+			fmt.Sprintf("must be positive, got %v", c.Timeouts.RequestTimeout),
+		)
 	}
 	if c.Timeouts.DownloadTimeout <= 0 {
-		return fmt.Errorf("download timeout must be positive, got %v", c.Timeouts.DownloadTimeout)
+		return gdlerrors.NewValidationError(
+			"timeouts.download_timeout",
+			fmt.Sprintf("must be positive, got %v", c.Timeouts.DownloadTimeout),
+		)
 	}
 	return nil
 }
 
 func (c *Config) validateNetwork() error {
 	if c.Network.MaxConcurrentDownloads <= 0 {
-		return fmt.Errorf(
-			"max concurrent downloads must be positive, got %d",
-			c.Network.MaxConcurrentDownloads,
+		return gdlerrors.NewValidationError(
+			"network.max_concurrent_downloads",
+			fmt.Sprintf("must be positive, got %d", c.Network.MaxConcurrentDownloads),
 		)
 	}
 	if c.Network.ChunkSize <= 0 {
-		return fmt.Errorf("chunk size must be positive, got %d", c.Network.ChunkSize)
+		return gdlerrors.NewValidationError(
+			"network.chunk_size",
+			fmt.Sprintf("must be positive, got %d", c.Network.ChunkSize),
+		)
 	}
 	if c.Network.BufferSize <= 0 {
-		return fmt.Errorf("buffer size must be positive, got %d", c.Network.BufferSize)
+		return gdlerrors.NewValidationError(
+			"network.buffer_size",
+			fmt.Sprintf("must be positive, got %d", c.Network.BufferSize),
+		)
 	}
 	if c.Network.MaxRedirects < 0 {
-		return fmt.Errorf("max redirects must be non-negative, got %d", c.Network.MaxRedirects)
+		return gdlerrors.NewValidationError(
+			"network.max_redirects",
+			fmt.Sprintf("must be non-negative, got %d", c.Network.MaxRedirects),
+		)
 	}
 	return nil
 }
 
 func (c *Config) validateStorage() error {
 	if c.Storage.MinFreeSpace < 0 {
-		return fmt.Errorf("min free space must be non-negative, got %d", c.Storage.MinFreeSpace)
+		return gdlerrors.NewValidationError(
+			"storage.min_free_space",
+			fmt.Sprintf("must be non-negative, got %d", c.Storage.MinFreeSpace),
+		)
 	}
 	return nil
 }
@@ -758,11 +826,19 @@ func NewConfigManager(configPath string) (*ConfigManager, error) {
 
 	config, err := loader.Load()
 	if err != nil {
-		return nil, fmt.Errorf("failed to load configuration: %w", err)
+		return nil, gdlerrors.NewConfigError(
+			"failed to load configuration",
+			err,
+			fmt.Sprintf("config path: %s", configPath),
+		)
 	}
 
 	if err := config.Validate(); err != nil {
-		return nil, fmt.Errorf("invalid configuration: %w", err)
+		return nil, gdlerrors.NewConfigError(
+			"invalid configuration",
+			err,
+			fmt.Sprintf("config path: %s", configPath),
+		)
 	}
 
 	return &ConfigManager{
@@ -789,7 +865,11 @@ func (cm *ConfigManager) GetConfig() *Config {
 // UpdateConfig updates the configuration and saves it to file.
 func (cm *ConfigManager) UpdateConfig(config *Config) error {
 	if err := config.Validate(); err != nil {
-		return fmt.Errorf("invalid configuration: %w", err)
+		return gdlerrors.NewConfigError(
+			"invalid configuration",
+			err,
+			"failed to validate updated config",
+		)
 	}
 
 	cm.config = config.Clone()
@@ -806,11 +886,19 @@ func (cm *ConfigManager) SaveConfig() error {
 func (cm *ConfigManager) ReloadConfig() error {
 	config, err := cm.loader.Load()
 	if err != nil {
-		return fmt.Errorf("failed to reload configuration: %w", err)
+		return gdlerrors.NewConfigError(
+			"failed to reload configuration",
+			err,
+			"unable to read config file",
+		)
 	}
 
 	if err := config.Validate(); err != nil {
-		return fmt.Errorf("invalid configuration: %w", err)
+		return gdlerrors.NewConfigError(
+			"invalid configuration",
+			err,
+			"reloaded config failed validation",
+		)
 	}
 
 	cm.config = config

@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	gdlerrors "github.com/forest6511/gdl/pkg/errors"
 )
 
 // ConfigVersion represents a configuration version
@@ -62,13 +64,12 @@ func (cm *ConfigMigrator) MigrateConfig(config map[string]interface{}) (map[stri
 	}
 
 	if version > cm.currentVersion {
-		return nil, fmt.Errorf("configuration version %d is newer than supported version %d",
-			version, cm.currentVersion)
+		return nil, gdlerrors.NewConfigError(fmt.Sprintf("configuration version %d is newer than supported version %d", version, cm.currentVersion), nil, "")
 	}
 
 	// Create backup before migration
 	if err := cm.backupConfig(config, version); err != nil {
-		return nil, fmt.Errorf("failed to backup configuration: %w", err)
+		return nil, gdlerrors.NewConfigError("failed to backup configuration", err, "")
 	}
 
 	// Apply migrations sequentially
@@ -76,7 +77,7 @@ func (cm *ConfigMigrator) MigrateConfig(config map[string]interface{}) (map[stri
 	for v := version; v < cm.currentVersion; v++ {
 		migrations, exists := cm.migrations[v]
 		if !exists {
-			return nil, fmt.Errorf("no migration path from version %d to %d", v, v+1)
+			return nil, gdlerrors.NewConfigError(fmt.Sprintf("no migration path from version %d to %d", v, v+1), nil, "")
 		}
 
 		// Find the appropriate migration
@@ -89,14 +90,13 @@ func (cm *ConfigMigrator) MigrateConfig(config map[string]interface{}) (map[stri
 		}
 
 		if migration == nil {
-			return nil, fmt.Errorf("no migration found from version %d to %d", v, v+1)
+			return nil, gdlerrors.NewConfigError(fmt.Sprintf("no migration found from version %d to %d", v, v+1), nil, "")
 		}
 
 		// Apply migration
 		newConfig, err := migration.Migrate(currentConfig)
 		if err != nil {
-			return nil, fmt.Errorf("migration from version %d to %d failed: %w",
-				migration.FromVersion, migration.ToVersion, err)
+			return nil, gdlerrors.NewConfigError(fmt.Sprintf("migration from version %d to %d failed", migration.FromVersion, migration.ToVersion), err, "")
 		}
 
 		currentConfig = newConfig
@@ -124,11 +124,11 @@ func (cm *ConfigMigrator) getConfigVersion(config map[string]interface{}) (int, 
 	case string:
 		var version int
 		if _, err := fmt.Sscanf(v, "%d", &version); err != nil {
-			return 0, fmt.Errorf("invalid version format: %s", v)
+			return 0, gdlerrors.NewValidationError("version_format", fmt.Sprintf("invalid version format: %s", v))
 		}
 		return version, nil
 	default:
-		return 0, fmt.Errorf("unsupported version type: %T", versionRaw)
+		return 0, gdlerrors.NewValidationError("version_type", fmt.Sprintf("unsupported version type: %T", versionRaw))
 	}
 }
 
@@ -213,8 +213,7 @@ func (cm *ConfigMigrator) ValidateConfig(config map[string]interface{}) error {
 	}
 
 	if version != cm.currentVersion {
-		return fmt.Errorf("configuration version mismatch: expected %d, got %d",
-			cm.currentVersion, version)
+		return gdlerrors.NewValidationError("version", fmt.Sprintf("configuration version mismatch: expected %d, got %d", cm.currentVersion, version))
 	}
 
 	// Additional validation can be added here
@@ -394,7 +393,7 @@ func (pcm *PluginConfigManager) ReloadAllConfigs() error {
 
 			config, err := pcm.migrator.LoadConfig(configPath)
 			if err != nil {
-				return fmt.Errorf("failed to load config for %s: %w", pluginName, err)
+				return gdlerrors.NewConfigError("failed to load config", err, pluginName)
 			}
 
 			pcm.configs[pluginName] = config

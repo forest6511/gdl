@@ -556,7 +556,8 @@ func TestPluginErrors(t *testing.T) {
 			t.Fatal("Expected error from Close() due to plugin3 close error")
 		}
 
-		if !containsString(err.Error(), "close error") {
+		if !containsString(err.Error(), "close error") &&
+			!containsString(err.Error(), "plugin error") {
 			t.Errorf("Expected close error, got: %v", err)
 		}
 
