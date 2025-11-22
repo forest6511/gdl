@@ -2,7 +2,66 @@
 
 Thank you for your interest in contributing to gdl! This guide will help you get started.
 
-## Getting Started
+## 🚀 Quick Start (5 Minutes)
+
+Get your development environment ready in 5 minutes:
+
+```bash
+# 1. Fork and clone
+git clone https://github.com/YOUR_USERNAME/gdl.git
+cd gdl
+
+# 2. Install dependencies
+go mod download
+
+# 3. Setup git hooks (auto-formats code, runs checks)
+./scripts/setup-git-hooks.sh
+
+# 4. Verify everything works
+go test ./...
+make ci-check  # Full CI validation
+```
+
+**That's it!** You're ready to contribute.
+
+## 📋 Finding Issues to Work On
+
+### Good First Issues
+New to the project? Start here:
+- [Good First Issues](https://github.com/forest6511/gdl/labels/good%20first%20issue) - Beginner-friendly tasks
+- [Documentation](https://github.com/forest6511/gdl/labels/documentation) - Great for first contributions
+- [Help Wanted](https://github.com/forest6511/gdl/labels/help%20wanted) - Issues where we need help
+
+### Issue Difficulty Labels
+- 🟢 **Easy** - Simple changes, good for beginners
+- 🟡 **Medium** - Moderate complexity, some codebase knowledge needed
+- 🔴 **Hard** - Complex issues, deep codebase knowledge required
+
+## 📁 Project Structure Overview
+
+```
+gdl/
+├── cmd/gdl/          # CLI application
+├── pkg/              # Public APIs (stable)
+│   ├── errors/       # Error types
+│   ├── progress/     # Progress tracking
+│   ├── middleware/   # Request middleware
+│   └── plugin/       # Plugin system
+├── internal/         # Internal packages (may change)
+│   ├── core/         # Core download logic
+│   ├── concurrent/   # Concurrency handling
+│   └── network/      # HTTP client
+├── docs/             # Documentation
+├── examples/         # Usage examples
+└── scripts/          # Development scripts
+```
+
+**Key files to know:**
+- `gdl.go` - Main public API entry point
+- `internal/core/downloader.go` - Core download logic
+- `cmd/gdl/main.go` - CLI entry point
+
+## Getting Started (Detailed)
 
 ### Prerequisites
 - Go 1.24 or later
