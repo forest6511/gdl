@@ -8,6 +8,37 @@ A fast, concurrent, and feature-rich file downloader library and CLI tool writte
 [![Go Reference](https://pkg.go.dev/badge/github.com/forest6511/gdl.svg)](https://pkg.go.dev/github.com/forest6511/gdl)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+## ⚡ Quick Start
+
+### Install
+
+```bash
+# Go users (recommended - works on all platforms)
+go install github.com/forest6511/gdl/cmd/gdl@latest
+
+# macOS/Linux via Homebrew
+brew install forest6511/tap/gdl
+
+# Or download binaries from GitHub Releases
+# https://github.com/forest6511/gdl/releases
+```
+
+### Download Your First File
+
+```bash
+# Simple download - gdl automatically optimizes for file size
+gdl https://example.com/file.zip
+
+# With resume support (recommended for large files)
+gdl --resume https://releases.ubuntu.com/22.04/ubuntu-22.04-desktop-amd64.iso
+```
+
+gdl automatically detects optimal concurrency, resumes interrupted downloads, and handles errors gracefully.
+
+**Next Steps:** [Scenario Guides](docs/starters/) | [CLI Reference](docs/CLI_REFERENCE.md) | [API Reference](docs/API_REFERENCE.md)
+
+---
+
 ## ✨ Features
 
 - **🚀 Optimized Performance**: Smart defaults with adaptive concurrency based on file size
@@ -202,7 +233,9 @@ func main() {
 - **[🔧 Maintenance Guide](docs/MAINTENANCE.md)** - Development and maintenance procedures
 - **[🚨 Error Handling](docs/errors/README.md)** - Error types and handling strategies
 - **[🔌 Plugin Development](docs/PLUGIN_DEVELOPMENT.md)** - Plugin development guide
+- **[🎨 Plugin Gallery](docs/PLUGIN_GALLERY.md)** - Example plugins and extensions
 - **[🚀 Extending Guide](docs/EXTENDING.md)** - Extension points and customization
+- **[📜 Compatibility Policy](docs/COMPATIBILITY.md)** - Versioning and API stability
 - **[📦 Go Package Docs](https://pkg.go.dev/github.com/forest6511/gdl)** - Generated Go documentation
 
 ## 📋 Complete CLI Reference
